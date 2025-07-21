@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Do not provide any code unless explicitly asked.
+Make refactors and code changes as incremental as possible so they can be thoroughly tested by the user.
+Provide a unit test for every function created.
+Comment liberally throughout that would make it easy to use auto documentation software.
