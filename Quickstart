@@ -25,25 +25,22 @@ EOF
 
 # Function to check if a command exists
 command_exists() {
-    echo "Checking if command '$1' exists..."
     if command -v "$1" >/dev/null 2>&1; then
-        echo "Command '$1' found."
         return 0
     else
-        echo "Command '$1' not found."
+        echo "'$1' not found."
         return 1
     fi
 }
 
 # Check required dependencies
 check_dependencies() {
-    if ! command_exists docker; then
+    if ! command_exists uv; then
         cat <<EOF
 
-Docker is not installed. Install it using:
+uv is not installed. Install it using:
 
-curl -fsSL https://get.docker.com -o get-docker.sh && \\
-    sudo sh get-docker.sh
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
 EOF
         exit 1
@@ -69,28 +66,11 @@ brew tap aws/tap && \\
 EOF
         exit 1
     fi
-
-    if ! command_exists pip; then
-        cat <<EOF
-
-Pip is not installed. Install it with:
-
-Linux:
-
-sudo apt install python3-pip
-
-macOS:
-
-brew install python3
-
-EOF
-        exit 1
-    fi
 }
 
 # Main function of the script
 main() {
-    local FUNCTION="cerebro"
+    local FUNCTION="datasheetminer"
 
     # Parse arguments
     while [[ "$#" -gt 0 ]]; do
@@ -111,38 +91,16 @@ main() {
         esac
     done
 
-    echo "Current PATH: $PATH"
-    echo "Checking if 'sam' is available..."
-    which sam || echo "'sam' not found in PATH"
-
-    # Check for required dependencies
-    echo "Checking dependencies..."
     check_dependencies
-
-    # Install virtual environment
-    echo "Activating environment..."
-    # In Quickstart.sh, under "Activating environment..."
-    echo "Activating environment..."
-    if [ ! -d "venv" ]; then
-        echo "Virtual environment not found. Creating one..."
-        python3 -m venv venv && \
-            source venv/bin/activate && \
-            pip install -q --upgrade pip && \
-            pip install -q -r requirements.txt
-    fi
-
-    source venv/bin/activate
 
     # Deploy updates to AWS
     echo "Updating endpoint..."
-    black -q cerebro/ && \
+    uv run ruff format && \
+        PYTHONPATH="datasheetminer" uv run pytest tests/unit && \
         sam validate --lint && \
         sam build && \
-        PYTHONPATH="$(pwd)"/cerebro pytest -q tests/unit && \
-        PYTHONPATH="$(pwd)"/cerebro pytest -q tests/integration && \
-        deactivate
-
-    sam sync --stack-name cerebro-reverse-proxy --watch
+        sam deploy && \
+        PYTHONPATH="datasheetminer" uv run pytest tests/integration
 }
 
 main "$@"

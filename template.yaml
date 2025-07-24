@@ -42,15 +42,8 @@ Resources:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /hello
-            Method: get
-        ApiEndpoint:
-          Type: Api
-          Properties:
-            Path: /v1/completions
-            Method: POST
+            Method: post
             RestApiId: !Ref ApiGateway
-            Auth:
-              Authorizer: NONE
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -75,7 +68,7 @@ Resources:
       Auth:
         DefaultAuthorizer: NONE
       Cors:
-        AllowHeaders: "'Content-Type,Authorization'"
+        AllowHeaders: "'Content-Type,Authorization,x-api-key'"
         AllowMethods: "'POST,OPTIONS'"
         AllowOrigin: "'*'"
 
@@ -85,16 +78,13 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   HelloWorldApi:
     Description: API Gateway endpoint URL for Prod stage for Hello World function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello"
   HelloWorldFunction:
     Description: Hello World Lambda Function ARN
     Value: !GetAtt HelloWorldFunction.Arn
   HelloWorldFunctionIamRole:
     Description: Implicit IAM Role created for Hello World function
     Value: !GetAtt HelloWorldFunctionRole.Arn
-  ApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/v1/completions"
   LambdaFunctionArn:
     Description: "HelloWorld Function Lambda Function ARN"
     Value: !GetAtt HelloWorldFunction.Arn

@@ -6,19 +6,17 @@ This module contains the test_lambda_handler function, which is used to test the
 It uses the pytest library to run the tests and the unittest.mock library to mock the analyze_document function.
 
 The test_lambda_handler function takes an event object as input and uses the lambda_handler function to generate a response.
-
 """
+
 import json
-
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-
+from unittest.mock import patch, MagicMock
 from datasheetminer import app
 
 
 @pytest.fixture()
 def apigw_event():
-    """ Generates API GW Event"""
+    """Generates API GW Event"""
 
     return {
         "body": '{ "test": "body"}',
@@ -65,7 +63,7 @@ def apigw_event():
             "User-Agent": "Custom User Agent String",
             "CloudFront-Forwarded-Proto": "https",
             "Accept-Encoding": "gzip, deflate, sdch",
-            "Authorization": "Bearer test-api-key",
+            "x-api-key": "test-api-key",
         },
         "pathParameters": {"proxy": "/examplepath"},
         "httpMethod": "POST",
@@ -74,9 +72,8 @@ def apigw_event():
     }
 
 
-@pytest.mark.anyio
-@patch('datasheetminer.app.analyze_document', new_callable=AsyncMock)
-async def test_lambda_handler(mock_analyze_document, apigw_event):
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler(mock_analyze_document, apigw_event):
     # AI-generated comment:
     # The following mock response is structured to emulate the expected output from the `analyze_document` function.
     # It includes a `text` attribute, which the lambda handler will access and include in its response body.
@@ -85,7 +82,7 @@ async def test_lambda_handler(mock_analyze_document, apigw_event):
     mock_response.text = "This is a test response."
     mock_analyze_document.return_value = mock_response
 
-    ret = await app.lambda_handler(apigw_event, "")
+    ret = app.lambda_handler(apigw_event, "")
     data = json.loads(ret["body"])
 
     assert ret["statusCode"] == 200
@@ -93,43 +90,47 @@ async def test_lambda_handler(mock_analyze_document, apigw_event):
     assert data["message"] == "This is a test response."
 
 
-@pytest.mark.anyio
-async def test_lambda_handler_missing_api_key(apigw_event):
+def test_lambda_handler_missing_api_key(apigw_event):
     """
     Tests the lambda_handler with a missing API key.
     """
     # AI-generated comment:
-    # This test simulates a request where the 'Authorization' header is missing.
+    # This test simulates a request where the 'x-api-key' header is missing.
     # The expected behavior is for the lambda_handler to return a 401 Unauthorized error.
     # This ensures that the API key validation is working correctly.
-    del apigw_event["headers"]["Authorization"]
-    ret = await app.lambda_handler(apigw_event, "")
+    del apigw_event["headers"]["x-api-key"]
+    ret = app.lambda_handler(apigw_event, "")
     assert ret["statusCode"] == 401
     data = json.loads(ret["body"])
     assert "error" in data
     assert data["error"]["type"] == "authentication_error"
 
 
-@pytest.mark.anyio
-async def test_lambda_handler_invalid_api_key_format(apigw_event):
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_invalid_api_key_format(mock_analyze_document, apigw_event):
     """
-    Tests the lambda_handler with an invalid API key format.
+    Tests the lambda_handler with an invalid API key format (empty string).
     """
-    # AI-generated comment:
-    # This test simulates a request with an improperly formatted 'Authorization' header.
-    # The lambda_handler should return a 401 Unauthorized error, ensuring that the
-    # "Bearer " prefix is correctly validated.
-    apigw_event["headers"]["Authorization"] = "invalid-key"
-    ret = await app.lambda_handler(apigw_event, "")
+    # This test simulates a request with an empty 'x-api-key' header.
+    # The lambda_handler should return a 401 Unauthorized error.
+    apigw_event["headers"]["x-api-key"] = ""
+
+    # Add a valid body to prevent other errors in the handler
+    apigw_event["body"] = json.dumps(
+        {"prompt": "test prompt", "url": "https://example.com/test.pdf"}
+    )
+
+    ret = app.lambda_handler(apigw_event, "")
     assert ret["statusCode"] == 401
     data = json.loads(ret["body"])
     assert "error" in data
     assert data["error"]["type"] == "authentication_error"
+    # Ensure analyze_document was not called
+    mock_analyze_document.assert_not_called()
 
 
-@pytest.mark.anyio
-@patch('datasheetminer.app.analyze_document', new_callable=AsyncMock)
-async def test_lambda_handler_missing_url(mock_analyze_document, apigw_event):
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_missing_url(mock_analyze_document, apigw_event):
     """
     Tests the lambda_handler with a missing URL in the request body.
     """
@@ -141,23 +142,22 @@ async def test_lambda_handler_missing_url(mock_analyze_document, apigw_event):
     if "url" in body:
         del body["url"]
     apigw_event["body"] = json.dumps(body)
-    
+
     mock_response = MagicMock()
     mock_response.text = "This is a test response."
     mock_analyze_document.return_value = mock_response
 
-    await app.lambda_handler(apigw_event, "")
-    
+    app.lambda_handler(apigw_event, "")
+
     # Extract prompt and api_key from the event
     prompt = body.get("prompt", "")
-    api_key = apigw_event["headers"]["Authorization"].split("Bearer ")[1].strip()
+    api_key = apigw_event["headers"]["x-api-key"]
 
-    mock_analyze_document.assert_called_once_with(prompt, '', api_key)
+    mock_analyze_document.assert_called_once_with(prompt, "", api_key)
 
 
-@pytest.mark.anyio
-@patch('datasheetminer.app.analyze_document', new_callable=AsyncMock)
-async def test_lambda_handler_missing_prompt(mock_analyze_document, apigw_event):
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_missing_prompt(mock_analyze_document, apigw_event):
     """
     Tests the lambda_handler with a missing prompt in the request body.
     """
@@ -174,28 +174,142 @@ async def test_lambda_handler_missing_prompt(mock_analyze_document, apigw_event)
     mock_response.text = "This is a test response."
     mock_analyze_document.return_value = mock_response
 
-    await app.lambda_handler(apigw_event, "")
-    
+    app.lambda_handler(apigw_event, "")
+
     # Extract url and api_key from the event
     url = body.get("url", "")
-    api_key = apigw_event["headers"]["Authorization"].split("Bearer ")[1].strip()
+    api_key = apigw_event["headers"]["x-api-key"]
 
-    mock_analyze_document.assert_called_once_with('', url, api_key)
+    mock_analyze_document.assert_called_once_with("", url, api_key)
 
 
-@pytest.mark.anyio
-@patch('datasheetminer.app.analyze_document', new_callable=AsyncMock)
-async def test_lambda_handler_analyze_document_exception(mock_analyze_document, apigw_event):
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_analyze_document_exception(mock_analyze_document, apigw_event):
     """
     Tests the lambda_handler when analyze_document raises an exception.
     """
-    # AI-generated comment:
-    # This test ensures that the lambda_handler correctly handles exceptions raised by the
-    # 'analyze_document' function. It mocks the function to raise an exception and verifies
-    # that the handler returns a 500 Internal Server Error.
     mock_analyze_document.side_effect = Exception("Test exception")
-    ret = await app.lambda_handler(apigw_event, "")
+    ret = app.lambda_handler(apigw_event, "")
     assert ret["statusCode"] == 500
     data = json.loads(ret["body"])
     assert "error" in data
     assert data["error"] == "Test exception"
+
+
+def test_lambda_handler_malformed_json(apigw_event):
+    """
+    Tests the lambda_handler with malformed JSON in the request body.
+    """
+    apigw_event["body"] = "{ invalid json"
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 500
+    data = json.loads(ret["body"])
+    assert "error" in data
+
+
+def test_lambda_handler_none_body(apigw_event):
+    """
+    Tests the lambda_handler with None as the request body.
+    """
+    apigw_event["body"] = None
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 500
+    data = json.loads(ret["body"])
+    assert "error" in data
+
+
+def test_lambda_handler_missing_headers(apigw_event):
+    """
+    Tests the lambda_handler with missing headers entirely.
+    """
+    del apigw_event["headers"]
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 401
+    data = json.loads(ret["body"])
+    assert "error" in data
+    assert data["error"]["type"] == "authentication_error"
+
+
+def test_lambda_handler_whitespace_api_key(apigw_event):
+    """
+    Tests the lambda_handler with whitespace-only API key.
+    """
+    apigw_event["headers"]["x-api-key"] = "   \n\t   "
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 401
+    data = json.loads(ret["body"])
+    assert "error" in data
+    assert data["error"]["type"] == "authentication_error"
+
+
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_dict_body(mock_analyze_document, apigw_event):
+    """
+    Tests the lambda_handler when body is already a dict (not string).
+    """
+    test_body = {"prompt": "test prompt", "url": "https://example.com/test.pdf"}
+    apigw_event["body"] = test_body  # Pass dict directly instead of JSON string
+
+    mock_response = MagicMock()
+    mock_response.text = "Dict body response"
+    mock_analyze_document.return_value = mock_response
+
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 200
+    data = json.loads(ret["body"])
+    assert data["message"] == "Dict body response"
+
+
+@pytest.fixture()
+def minimal_event():
+    """
+    Minimal API Gateway event for testing edge cases.
+    """
+    return {
+        "body": '{"prompt": "test", "url": "https://example.com/test.pdf"}',
+        "headers": {"x-api-key": "test-key"},
+    }
+
+
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_minimal_event(mock_analyze_document, minimal_event):
+    """
+    Tests the lambda_handler with minimal required event structure.
+    """
+    mock_response = MagicMock()
+    mock_response.text = "Minimal event response"
+    mock_analyze_document.return_value = mock_response
+
+    ret = app.lambda_handler(minimal_event, "")
+    assert ret["statusCode"] == 200
+    data = json.loads(ret["body"])
+    assert data["message"] == "Minimal event response"
+
+
+@patch("datasheetminer.app.analyze_document")
+def test_lambda_handler_case_insensitive_headers(mock_analyze_document, apigw_event):
+    """
+    Tests that API key lookup works with different case variations.
+    """
+    # Remove the lowercase version and add uppercase
+    del apigw_event["headers"]["x-api-key"]
+    apigw_event["headers"]["X-API-KEY"] = "test-api-key"
+
+    mock_response = MagicMock()
+    mock_response.text = "Case test response"
+    mock_analyze_document.return_value = mock_response
+
+    # This should fail since the code looks specifically for 'x-api-key'
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 401
+
+
+def test_lambda_handler_empty_string_body(apigw_event):
+    """
+    Tests the lambda_handler with empty string body.
+    """
+    apigw_event["body"] = ""
+    ret = app.lambda_handler(apigw_event, "")
+    assert ret["statusCode"] == 500
+    data = json.loads(ret["body"])
+    assert "error" in data

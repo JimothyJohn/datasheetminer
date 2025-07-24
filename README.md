@@ -1,3 +1,4 @@
+![datasheetminer.jpg](docs/datasheetminer.jpg)
 # Datasheet Miner
 
 Extract technical specifications from product datasheets using AI. Deploy as an AWS Lambda service that analyzes PDFs and returns structured data.
