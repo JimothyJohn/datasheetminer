@@ -256,12 +256,12 @@ $RECYCLE.BIN/
 *venv
 *.env
 .env.*
-!.env.example
 .ruff_cache/
 *.pdf
 *.log
 *.tmp
 *.bak
+*.json
 
 # Keep docs assets
 !docs/*.jpg
