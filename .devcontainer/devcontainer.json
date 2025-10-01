@@ -1,0 +1,32 @@
+// devcontainer.json
+{
+    "name": "Cerebro Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."  // Change from "." to ".."
+    },
+    "runArgs": [
+        "--privileged"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-azuretools.vscode-docker",
+                "amazonwebservices.aws-toolkit-vscode"
+            ],
+            "settings": {
+                "terminal.integrated.shell.linux": "/bin/bash"
+            }
+        }
+    },
+    "containerEnv": {
+        "REPLICATE_API_TOKEN": "${REPLICATE_API_TOKEN}",
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "AWS_DEFAULT_REGION": "${AWS_DEFAULT_REGION}"
+    },
+    "postCreateCommand": "sam --version && aws --version && pip install -r requirements.txt",
+    "remoteUser": "root"
+}

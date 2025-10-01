@@ -251,9 +251,17 @@ $RECYCLE.BIN/
 
 # End of https://www.gitignore.io/api/osx,linux,python,windows,pycharm,visualstudiocode
 
-### My stuff
+### Project-specific
 .aws-sam/
 *venv
 *.env
-*.json
+.env.*
+!.env.example
 .ruff_cache/
+*.pdf
+*.log
+*.tmp
+*.bak
+
+# Keep docs assets
+!docs/*.jpg

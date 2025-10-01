@@ -8,10 +8,10 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 30
-    MemorySize: 1024
+    Timeout: 300
+    MemorySize: 2048
     EphemeralStorage:
-      Size: 1024
+      Size: 2048
 
     Tracing: Active
     # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
@@ -29,14 +29,22 @@ Resources:
       Runtime: python3.11
       Architectures:
       - x86_64
+      # AI-generated comment: Add FunctionUrlConfig to enable streaming responses.
+      # AuthType is set to AWS_IAM for secure access, and InvokeMode is set to
+      # RESPONSE_STREAM to allow the function to stream data.
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        InvokeMode: RESPONSE_STREAM
       # Enable access to API keys
       Policies:
         - AWSLambdaBasicExecutionRole
+        # AI-generated comment: This policy grants permission to invoke the Lambda function URL.
+        # This is required for the API Gateway to trigger the function with streaming enabled.
         - Statement:
             - Effect: Allow
               Action:
-                - secretsmanager:GetSecretValue
-              Resource: "*"
+                - lambda:InvokeFunctionUrl
+              Resource: !GetAtt HelloWorldFunction.Arn
       Events:
         HelloWorld:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
@@ -88,3 +96,8 @@ Outputs:
   LambdaFunctionArn:
     Description: "HelloWorld Function Lambda Function ARN"
     Value: !GetAtt HelloWorldFunction.Arn
+  # AI-generated comment: Add an output for the Lambda Function URL.
+  # This URL is the new endpoint that supports streaming responses.
+  HelloWorldFunctionUrl:
+    Description: "Lambda Function URL for streaming"
+    Value: !GetAtt HelloWorldFunctionUrl.FunctionUrl

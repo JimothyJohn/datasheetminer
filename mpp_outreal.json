@@ -1,0 +1,4712 @@
+[
+  {
+    "model": "MPP0921B",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 3794,
+    "rated_torque_nm": 1.30,
+    "rated_torque_lb_in": 11.5,
+    "rated_power_kw": 0.52,
+    "rated_power_hp": 0.69,
+    "stall_torque_continuous_nm": 1.55,
+    "stall_torque_continuous_lb_in": 13.7,
+    "stall_current_continuous_a": 1.8,
+    "peak_torque_nm": 4.32,
+    "peak_torque_lb_in": 38.2,
+    "peak_current_a": 5.8,
+    "rated_current_a": 1.59,
+    "voltage_constant_vrms_krpm": 51.63,
+    "torque_constant_nm_a": 0.854,
+    "resistance_ohm": 11.00,
+    "inductance_mh": 47,
+    "rotor_inertia_kg_m2": 0.00004407,
+    "rotor_inertia_lb_in_s2": 0.00039,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0921B",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 3794,
+    "rated_torque_nm": 1.30,
+    "rated_torque_lb_in": 11.5,
+    "rated_power_kw": 0.52,
+    "rated_power_hp": 0.69,
+    "stall_torque_continuous_nm": 1.55,
+    "stall_torque_continuous_lb_in": 13.7,
+    "stall_current_continuous_a": 1.8,
+    "peak_torque_nm": 4.32,
+    "peak_torque_lb_in": 38.2,
+    "peak_current_a": 5.8,
+    "rated_current_a": 1.59,
+    "voltage_constant_vrms_krpm": 51.63,
+    "torque_constant_nm_a": 0.854,
+    "resistance_ohm": 11.00,
+    "inductance_mh": 47,
+    "rotor_inertia_kg_m2": 0.0003911,
+    "rotor_inertia_lb_in_s2": 0.003462,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0921C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 1.17,
+    "rated_torque_lb_in": 10.4,
+    "rated_power_kw": 0.61,
+    "rated_power_hp": 0.81,
+    "stall_torque_continuous_nm": 1.58,
+    "stall_torque_continuous_lb_in": 14.0,
+    "stall_current_continuous_a": 2.9,
+    "peak_torque_nm": 4.38,
+    "peak_torque_lb_in": 38.8,
+    "peak_current_a": 9.0,
+    "rated_current_a": 2.24,
+    "voltage_constant_vrms_krpm": 33.72,
+    "torque_constant_nm_a": 0.558,
+    "resistance_ohm": 4.52,
+    "inductance_mh": 20,
+    "rotor_inertia_kg_m2": 0.00004407,
+    "rotor_inertia_lb_in_s2": 0.00039,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0921C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 1.17,
+    "rated_torque_lb_in": 10.4,
+    "rated_power_kw": 0.61,
+    "rated_power_hp": 0.81,
+    "stall_torque_continuous_nm": 1.58,
+    "stall_torque_continuous_lb_in": 14.0,
+    "stall_current_continuous_a": 2.9,
+    "peak_torque_nm": 4.38,
+    "peak_torque_lb_in": 38.8,
+    "peak_current_a": 9.0,
+    "rated_current_a": 2.24,
+    "voltage_constant_vrms_krpm": 33.72,
+    "torque_constant_nm_a": 0.558,
+    "resistance_ohm": 4.52,
+    "inductance_mh": 20,
+    "rotor_inertia_kg_m2": 0.0003911,
+    "rotor_inertia_lb_in_s2": 0.003462,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0922C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4288,
+    "rated_torque_nm": 2.41,
+    "rated_torque_lb_in": 21.3,
+    "rated_power_kw": 1.08,
+    "rated_power_hp": 1.44,
+    "stall_torque_continuous_nm": 2.94,
+    "stall_torque_continuous_lb_in": 26.0,
+    "stall_current_continuous_a": 3.7,
+    "peak_torque_nm": 8.29,
+    "peak_torque_lb_in": 73.3,
+    "peak_current_a": 11.8,
+    "rated_current_a": 3.15,
+    "voltage_constant_vrms_krpm": 48.09,
+    "torque_constant_nm_a": 0.795,
+    "resistance_ohm": 3.90,
+    "inductance_mh": 19,
+    "rotor_inertia_kg_m2": 0.00007796,
+    "rotor_inertia_lb_in_s2": 0.00069,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0922C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4288,
+    "rated_torque_nm": 2.41,
+    "rated_torque_lb_in": 21.3,
+    "rated_power_kw": 1.08,
+    "rated_power_hp": 1.44,
+    "stall_torque_continuous_nm": 2.94,
+    "stall_torque_continuous_lb_in": 26.0,
+    "stall_current_continuous_a": 3.7,
+    "peak_torque_nm": 8.29,
+    "peak_torque_lb_in": 73.3,
+    "peak_current_a": 11.8,
+    "rated_current_a": 3.15,
+    "voltage_constant_vrms_krpm": 48.09,
+    "torque_constant_nm_a": 0.795,
+    "resistance_ohm": 3.90,
+    "inductance_mh": 19,
+    "rotor_inertia_kg_m2": 0.0004261,
+    "rotor_inertia_lb_in_s2": 0.003772,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0922D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 2.39,
+    "rated_torque_lb_in": 21.1,
+    "rated_power_kw": 1.24,
+    "rated_power_hp": 1.65,
+    "stall_torque_continuous_nm": 3.11,
+    "stall_torque_continuous_lb_in": 27.5,
+    "stall_current_continuous_a": 5.6,
+    "peak_torque_nm": 8.67,
+    "peak_torque_lb_in": 76.8,
+    "peak_current_a": 17.7,
+    "rated_current_a": 4.45,
+    "voltage_constant_vrms_krpm": 33.95,
+    "torque_constant_nm_a": 0.561,
+    "resistance_ohm": 1.73,
+    "inductance_mh": 9,
+    "rotor_inertia_kg_m2": 0.00007796,
+    "rotor_inertia_lb_in_s2": 0.00069,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0922D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 2.39,
+    "rated_torque_lb_in": 21.1,
+    "rated_power_kw": 1.24,
+    "rated_power_hp": 1.65,
+    "stall_torque_continuous_nm": 3.11,
+    "stall_torque_continuous_lb_in": 27.5,
+    "stall_current_continuous_a": 5.6,
+    "peak_torque_nm": 8.67,
+    "peak_torque_lb_in": 76.8,
+    "peak_current_a": 17.7,
+    "rated_current_a": 4.45,
+    "voltage_constant_vrms_krpm": 33.95,
+    "torque_constant_nm_a": 0.561,
+    "resistance_ohm": 1.73,
+    "inductance_mh": 9,
+    "rotor_inertia_kg_m2": 0.0004261,
+    "rotor_inertia_lb_in_s2": 0.003772,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0923D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 3.00,
+    "rated_torque_lb_in": 26.5,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.03,
+    "stall_torque_continuous_lb_in": 35.6,
+    "stall_current_continuous_a": 7.2,
+    "peak_torque_nm": 11.55,
+    "peak_torque_lb_in": 102.2,
+    "peak_current_a": 22.8,
+    "rated_current_a": 5.59,
+    "voltage_constant_vrms_krpm": 33.95,
+    "torque_constant_nm_a": 0.561,
+    "resistance_ohm": 1.20,
+    "inductance_mh": 6,
+    "rotor_inertia_kg_m2": 0.000113,
+    "rotor_inertia_lb_in_s2": 0.001,
+    "weight_kg": 4.59,
+    "weight_lb": 10.12,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 115.2,
+      "L_mm": 218.0,
+      "LB_mm": 178.0,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0921R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 1.17,
+    "rated_torque_lb_in": 10.4,
+    "rated_power_kw": 0.61,
+    "rated_power_hp": 0.81,
+    "stall_torque_continuous_nm": 1.58,
+    "stall_torque_continuous_lb_in": 14.0,
+    "stall_current_continuous_a": 1.4,
+    "peak_torque_nm": 4.38,
+    "peak_torque_lb_in": 38.8,
+    "peak_current_a": 4.5,
+    "rated_current_a": 1.12,
+    "voltage_constant_vrms_krpm": 67.43,
+    "torque_constant_nm_a": 1.115,
+    "resistance_ohm": 18.12,
+    "inductance_mh": 80,
+    "rotor_inertia_kg_m2": 0.00004407,
+    "rotor_inertia_lb_in_s2": 0.00039,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0921R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 1.17,
+    "rated_torque_lb_in": 10.4,
+    "rated_power_kw": 0.61,
+    "rated_power_hp": 0.81,
+    "stall_torque_continuous_nm": 1.58,
+    "stall_torque_continuous_lb_in": 14.0,
+    "stall_current_continuous_a": 1.4,
+    "peak_torque_nm": 4.38,
+    "peak_torque_lb_in": 38.8,
+    "peak_current_a": 4.5,
+    "rated_current_a": 1.12,
+    "voltage_constant_vrms_krpm": 67.43,
+    "torque_constant_nm_a": 1.115,
+    "resistance_ohm": 18.12,
+    "inductance_mh": 80,
+    "rotor_inertia_kg_m2": 0.0003911,
+    "rotor_inertia_lb_in_s2": 0.003462,
+    "weight_kg": 2.69,
+    "weight_lb": 5.94,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 64.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 64.2,
+      "L_mm": 167.0,
+      "LB_mm": 127.2,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0922R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 2.38,
+    "rated_torque_lb_in": 21.1,
+    "rated_power_kw": 1.24,
+    "rated_power_hp": 1.65,
+    "stall_torque_continuous_nm": 3.11,
+    "stall_torque_continuous_lb_in": 27.5,
+    "stall_current_continuous_a": 2.8,
+    "peak_torque_nm": 8.67,
+    "peak_torque_lb_in": 76.7,
+    "peak_current_a": 8.8,
+    "rated_current_a": 2.22,
+    "voltage_constant_vrms_krpm": 67.90,
+    "torque_constant_nm_a": 1.123,
+    "resistance_ohm": 6.94,
+    "inductance_mh": 38,
+    "rotor_inertia_kg_m2": 0.00007796,
+    "rotor_inertia_lb_in_s2": 0.00069,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPJ0922R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 2.38,
+    "rated_torque_lb_in": 21.1,
+    "rated_power_kw": 1.24,
+    "rated_power_hp": 1.65,
+    "stall_torque_continuous_nm": 3.11,
+    "stall_torque_continuous_lb_in": 27.5,
+    "stall_current_continuous_a": 2.8,
+    "peak_torque_nm": 8.67,
+    "peak_torque_lb_in": 76.7,
+    "peak_current_a": 8.8,
+    "rated_current_a": 2.22,
+    "voltage_constant_vrms_krpm": 67.90,
+    "torque_constant_nm_a": 1.123,
+    "resistance_ohm": 6.94,
+    "inductance_mh": 38,
+    "rotor_inertia_kg_m2": 0.0004261,
+    "rotor_inertia_lb_in_s2": 0.003772,
+    "weight_kg": 3.69,
+    "weight_lb": 8.14,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 90.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 90.2,
+      "L_mm": 193.0,
+      "LB_mm": 152.6,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP0923R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4947,
+    "rated_torque_nm": 3.00,
+    "rated_torque_lb_in": 26.5,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.02,
+    "stall_torque_continuous_lb_in": 35.6,
+    "stall_current_continuous_a": 3.6,
+    "peak_torque_nm": 11.54,
+    "peak_torque_lb_in": 102.1,
+    "peak_current_a": 11.4,
+    "rated_current_a": 2.79,
+    "voltage_constant_vrms_krpm": 67.90,
+    "torque_constant_nm_a": 1.123,
+    "resistance_ohm": 4.81,
+    "inductance_mh": 26,
+    "rotor_inertia_kg_m2": 0.000113,
+    "rotor_inertia_lb_in_s2": 0.001,
+    "weight_kg": 4.59,
+    "weight_lb": 10.12,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 92.0,
+      "height_mm": 136.4,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 16.007
+    },
+    "detailed_dimensions": {
+      "AD_mm": 92.0,
+      "HD_mm": 136.4,
+      "T_mm": 2.9,
+      "LA_mm": 9.9,
+      "LD_mm": 115.2,
+      "L_mm": 218.0,
+      "LB_mm": 178.0,
+      "L_LB_mm": 40.1,
+      "D_mm": 16.007,
+      "M_mm": 100.0,
+      "S_mm": 7.0,
+      "N_mm": 80.012,
+      "P_mm": 88.8,
+      "F_mm": 3.0,
+      "GE_mm": 5.0,
+      "E_size": "M5 X 0.8, 12.5 dp."
+    }
+  },
+  {
+    "model": "MPP1002D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4782,
+    "rated_torque_nm": 3.10,
+    "rated_torque_lb_in": 27.4,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.56,
+    "stall_torque_continuous_lb_in": 40.3,
+    "stall_current_continuous_a": 7.9,
+    "peak_torque_nm": 12.69,
+    "peak_torque_lb_in": 112.3,
+    "peak_current_a": 24.9,
+    "rated_current_a": 5.58,
+    "voltage_constant_vrms_krpm": 35.36,
+    "torque_constant_nm_a": 0.585,
+    "resistance_ohm": 0.96,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.0002599,
+    "rotor_inertia_lb_in_s2": 0.0023,
+    "weight_kg": 4.29,
+    "weight_lb": 9.46,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 86.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 86.2,
+      "L_mm": 189.2,
+      "LB_mm": 149.1,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPJ1002D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4782,
+    "rated_torque_nm": 3.10,
+    "rated_torque_lb_in": 27.4,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.56,
+    "stall_torque_continuous_lb_in": 40.3,
+    "stall_current_continuous_a": 7.9,
+    "peak_torque_nm": 12.69,
+    "peak_torque_lb_in": 112.3,
+    "peak_current_a": 24.9,
+    "rated_current_a": 5.58,
+    "voltage_constant_vrms_krpm": 35.36,
+    "torque_constant_nm_a": 0.585,
+    "resistance_ohm": 0.96,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.0008236,
+    "rotor_inertia_lb_in_s2": 0.00729,
+    "weight_kg": 4.29,
+    "weight_lb": 9.46,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 86.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 86.2,
+      "L_mm": 189.2,
+      "LB_mm": 149.1,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1003C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4153,
+    "rated_torque_nm": 4.07,
+    "rated_torque_lb_in": 36.0,
+    "rated_power_kw": 1.77,
+    "rated_power_hp": 2.36,
+    "stall_torque_continuous_nm": 6.03,
+    "stall_torque_continuous_lb_in": 53.4,
+    "stall_current_continuous_a": 7.2,
+    "peak_torque_nm": 17.25,
+    "peak_torque_lb_in": 152.7,
+    "peak_current_a": 22.8,
+    "rated_current_a": 5.09,
+    "voltage_constant_vrms_krpm": 50.92,
+    "torque_constant_nm_a": 0.842,
+    "resistance_ohm": 1.30,
+    "inductance_mh": 6,
+    "rotor_inertia_kg_m2": 0.0003729,
+    "rotor_inertia_lb_in_s2": 0.0033,
+    "weight_kg": 5.49,
+    "weight_lb": 12.10,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 111.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 111.2,
+      "L_mm": 219.2,
+      "LB_mm": 174.5,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1003D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4178,
+    "rated_torque_nm": 4.01,
+    "rated_torque_lb_in": 35.5,
+    "rated_power_kw": 1.76,
+    "rated_power_hp": 2.34,
+    "stall_torque_continuous_nm": 5.99,
+    "stall_torque_continuous_lb_in": 53.0,
+    "stall_current_continuous_a": 10.3,
+    "peak_torque_nm": 17.16,
+    "peak_torque_lb_in": 151.8,
+    "peak_current_a": 32.5,
+    "rated_current_a": 7.22,
+    "voltage_constant_vrms_krpm": 35.49,
+    "torque_constant_nm_a": 0.587,
+    "resistance_ohm": 0.64,
+    "inductance_mh": 3,
+    "rotor_inertia_kg_m2": 0.0003729,
+    "rotor_inertia_lb_in_s2": 0.0033,
+    "weight_kg": 5.49,
+    "weight_lb": 12.10,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 111.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 111.2,
+      "L_mm": 219.2,
+      "LB_mm": 174.5,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1002R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4782,
+    "rated_torque_nm": 3.09,
+    "rated_torque_lb_in": 27.4,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.55,
+    "stall_torque_continuous_lb_in": 40.3,
+    "stall_current_continuous_a": 3.9,
+    "peak_torque_nm": 12.68,
+    "peak_torque_lb_in": 112.2,
+    "peak_current_a": 12.4,
+    "rated_current_a": 2.79,
+    "voltage_constant_vrms_krpm": 70.72,
+    "torque_constant_nm_a": 1.170,
+    "resistance_ohm": 3.85,
+    "inductance_mh": 17,
+    "rotor_inertia_kg_m2": 0.0002599,
+    "rotor_inertia_lb_in_s2": 0.0023,
+    "weight_kg": 4.29,
+    "weight_lb": 9.46,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 86.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 86.2,
+      "L_mm": 189.2,
+      "LB_mm": 149.1,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPJ1002R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4782,
+    "rated_torque_nm": 3.09,
+    "rated_torque_lb_in": 27.4,
+    "rated_power_kw": 1.55,
+    "rated_power_hp": 2.07,
+    "stall_torque_continuous_nm": 4.55,
+    "stall_torque_continuous_lb_in": 40.3,
+    "stall_current_continuous_a": 3.9,
+    "peak_torque_nm": 12.68,
+    "peak_torque_lb_in": 112.2,
+    "peak_current_a": 12.4,
+    "rated_current_a": 2.79,
+    "voltage_constant_vrms_krpm": 70.72,
+    "torque_constant_nm_a": 1.170,
+    "resistance_ohm": 3.85,
+    "inductance_mh": 17,
+    "rotor_inertia_kg_m2": 0.0008236,
+    "rotor_inertia_lb_in_s2": 0.00729,
+    "weight_kg": 4.29,
+    "weight_lb": 9.46,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 86.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 86.2,
+      "L_mm": 189.2,
+      "LB_mm": 149.1,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1003Q",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4156,
+    "rated_torque_nm": 4.24,
+    "rated_torque_lb_in": 37.6,
+    "rated_power_kw": 1.85,
+    "rated_power_hp": 2.46,
+    "stall_torque_continuous_nm": 6.28,
+    "stall_torque_continuous_lb_in": 55.6,
+    "stall_current_continuous_a": 3.9,
+    "peak_torque_nm": 17.84,
+    "peak_torque_lb_in": 157.9,
+    "peak_current_a": 12.3,
+    "rated_current_a": 2.73,
+    "voltage_constant_vrms_krpm": 98.76,
+    "torque_constant_nm_a": 1.633,
+    "resistance_ohm": 4.50,
+    "inductance_mh": 21,
+    "rotor_inertia_kg_m2": 0.0003729,
+    "rotor_inertia_lb_in_s2": 0.0033,
+    "weight_kg": 5.49,
+    "weight_lb": 12.10,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 111.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 111.2,
+      "L_mm": 219.2,
+      "LB_mm": 174.5,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1003R",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4178,
+    "rated_torque_nm": 4.26,
+    "rated_torque_lb_in": 37.7,
+    "rated_power_kw": 1.86,
+    "rated_power_hp": 2.49,
+    "stall_torque_continuous_nm": 6.34,
+    "stall_torque_continuous_lb_in": 56.1,
+    "stall_current_continuous_a": 5.4,
+    "peak_torque_nm": 17.97,
+    "peak_torque_lb_in": 159.0,
+    "peak_current_a": 17.2,
+    "rated_current_a": 3.82,
+    "voltage_constant_vrms_krpm": 70.98,
+    "torque_constant_nm_a": 1.174,
+    "resistance_ohm": 2.28,
+    "inductance_mh": 11,
+    "rotor_inertia_kg_m2": 0.0003729,
+    "rotor_inertia_lb_in_s2": 0.0033,
+    "weight_kg": 5.49,
+    "weight_lb": 12.10,
+    "input_voltage_ac_v": 460,
+    "input_voltage_dc_bus_v": 650,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 94.9,
+      "height_mm": 143.8,
+      "depth_mm": 111.2,
+      "shaft_diameter_mm": 19.006
+    },
+    "detailed_dimensions": {
+      "AD_mm": 94.9,
+      "HD_mm": 143.8,
+      "T_mm": 2.9,
+      "LA_mm": 10.2,
+      "LD_mm": 111.2,
+      "L_mm": 219.2,
+      "LB_mm": 174.5,
+      "L_LB_mm": 40.2,
+      "D_mm": 19.006,
+      "M_mm": 115.0,
+      "S_mm": 10.0,
+      "N_mm": 95.013,
+      "P_mm": 97.8,
+      "F_mm": 3.5,
+      "GE_mm": 6.0,
+      "E_size": "M6 X 1.0, 16 dp."
+    }
+  },
+  {
+    "model": "MPP1152C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4068,
+    "rated_torque_nm": 3.84,
+    "rated_torque_lb_in": 34.0,
+    "rated_power_kw": 1.63,
+    "rated_power_hp": 2.18,
+    "stall_torque_continuous_nm": 5.68,
+    "stall_torque_continuous_lb_in": 50.2,
+    "stall_current_continuous_a": 8.5,
+    "peak_torque_nm": 15.69,
+    "peak_torque_lb_in": 138.9,
+    "peak_current_a": 26.7,
+    "rated_current_a": 5.96,
+    "voltage_constant_vrms_krpm": 41.02,
+    "torque_constant_nm_a": 0.678,
+    "resistance_ohm": 0.88,
+    "inductance_mh": 6,
+    "rotor_inertia_kg_m2": 0.0002712,
+    "rotor_inertia_lb_in_s2": 0.0024,
+    "weight_kg": 5.89,
+    "weight_lb": 12.98,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 89.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 89.2,
+      "L_mm": 202.6,
+      "LB_mm": 152.4,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPJ1152C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4068,
+    "rated_torque_nm": 3.84,
+    "rated_torque_lb_in": 34.0,
+    "rated_power_kw": 1.63,
+    "rated_power_hp": 2.18,
+    "stall_torque_continuous_nm": 5.68,
+    "stall_torque_continuous_lb_in": 50.2,
+    "stall_current_continuous_a": 8.5,
+    "peak_torque_nm": 15.69,
+    "peak_torque_lb_in": 138.9,
+    "peak_current_a": 26.7,
+    "rated_current_a": 5.96,
+    "voltage_constant_vrms_krpm": 41.02,
+    "torque_constant_nm_a": 0.678,
+    "resistance_ohm": 0.88,
+    "inductance_mh": 6,
+    "rotor_inertia_kg_m2": 0.001018,
+    "rotor_inertia_lb_in_s2": 0.009011,
+    "weight_kg": 5.89,
+    "weight_lb": 12.98,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 89.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 89.2,
+      "L_mm": 202.6,
+      "LB_mm": 152.4,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPP1152D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4068,
+    "rated_torque_nm": 3.92,
+    "rated_torque_lb_in": 34.7,
+    "rated_power_kw": 1.67,
+    "rated_power_hp": 2.22,
+    "stall_torque_continuous_nm": 5.79,
+    "stall_torque_continuous_lb_in": 51.2,
+    "stall_current_continuous_a": 10.4,
+    "peak_torque_nm": 15.93,
+    "peak_torque_lb_in": 141.0,
+    "peak_current_a": 33.0,
+    "rated_current_a": 7.37,
+    "voltage_constant_vrms_krpm": 33.84,
+    "torque_constant_nm_a": 0.560,
+    "resistance_ohm": 0.58,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.0002712,
+    "rotor_inertia_lb_in_s2": 0.0024,
+    "weight_kg": 5.89,
+    "weight_lb": 12.98,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 89.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 89.2,
+      "L_mm": 202.6,
+      "LB_mm": 152.4,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPJ1152D",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4068,
+    "rated_torque_nm": 3.92,
+    "rated_torque_lb_in": 34.7,
+    "rated_power_kw": 1.67,
+    "rated_power_hp": 2.22,
+    "stall_torque_continuous_nm": 5.79,
+    "stall_torque_continuous_lb_in": 51.2,
+    "stall_current_continuous_a": 10.4,
+    "peak_torque_nm": 15.93,
+    "peak_torque_lb_in": 141.0,
+    "peak_current_a": 33.0,
+    "rated_current_a": 7.37,
+    "voltage_constant_vrms_krpm": 33.84,
+    "torque_constant_nm_a": 0.560,
+    "resistance_ohm": 0.58,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.001018,
+    "rotor_inertia_lb_in_s2": 0.009011,
+    "weight_kg": 5.89,
+    "weight_lb": 12.98,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 89.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 89.2,
+      "L_mm": 202.6,
+      "LB_mm": 152.4,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPP1153B",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 3506,
+    "rated_torque_nm": 5.98,
+    "rated_torque_lb_in": 52.9,
+    "rated_power_kw": 2.20,
+    "rated_power_hp": 2.93,
+    "stall_torque_continuous_nm": 7.91,
+    "stall_torque_continuous_lb_in": 70.0,
+    "stall_current_continuous_a": 7.7,
+    "peak_torque_nm": 22.23,
+    "peak_torque_lb_in": 196.7,
+    "peak_current_a": 24.5,
+    "rated_current_a": 6.02,
+    "voltage_constant_vrms_krpm": 62.24,
+    "torque_constant_nm_a": 1.029,
+    "resistance_ohm": 1.20,
+    "inductance_mh": 10,
+    "rotor_inertia_kg_m2": 0.0004068,
+    "rotor_inertia_lb_in_s2": 0.0036,
+    "weight_kg": 7.28,
+    "weight_lb": 16.06,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 115.2,
+      "L_mm": 228.6,
+      "LB_mm": 177.8,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPJ1153B",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 3506,
+    "rated_torque_nm": 5.98,
+    "rated_torque_lb_in": 52.9,
+    "rated_power_kw": 2.20,
+    "rated_power_hp": 2.93,
+    "stall_torque_continuous_nm": 7.91,
+    "stall_torque_continuous_lb_in": 70.0,
+    "stall_current_continuous_a": 7.7,
+    "peak_torque_nm": 22.23,
+    "peak_torque_lb_in": 196.7,
+    "peak_current_a": 24.5,
+    "rated_current_a": 6.02,
+    "voltage_constant_vrms_krpm": 62.24,
+    "torque_constant_nm_a": 1.029,
+    "resistance_ohm": 1.20,
+    "inductance_mh": 10,
+    "rotor_inertia_kg_m2": 0.001131,
+    "rotor_inertia_lb_in_s2": 0.01001,
+    "weight_kg": 7.28,
+    "weight_lb": 16.06,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 115.2,
+      "L_mm": 228.6,
+      "LB_mm": 177.8,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPP1153C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4013,
+    "rated_torque_nm": 5.46,
+    "rated_torque_lb_in": 48.3,
+    "rated_power_kw": 2.29,
+    "rated_power_hp": 3.06,
+    "stall_torque_continuous_nm": 8.04,
+    "stall_torque_continuous_lb_in": 71.2,
+    "stall_current_continuous_a": 12.1,
+    "peak_torque_nm": 22.52,
+    "peak_torque_lb_in": 199.3,
+    "peak_current_a": 38.2,
+    "rated_current_a": 8.52,
+    "voltage_constant_vrms_krpm": 40.45,
+    "torque_constant_nm_a": 0.669,
+    "resistance_ohm": 0.49,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.0004068,
+    "rotor_inertia_lb_in_s2": 0.0036,
+    "weight_kg": 7.28,
+    "weight_lb": 16.06,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 115.2,
+      "L_mm": 228.6,
+      "LB_mm": 177.8,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  },
+  {
+    "model": "MPJ1153C",
+    "series": "MPP/MPJ Series Servo Motors",
+    "manufacturer": "Parker",
+    "rated_speed_rpm": 4013,
+    "rated_torque_nm": 5.46,
+    "rated_torque_lb_in": 48.3,
+    "rated_power_kw": 2.29,
+    "rated_power_hp": 3.06,
+    "stall_torque_continuous_nm": 8.04,
+    "stall_torque_continuous_lb_in": 71.2,
+    "stall_current_continuous_a": 12.1,
+    "peak_torque_nm": 22.52,
+    "peak_torque_lb_in": 199.3,
+    "peak_current_a": 38.2,
+    "rated_current_a": 8.52,
+    "voltage_constant_vrms_krpm": 40.45,
+    "torque_constant_nm_a": 0.669,
+    "resistance_ohm": 0.49,
+    "inductance_mh": 4,
+    "rotor_inertia_kg_m2": 0.001131,
+    "rotor_inertia_lb_in_s2": 0.01001,
+    "weight_kg": 7.28,
+    "weight_lb": 16.06,
+    "input_voltage_ac_v": 230,
+    "input_voltage_dc_bus_v": 340,
+    "ul_class": "F",
+    "poles": 8,
+    "ip_rating": "IP64",
+    "options": {
+      "shaft_seal_ip65": false,
+      "brake_24v_failsafe": false,
+      "shaft_type": "Smooth shaft"
+    },
+    "feedback_support": [
+      {
+        "type": "incremental_encoder",
+        "order_code": "1E",
+        "specs": {
+          "accuracy_arc_min": 2,
+          "input_power_vdc": 5,
+          "input_power_ma": 180,
+          "input_power_tolerance_percent": 5,
+          "operating_frequency_khz": 250,
+          "output_device": "26LS31",
+          "sink_source_ma": 20,
+          "suggested_user_interface": "26LS32"
+        }
+      },
+      {
+        "type": "resolver",
+        "order_code": "41",
+        "specs": {
+          "input_voltage_vrms": 4,
+          "input_voltage_frequency_khz": 2,
+          "input_power_ma": 55,
+          "input_power_watts": 0.045,
+          "impedance_zso_ohms": 260,
+          "impedance_zro_ohms": 150,
+          "impedance_zrs_ohms": 135,
+          "transformation_ratio": 0.5,
+          "transformation_ratio_tolerance_percent": 10,
+          "output_voltage_vrms": 2.0,
+          "output_voltage_tolerance_percent": 10,
+          "dc_rotor_resistance_ohms": 31,
+          "dc_rotor_resistance_tolerance_percent": 10,
+          "dc_stator_resistance_ohms": 126,
+          "dc_stator_resistance_tolerance_percent": 10,
+          "sensitivity_mv_deg": 35,
+          "max_error_arc_min": 10,
+          "phase_shift_deg": 20,
+          "phase_shift_tolerance_deg": 10,
+          "null_voltage_mvrms": 20,
+          "impedance_zss_ohms": 240,
+          "inertia": "incl. with motor spec."
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_multi_turn",
+        "order_code": "6S",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 15,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "SRM 50"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_dsl",
+        "order_code": "6H",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 18,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EKM 36"
+        }
+      },
+      {
+        "type": "sick_absolute_encoder_single_turn",
+        "order_code": "9S",
+        "specs": {
+          "type": "Single Turn",
+          "position_values_per_revolution_bits": 15,
+          "part_number": "SRS 50"
+        }
+      },
+      {
+        "type": "heidenhain_absolute_encoder",
+        "order_code": "8D",
+        "specs": {
+          "type": "Multi Turn",
+          "protocol": "EnDat 2.2 encoder, EnDat 2.1 analog signals",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 12,
+          "part_number": "EQI 1331"
+        }
+      },
+      {
+        "type": "biss_c_encoder",
+        "order_code": "4B",
+        "specs": {
+          "type": "Multi Turn",
+          "position_values_per_revolution_bits": 19,
+          "distinguishable_revolutions_bits": 16
+        }
+      }
+    ],
+    "thermal_protection": true,
+    "brushless": true,
+    "neodymium_magnets": true,
+    "max_ambient_temp_c": 25,
+    "max_winding_temp_c": 155,
+    "dimensions": {
+      "width_mm": 102.5,
+      "height_mm": 159.0,
+      "depth_mm": 115.2,
+      "shaft_diameter_mm": 24.005
+    },
+    "detailed_dimensions": {
+      "AD_mm": 102.5,
+      "HD_mm": 159.0,
+      "T_mm": 3.4,
+      "LA_mm": 12.2,
+      "LD_mm": 115.2,
+      "L_mm": 228.6,
+      "LB_mm": 177.8,
+      "L_LB_mm": 50.6,
+      "D_mm": 24.005,
+      "M_mm": 130.0,
+      "S_mm": 10.0,
+      "N_mm": 110.013,
+      "P_mm": 113.0,
+      "F_mm": 4.0,
+      "GE_mm": 8.0,
+      "E_size": "M8 X 1.25, 19 dp."
+    }
+  }
+]

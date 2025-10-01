@@ -1,0 +1,81 @@
+[
+  {
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "model": { "type": "string", "description": "Drive model number (e.g., M753)" },
+      "series": { "type": "string", "description": "Drive series (e.g., Digitax HD)" },
+      "frameSize": { "type": "integer", "description": "Physical size of the drive (40mm, 60mm, or 80mm)" },
+      "voltageRating": { "type": "integer", "description": "Voltage supply (e.g., 200, 400)" },
+      "phase": { "type": "integer", "description": "1 or 3 phase" },
+      "ratedCurrent": { "type": "float", "description": "Rated current in Amps" },
+      "maxPeakCurrent": { "type": "float", "description": "Maximum peak current in Amps" },
+      "maxContinuousCurrent": { "type": "float", "description": "Maximum continuous current in Amps" },
+      "openLoopPeakCurrent": { "type": "float", "description": "Open-loop peak current in Amps" },
+      "closedLoopPeakCurrent": { "type": "float", "description": "Closed-loop peak current in Amps" },
+      "motorPower": { "type": "float", "description": "Motor power in kW" },
+      "switchingFrequency": { "type": "integer", "description": "Switching frequency in kHz"},
+      "encoderInterface": { "type": "string", "description": "Type of encoder interface" },
+      "communications": { "type": "array", "items": { "type": "string" }, "description": "Supported communication protocols (e.g., EtherCAT, Modbus TCP)" },
+      "safetyFeatures": { "type": "array", "items": { "type": "string" }, "description": "Safety features (e.g., STO, SIL3)" },
+      "dimensions": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "number" },
+          "depth": { "type": "number" },
+          "height": { "type": "number" }
+        }
+      }
+    },
+    "required": [
+      "model",
+      "series",
+      "frameSize",
+      "voltageRating",
+      "phase",
+      "ratedCurrent",
+      "maxPeakCurrent",
+      "communications"
+    ]
+  }
+},
+[
+  {
+    "model": "M753-01200022",
+    "series": "Digitax HD",
+    "frameSize": 1,
+    "voltageRating": 200,
+    "phase": 1,
+    "ratedCurrent": 1.1,
+    "maxPeakCurrent": 6.6,
+    "maxContinuousCurrent": 1.1,
+    "openLoopPeakCurrent": 3.3,
+    "closedLoopPeakCurrent": 6.6,
+    "motorPower": 0.18,
+    "switchingFrequency": 8,
+    "encoderInterface": "Standard",
+    "communications": ["EtherCAT"],
+    "safetyFeatures": ["STO", "SIL3"],
+    "dimensions": { "width": 40, "depth": 174, "height": 233 }
+  },
+  {
+    "model": "M753-01400015",
+    "series": "Digitax HD",
+    "frameSize": 1,
+    "voltageRating": 400,
+    "phase": 3,
+    "ratedCurrent": 1.5,
+    "maxPeakCurrent": 4.5,
+    "maxContinuousCurrent": 1.5,
+    "openLoopPeakCurrent": 2.3,
+    "closedLoopPeakCurrent": 4.5,
+    "motorPower": 0.37,
+    "switchingFrequency": 8,
+    "encoderInterface": "Standard",
+    "communications": ["EtherCAT"],
+    "safetyFeatures": ["STO", "SIL3"],
+    "dimensions": { "width": 40, "depth": 174, "height": 233 }
+  }
+]
+]

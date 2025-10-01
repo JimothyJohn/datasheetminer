@@ -1,11 +1,10 @@
-from google import genai
-from google.genai import types
+from datasheetminer.llm import generate_content
 import httpx
 
 
 def analyze_document(prompt: str, url: str, api_key: str):
     """
-    Asynchronously generate AI response for document analysis.
+    Generate AI response for document analysis.
 
     Args:
         prompt: The analysis prompt
@@ -13,23 +12,12 @@ def analyze_document(prompt: str, url: str, api_key: str):
         api_key: Gemini API key for authentication
 
     Returns:
-        Generated content response from Gemini AI
+        Generated content response from the LLM
     """
-    # DO NOT MODIFY
-    client = genai.Client(api_key=api_key)
-
-    with httpx.Client() as http_client:
+    # Add timeout for HTTP requests to prevent hanging
+    with httpx.Client(timeout=httpx.Timeout(25.0)) as http_client:
         response = http_client.get(url)
         response.raise_for_status()
         doc_data = response.content
 
-    return client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[
-            types.Part.from_bytes(
-                data=doc_data,
-                mime_type="application/pdf",
-            ),
-            prompt,
-        ],
-    )
+    return generate_content(prompt, doc_data, api_key)

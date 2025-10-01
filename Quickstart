@@ -93,6 +93,14 @@ main() {
 
     check_dependencies
 
+    PROMPT="Identify the individual components along with their key specifications. Use this schema: $(cat SCHEMA.md) to capture the important characteristics based on the information provided. Outline the schema as a JSON object. Create a list of JSON objects like this one for each product found."
+
+    uv run datasheetminer --prompt "$PROMPT" --url "MPP-Brochure-Rev2-Jan2021.pdf"
+    exit 0
+
+    . .env
+    # awscurl -X POST --service lambda  -H "Content-Type: application/json" -H "x-api-key: $GEMINI_API_KEY" -d '{"prompt": "Identify the products and technologies along with key specifications. Devise a schema that could capture the important characteristics based on the information provided. Outline the schema as a JSON object. Create a list of JSON objects like this one that can be used to create an initial seed for a database to ingest.", "url": "https://acim.nidec.com/drives/control-techniques/-/media/Project/Nidec/ControlTechniques/Documents/Datasheets/Digitax-HD-Datasheet.pdf"}' https://8bol76pnte.execute-api.us-east-1.amazonaws.com/Prod/hello
+
     # Deploy updates to AWS
     echo "Updating endpoint..."
     uv run ruff format && \

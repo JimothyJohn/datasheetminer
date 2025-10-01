@@ -1,99 +1,165 @@
 ![datasheetminer.jpg](docs/datasheetminer.jpg)
 # Datasheet Miner
 
-Extract technical specifications from product datasheets using AI. Deploy as an AWS Lambda service that analyzes PDFs and returns structured data.
+Extract technical specifications from product datasheets using AI. Dual deployment modes: AWS Lambda REST API or local CLI tool.
 
-## Quick Start (Local Testing)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-1. **Install dependencies**
-   ```bash
-   # Install uv (Python package manager)
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Install project dependencies
-   uv sync
-   ```
+## Features
 
-2. **Get Gemini API key**
-   - Go to [Google AI Studio](https://aistudio.google.com/)
-   - Create an account and generate an API key
-   - Add to `.env` file:
-   ```bash
-   echo "GEMINI_API_KEY=your_api_key_here" > .env
-   ```
+- **AI-Powered Analysis**: Extract specs, summarize documents, and answer questions using Google Gemini AI
+- **Dual Deployment**: Run as AWS Lambda API or local CLI tool
+- **Multiple Formats**: Output as JSON, Markdown, or plain text
+- **Easy Integration**: MCP-ready for database and workflow integration
+- **Production Ready**: Serverless architecture with auto-scaling
 
-3. **Run locally**
-   ```bash
-   ./main.py
-   ```
+## Quick Start
 
-## Deploy to AWS (End-to-End)
+### Option 1: CLI (Local)
 
-### Prerequisites
-- AWS account with CLI configured
-- AWS SAM CLI installed
-
-### Setup AWS CLI
 ```bash
-# Install AWS CLI
-pip install awscli
+# Install dependencies
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
 
-# Configure with your credentials
-aws configure
+# Set API key
+export GEMINI_API_KEY="your-api-key"
+
+# Analyze a document
+uv run datasheetminer \
+  --prompt "Extract voltage, current, and power specifications" \
+  --url "https://example.com/datasheet.pdf"
 ```
 
-### Install SAM CLI
+### Option 2: AWS Lambda
+
 ```bash
-# On macOS
+# Install AWS SAM CLI
 brew install aws-sam-cli
 
-# On Linux/Windows - see: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
-```
-
-### Deploy
-```bash
-# Build the application
+# Build and deploy
 sam build
-
-# Deploy (first time - creates CloudFormation stack)
 sam deploy --guided
-
-# Subsequent deploys
-sam deploy
 ```
 
-### Test Your Deployed API
-After deployment, SAM will output your API Gateway URL. Test it:
-```bash
-# Health check
-curl https://your-api-id.execute-api.region.amazonaws.com/Prod/hello
+## Usage Examples
 
-# Analyze a datasheet
-curl -X POST https://your-api-id.execute-api.region.amazonaws.com/Prod/v1/completions \
+### CLI Examples
+
+```bash
+# Extract specifications to JSON
+uv run datasheetminer \
+  --prompt "Extract all electrical specifications" \
+  --url "https://example.com/motor.pdf" \
+  --format json \
+  --output specs.json
+
+# Create summary in markdown
+uv run datasheetminer \
+  --prompt "Summarize key features and applications" \
+  --url "https://example.com/product.pdf" \
+  --format markdown \
+  --output summary.md
+
+# Verbose output for debugging
+uv run datasheetminer \
+  --prompt "Analyze document" \
+  --url "https://example.com/doc.pdf" \
+  --verbose
+```
+
+### API Examples
+
+```bash
+# Test deployed Lambda API
+curl -X POST https://your-api-id.execute-api.us-east-1.amazonaws.com/Prod/hello \
   -H "Content-Type: application/json" \
-  -d '{"pdf_url": "https://example.com/datasheet.pdf"}'
+  -H "x-api-key: your-gemini-api-key" \
+  -d '{
+    "prompt": "Extract voltage, current, and power ratings",
+    "url": "https://example.com/datasheet.pdf"
+  }'
 ```
 
-## What This Does
+## Documentation
 
-- Fetches PDF datasheets from URLs
-- Uses Google's Gemini AI to extract technical specifications
-- Returns structured data about product parameters
-- Scales automatically with AWS Lambda
-- Costs only when used (serverless pricing)
+- **[CLI Guide](CLI_README.md)**: Complete CLI documentation with all options and examples
+- **[Developer Guide](CLAUDE.md)**: Architecture, deployment, and development standards
+- **[Schema Examples](SCHEMA.md)**: Example data schemas for motors, drives, and components
+- **[GitHub Pages](https://yourusername.github.io/datasheetminer/)**: Interactive documentation site
 
-## Local Development
+## Development
 
+### Setup
 ```bash
+# Install dependencies
+uv sync
+
 # Run tests
 pytest
 
-# Format code
-ruff format .
-
-# Check code quality
-ruff check .
-
-# Start local API server (for testing)
-sam local start-api
+# Code quality
+ruff format .      # Format code
+ruff check .       # Lint code
 ```
+
+### Testing
+```bash
+pytest                    # All tests
+pytest tests/unit/        # Unit tests
+pytest tests/integration/ # Integration tests
+pytest -v                 # Verbose output
+```
+
+### Local API Testing
+```bash
+# Start local API server
+sam local start-api --warm-containers EAGER
+
+# Test locally
+curl -X POST http://localhost:3000/hello \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-key" \
+  -d '{"prompt": "test", "url": "https://example.com/doc.pdf"}'
+```
+
+## Architecture
+
+- **app.py**: Lambda handler with API Gateway integration
+- **miner.py**: Core document analysis logic
+- **gemini.py**: Google Gemini AI client
+- **__main__.py**: CLI entry point
+- **models/**: Request/response schemas (Pydantic)
+
+## Use Cases
+
+- **Product Comparison**: Extract specs from multiple datasheets for comparison
+- **Database Population**: Automate extraction of technical data into databases
+- **Documentation**: Generate summaries and technical briefs from source PDFs
+- **Parts Selection**: Query datasheets with natural language to find suitable components
+- **Engineering Automation**: Extract motor/drive specs for engineering tools
+
+## Requirements
+
+- Python 3.11+
+- Gemini API key ([Get one free](https://aistudio.google.com/))
+- AWS account (for Lambda deployment only)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/datasheetminer/issues)
+- **Documentation**: See [CLAUDE.md](CLAUDE.md) for detailed developer guide
+- **Examples**: Check `examples/` directory for integration samples

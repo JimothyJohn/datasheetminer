@@ -28,6 +28,7 @@ alwaysApply: false
 - **Data Processing:** `pandas`, `numpy`
 - **Version Control:** `git`
 - **Server:** `gunicorn`, `uvicorn` (with `nginx` or `caddy`)
+- **CSP** AWS Serverless Application Model
 - **Process Management:** `systemd`, `supervisor`
 
 # Coding Guidelines

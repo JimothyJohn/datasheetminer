@@ -1,0 +1,306 @@
+# Datasheetminer CLI
+
+A command-line interface for the datasheetminer application that allows you to analyze PDF documents using Gemini AI locally without deploying to AWS Lambda.
+
+## Features
+
+- **Local Execution**: Run document analysis locally without AWS deployment
+- **Multiple Output Formats**: Support for text, JSON, and markdown output
+- **File Output**: Save results to files for further processing
+- **Environment Variable Support**: Use `GEMINI_API_KEY` environment variable for API key
+- **Comprehensive Validation**: URL and API key validation with helpful error messages
+- **MCP Integration Ready**: Designed for easy integration with Model Context Protocol backends
+
+## Installation
+
+The CLI is automatically available when you install the datasheetminer package:
+
+```bash
+# Install dependencies
+uv sync
+
+# The CLI is now available as a module
+uv run datasheetminer --help
+```
+
+## Usage
+
+### Basic Usage
+
+```bash
+# Basic analysis with all required arguments
+uv run datasheetminer \
+  --prompt "Summarize this document" \
+  --url "https://example.com/document.pdf" \
+  --x-api-key "your-gemini-api-key"
+
+# Using short options
+uv run datasheetminer \
+  -p "Extract key specifications" \
+  -u "https://example.com/spec.pdf" \
+  --x-api-key "your-gemini-api-key"
+```
+
+### Environment Variable for API Key
+
+Set your Gemini API key as an environment variable to avoid passing it on the command line:
+
+```bash
+export GEMINI_API_KEY="your-gemini-api-key"
+uv run datasheetminer \
+  --prompt "Analyze this document" \
+  --url "https://example.com/document.pdf"
+```
+
+### Output Options
+
+#### Save to File
+
+```bash
+# Save response to a text file
+uv run datasheetminer \
+  --prompt "Create a technical summary" \
+  --url "https://example.com/tech.pdf" \
+  --x-api-key "your-key" \
+  --output analysis.txt
+
+# Save with short option
+uv run datasheetminer \
+  -p "Extract specifications" \
+  -u "https://example.com/spec.pdf" \
+  --x-api-key "your-key" \
+  -o results.txt
+```
+
+#### Output Formats
+
+```bash
+# JSON output (useful for programmatic processing)
+uv run datasheetminer \
+  --prompt "Analyze this document" \
+  --url "https://example.com/doc.pdf" \
+  --x-api-key "your-key" \
+  --format json
+
+# Markdown output (good for documentation)
+uv run datasheetminer \
+  --prompt "Create a technical summary" \
+  --url "https://example.com/tech.pdf" \
+  --x-api-key "your-key" \
+  --format markdown
+
+# Text output (default)
+uv run datasheetminer \
+  --prompt "Summarize this document" \
+  --url "https://example.com/doc.pdf" \
+  --x-api-key "your-key" \
+  --format text
+```
+
+### Verbose Mode
+
+Enable detailed logging and progress information:
+
+```bash
+uv run datasheetminer \
+  --prompt "Analyze this document" \
+  --url "https://example.com/doc.pdf" \
+  --x-api-key "your-key" \
+  --verbose
+```
+
+### Help and Version
+
+```bash
+# Show help
+uv run datasheetminer --help
+
+# Show version
+uv run datasheetminer --version
+```
+
+## MCP Integration
+
+The CLI is designed to be easily integrated with Model Context Protocol (MCP) backends and database systems. See the `examples/mcp_integration.py` file for a complete example.
+
+### Programmatic Usage
+
+```python
+import subprocess
+import sys
+
+def run_analysis(prompt: str, url: str, api_key: str) -> str:
+    """Run analysis using the CLI programmatically."""
+    cmd = [
+        sys.executable, "-m", "datasheetminer",
+        "--prompt", prompt,
+        "--url", url,
+        "--x-api-key", api_key,
+        "--format", "json"
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return result.stdout
+
+# Usage
+response = run_analysis(
+    "Extract key specifications",
+    "https://example.com/datasheet.pdf",
+    "your-api-key"
+)
+```
+
+### Batch Processing
+
+The MCP integration example shows how to:
+
+- Process multiple documents in batch
+- Save results to various formats (JSON, CSV, SQLite)
+- Handle errors gracefully
+- Query stored results
+
+## Command Line Options
+
+| Option | Short | Required | Description |
+|--------|-------|----------|-------------|
+| `--prompt` | `-p` | Yes | Analysis prompt to send to Gemini AI |
+| `--url` | `-u` | Yes | URL of the PDF document to analyze |
+| `--x-api-key` | | Yes* | Gemini API key (*can use `GEMINI_API_KEY` env var) |
+| `--output` | `-o` | No | Output file path for saving the response |
+| `--format` | `-f` | No | Output format: text, json, or markdown (default: text) |
+| `--verbose` | `-v` | No | Enable verbose logging |
+| `--help` | | No | Show help message |
+| `--version` | | No | Show version information |
+
+## Output Formats
+
+### Text Format (Default)
+Plain text output suitable for terminal display or simple text processing.
+
+### JSON Format
+Structured output with metadata:
+
+```json
+{
+  "response": "Document analysis content...",
+  "status": "success",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+### Markdown Format
+Formatted markdown with headers and structure:
+
+```markdown
+# Document Analysis Response
+
+Document analysis content...
+
+---
+*Generated by Datasheetminer CLI*
+```
+
+## Error Handling
+
+The CLI provides clear error messages for common issues:
+
+- **Missing API Key**: "API key is required. Use --x-api-key or set GEMINI_API_KEY environment variable"
+- **Invalid URL**: "URL must start with http:// or https://"
+- **API Key Too Short**: "API key appears to be too short"
+- **Analysis Failures**: Detailed error messages with context
+
+## Examples
+
+### Extract Technical Specifications
+
+```bash
+uv run datasheetminer \
+  --prompt "Extract all technical specifications including voltage, current, power, and temperature ratings" \
+  --url "https://example.com/component-datasheet.pdf" \
+  --x-api-key "your-key" \
+  --format markdown \
+  --output specs.md
+```
+
+### Create Executive Summary
+
+```bash
+uv run datasheetminer \
+  --prompt "Create a 2-3 paragraph executive summary highlighting the key benefits and applications of this product" \
+  --url "https://example.com/product-datasheet.pdf" \
+  --x-api-key "your-key" \
+  --format text \
+  --output summary.txt
+```
+
+### Batch Processing Script
+
+```bash
+#!/bin/bash
+# Process multiple documents
+
+export GEMINI_API_KEY="your-key"
+
+for url in "https://example.com/doc1.pdf" "https://example.com/doc2.pdf"; do
+    filename=$(basename "$url" .pdf)
+    uv run datasheetminer \
+      --prompt "Summarize the key points of this document" \
+      --url "$url" \
+      --output "${filename}_summary.txt"
+done
+```
+
+## Testing
+
+Run the test suite to ensure everything works correctly:
+
+```bash
+# Run all tests
+uv run pytest tests/
+
+# Run specific test file
+uv run pytest tests/test_cli.py
+
+# Run with verbose output
+uv run pytest tests/test_cli.py -v
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API Key Not Found**: Ensure `GEMINI_API_KEY` is set or use `--x-api-key`
+2. **Invalid URL**: Check that URLs start with `http://` or `https://`
+3. **Permission Denied**: Ensure output directories are writable
+4. **Network Issues**: Check internet connectivity and URL accessibility
+
+### Debug Mode
+
+Use the `--verbose` flag for detailed logging:
+
+```bash
+uv run datasheetminer \
+  --prompt "test" \
+  --url "https://example.com/test.pdf" \
+  --x-api-key "your-key" \
+  --verbose
+```
+
+## Development
+
+The CLI is built using:
+
+- **Click**: Command-line interface creation kit
+- **Python 3.11+**: Modern Python features and type hints
+- **Comprehensive Testing**: pytest-based test suite with mocking
+
+### Adding New Features
+
+1. Add new options to the `@click.command()` decorator
+2. Update the `main()` function to handle new parameters
+3. Add corresponding tests in `tests/test_cli.py`
+4. Update this documentation
+
+## License
+
+This CLI is part of the datasheetminer project and follows the same license terms.

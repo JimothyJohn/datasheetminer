@@ -1,8 +1,4 @@
 import os
-import json
-import time
-from unittest.mock import patch
-
 import boto3
 import pytest
 import requests

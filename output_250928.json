@@ -1,0 +1,213 @@
+{
+  "product_family_name": "Digitax HD",
+  "product_type": "Servo Drive",
+  "description": "A compact and high-performance servo drive series designed for minimizing cabinet space while delivering exceptional power density.",
+  "rated_current": 16,
+  "peak_current": 48,
+  "input_power": [
+    {
+      "name": "200V1ph",
+      "min_voltage_v": 180,
+      "max_voltage_v": 264,
+      "max_current_a": 20,
+      "phases": 1,
+      "frequency_hz": 60
+    },
+    {
+      "name": "200V3ph",
+      "min_voltage_v": 180,
+      "max_voltage_v": 264,
+      "max_current_a": 30,
+      "phases": 3,
+      "frequency_hz": 60
+    },
+    {
+      "name": "400V3ph",
+      "min_voltage_v": 342,
+      "max_voltage_v": 528,
+      "max_current_a": 25,
+      "phases": 3,
+      "frequency_hz": 60
+    }
+  ],
+  "feedback": {
+    "name": "quadrature",
+    "ppr": 4000,
+    "absolute": false,
+    "input_power": {
+      "name": "ttl",
+      "min_voltage_v": 3.3,
+      "max_voltage_v": 5.5,
+      "max_current_a": 0.5,
+      "phases": 1,
+      "frequency_khz": 4
+    }
+  },
+  "common_specifications": {
+    "power_range_summary": "0.25 kW - 7.5 kW",
+    "safety_features": {
+      "sto": "2 x Safe Torque Off (STO) via terminal",
+      "performance_level": "PLe",
+      "safety_integrity_level": "SIL3",
+      "standard": "EN61800-5-1",
+      "functional_safety_standard": "IEC 61800-5-2 SIL 3 and EN ISO 13849-1 PL"
+    },
+    "environmental_conditions": {
+      "storage_temperature": "-40°C to 55°C (-40°F to 131°F)",
+      "operating_temperature_no_derate": "-20°C to 40°C (-4°F to 104°F)",
+      "operating_temperature_with_derate": "40°C to 55°C (104°F to 131°F), 1% de-rate per 100m (330 ft) above 1000m (3300 ft)",
+      "altitude": "1000 m to 3000 m (3300 ft to 9900 ft)",
+      "humidity": "95% Non-condensing at 40°C (104°F)",
+      "pollution_degree": "2 (Dry, non-conducting pollution only)",
+      "ip_rating": "IP20",
+      "vibration": "0.14 g r.m.s. broadband 5 to 200 Hz",
+      "corrosive_environments": "Class 3C2 of IEC 60721-3-3",
+      "overvoltage_category": "OVC III"
+    },
+    "control_core_features": {
+      "motor_control_modes": [
+        "V/F",
+        "Open loop vector",
+        "Rotor flux control-Asynchronous (Sensorless or with feedback 'Closed Loop')",
+        "Rotor flux control-Synchronous (Sensorless or with feedback 'Closed Loop')"
+      ],
+      "control_modes": [
+        "Position control",
+        "Speed control",
+        "Torque control"
+      ],
+      "tuning": "Stationary autotune for permanent magnet motors",
+      "filters": "Advanced bi-quad filters for suppression of mechanical resonances",
+      "encoder_feedback_support": [
+        "Resolver", "Quadrature", "AB Servo", "SinCos", "EnDat (2.1/2.2)", "SSI", "BiSS", "Hiperface"
+      ],
+      "control_io": {
+        "analog_input": "1 x ±10V, 12 bits (11 bits + sign)",
+        "digital_io": "2 DI, 2 DO (100 mA)",
+        "motor_brake_output": "1 (1 A, max 1.3 A)",
+        "pulse_train_input": "Frequency/Direction 5 V differential, 500 kHz",
+        "encoder_output": "2 x Encoder input and 1 simulated encoder output",
+        "aux_power": "2 x External 24 Vdc User supplied ports for control supply"
+      },
+      "plc_capabilities": {
+        "onboard_plc": "IEC61131-3 programming (IL, LD, FBD, SFC, ST, CFC)"
+      },
+      "switching_frequency_range": "Configurable range: 2, 3, 4, 6, 8, 12, 16 kHz (Default: 8kHz)",
+      "max_output_frequency": {
+        "rfc_a_s": "550 Hz",
+        "open_loop": "599 Hz"
+      },
+      "update_rates": {
+        "current_loop": "62 μs",
+        "speed_loop": "250 μs",
+        "position_loop": "250 μs"
+      },
+      "overload_capability_details": {
+        "closed_loop_peak_current_0_25s": "300%",
+        "closed_loop_peak_current_60s": "200%",
+        "open_loop_peak_current_100s": "150%"
+      },
+      "braking_system": "In-built braking transistor, external resistor required"
+    },
+    "physical_attributes": {
+      "cooling": "Ultraflow™ rear venting option available",
+      "mounting": "Horizontal or vertical surface mounting with DIN rail alignment"
+    },
+    "approvals": [
+      "CE (European Union)", "cUL Listed (USA and Canada)", "KC (Korea)", "RCM (Australia/ New Zealand)", "EAC (Russian Customs Union)"
+    ],
+    "compliance": {
+      "immunity": "IEC61800-3, IEC 61000-4-2, IEC 61000-4-3, IEC61000-4-4, IEC61000-4-5, IEC61000-4-6, IEC61000-4-8, IEC61000-4-11, IEC61000-6-1, IEC 61000-6-2",
+      "emission_category_c3": "Capable of meeting requirements without external filters or line reactors",
+      "emission_category_c1": "Capable of meeting requirements with recommended filters (dependant on switching frequency)"
+    },
+    "software_and_tools": [
+      "'Connect' commissioning and cloning tool (including CT Oscilloscope)",
+      "Machine Control Studio for On-board PLC programming"
+    ],
+    "warranty": "2 years"
+  },
+  "frame_sizes": [
+    {
+      "frame_size_id": 1,
+      "width_mm": 40,
+      "depth_mm": 174,
+      "height_mm": 233,
+      "weight_kg": 1.9,
+      "dimensions_in": "1.58 x 6.85 x 9.17",
+      "weight_lb": 4.2
+    },
+    {
+      "frame_size_id": 2,
+      "width_mm": 40,
+      "depth_mm": 174,
+      "height_mm": 278,
+      "weight_kg": 2.3,
+      "dimensions_in": "1.58 x 6.85 x 10.95",
+      "weight_lb": 5.1
+    },
+    {
+      "frame_size_id": 3,
+      "width_mm": 40,
+      "depth_mm": 174,
+      "height_mm": 328,
+      "weight_kg": 2.5,
+      "dimensions_in": "1.58 x 6.85 x 12.91",
+      "weight_lb": 5.5
+    }
+  ],
+  "series_models": [
+    {
+      "model_id_prefix": "M750",
+      "series_name": "EtherNet",
+      "communications": {
+        "ethernet_ports": "2-port EtherNet switch",
+        "fieldbus_protocols": "Modbus TCP/IP, EtherNet/IP, PROFINET RT",
+        "options_cards": ["EtherCAT", "PROFIBUS", "Ethernet", "DeviceNet", "CANopen", "PROFINET V2"]
+      },
+      "keypad_display": "KI-Compact Display fitted"
+    }
+  ],
+  "power_ratings_configurations": [
+    {
+      "input_type": "200 V Single Phase",
+      "line_supply_details": "AC 200 V...240 V (± 10%) @ 45...66 Hz",
+      "models": [
+        { "part_number_suffix": "01200022", "frame_size": 1, "output_servo_rated_A": 1.1, "output_servo_peak_A": 6.6, "output_ac_induction_continuous_A": 1.1, "output_ac_induction_open_loop_peak_A": 3.3, "output_ac_induction_closed_loop_peak_A": 6.6, "motor_power_kW": 0.18, "motor_power_hp": 0.25 },
+        { "part_number_suffix": "01200040", "frame_size": 1, "output_servo_rated_A": 2.2, "output_servo_peak_A": 12, "output_ac_induction_continuous_A": 2.2, "output_ac_induction_open_loop_peak_A": 6, "output_ac_induction_closed_loop_peak_A": 12, "motor_power_kW": 0.37, "motor_power_hp": 0.5 },
+        { "part_number_suffix": "01200065", "frame_size": 1, "output_servo_rated_A": 3.5, "output_servo_peak_A": 19.5, "output_ac_induction_continuous_A": 3.5, "output_ac_induction_open_loop_peak_A": 9.8, "output_ac_induction_closed_loop_peak_A": 19.5, "motor_power_kW": 0.75, "motor_power_hp": 1.0 },
+        { "part_number_suffix": "02200090", "frame_size": 2, "output_servo_rated_A": 5.6, "output_servo_peak_A": 27, "output_ac_induction_continuous_A": 5.6, "output_ac_induction_open_loop_peak_A": 13.5, "output_ac_induction_closed_loop_peak_A": 27, "motor_power_kW": 1.1, "motor_power_hp": 1.5 },
+        { "part_number_suffix": "02200120", "frame_size": 2, "output_servo_rated_A": 7.5, "output_servo_peak_A": 36, "output_ac_induction_continuous_A": 7.5, "output_ac_induction_open_loop_peak_A": 18, "output_ac_induction_closed_loop_peak_A": 36, "motor_power_kW": 1.5, "motor_power_hp": 2.0 },
+        { "part_number_suffix": "03200160", "frame_size": 3, "output_servo_rated_A": 10.8, "output_servo_peak_A": 48, "output_ac_induction_continuous_A": 10.8, "output_ac_induction_open_loop_peak_A": 24, "output_ac_induction_closed_loop_peak_A": 48, "motor_power_kW": 2.2, "motor_power_hp": 3.0 }
+      ]
+    },
+    {
+      "input_type": "200 V Three Phase",
+      "line_supply_details": "AC 200 V...240 V (± 10%) @ 45...66 Hz",
+      "max_input_power_kW_by_frame": { "1": 4, "2": 5.3, "3": 10 },
+      "models": [
+        { "part_number_suffix": "01200022", "frame_size": 1, "output_servo_rated_A": 2.2, "output_servo_peak_A": 6.6, "output_ac_induction_continuous_A": 2.2, "output_ac_induction_open_loop_peak_A": 3.3, "output_ac_induction_closed_loop_peak_A": 6.6, "motor_power_kW": 0.37, "motor_power_hp": 0.5 },
+        { "part_number_suffix": "01200040", "frame_size": 1, "output_servo_rated_A": 4, "output_servo_peak_A": 12, "output_ac_induction_continuous_A": 4, "output_ac_induction_open_loop_peak_A": 6, "output_ac_induction_closed_loop_peak_A": 12, "motor_power_kW": 0.75, "motor_power_hp": 1.0 },
+        { "part_number_suffix": "01200065", "frame_size": 1, "output_servo_rated_A": 6.5, "output_servo_peak_A": 19.5, "output_ac_induction_continuous_A": 6.5, "output_ac_induction_open_loop_peak_A": 9.8, "output_ac_induction_closed_loop_peak_A": 19.5, "motor_power_kW": 1.1, "motor_power_hp": 1.5 },
+        { "part_number_suffix": "02200090", "frame_size": 2, "output_servo_rated_A": 9, "output_servo_peak_A": 27, "output_ac_induction_continuous_A": 9, "output_ac_induction_open_loop_peak_A": 13.5, "output_ac_induction_closed_loop_peak_A": 27, "motor_power_kW": 2.2, "motor_power_hp": 2.0 },
+        { "part_number_suffix": "02200120", "frame_size": 2, "output_servo_rated_A": 12, "output_servo_peak_A": 36, "output_ac_induction_continuous_A": 12, "output_ac_induction_open_loop_peak_A": 18, "output_ac_induction_closed_loop_peak_A": 36, "motor_power_kW": 2.2, "motor_power_hp": 3.0 },
+        { "part_number_suffix": "03200160", "frame_size": 3, "output_servo_rated_A": 16, "output_servo_peak_A": 48, "output_ac_induction_continuous_A": 16, "output_ac_induction_open_loop_peak_A": 24, "output_ac_induction_closed_loop_peak_A": 48, "motor_power_kW": 4.0, "motor_power_hp": 5.0 }
+      ]
+    },
+    {
+      "input_type": "400 V Three Phase",
+      "line_supply_details": "AC 380 V...480 V (± 10%) @ 45...66 Hz",
+      "max_input_power_kW_by_frame": { "1": 6.5, "2": 8.7, "3": "10/13" },
+      "models": [
+        { "part_number_suffix": "01400015", "frame_size": 1, "output_servo_rated_A": 1.5, "output_servo_peak_A": 4.5, "output_ac_induction_continuous_A": 1.5, "output_ac_induction_open_loop_peak_A": 2.3, "output_ac_induction_closed_loop_peak_A": 4.5, "motor_power_kW": 0.37, "motor_power_hp": 0.75 },
+        { "part_number_suffix": "01400030", "frame_size": 1, "output_servo_rated_A": 3, "output_servo_peak_A": 9, "output_ac_induction_continuous_A": 3, "output_ac_induction_open_loop_peak_A": 4.5, "output_ac_induction_closed_loop_peak_A": 9, "motor_power_kW": 0.75, "motor_power_hp": 1.5 },
+        { "part_number_suffix": "01400042", "frame_size": 1, "output_servo_rated_A": 4.2, "output_servo_peak_A": 12.6, "output_ac_induction_continuous_A": 4.2, "output_ac_induction_open_loop_peak_A": 6.3, "output_ac_induction_closed_loop_peak_A": 12.6, "motor_power_kW": 1.5, "motor_power_hp": 2.0 },
+        { "part_number_suffix": "02400060", "frame_size": 2, "output_servo_rated_A": 6, "output_servo_peak_A": 18, "output_ac_induction_continuous_A": 6, "output_ac_induction_open_loop_peak_A": 9, "output_ac_induction_closed_loop_peak_A": 18, "motor_power_kW": 2.2, "motor_power_hp": 3.0 },
+        { "part_number_suffix": "02400080", "frame_size": 2, "output_servo_rated_A": 8, "output_servo_peak_A": 24, "output_ac_induction_continuous_A": 8, "output_ac_induction_open_loop_peak_A": 12, "output_ac_induction_closed_loop_peak_A": 24, "motor_power_kW": 3.0, "motor_power_hp": 5.0 },
+        { "part_number_suffix": "02400105", "frame_size": 2, "output_servo_rated_A": 10.5, "output_servo_peak_A": 31.5, "output_ac_induction_continuous_A": 10.5, "output_ac_induction_open_loop_peak_A": 15.8, "output_ac_induction_closed_loop_peak_A": 31.5, "motor_power_kW": 4.0, "motor_power_hp": 5.0 },
+        { "part_number_suffix": "03400135", "frame_size": 3, "output_servo_rated_A": 13.5, "output_servo_peak_A": 40.5, "output_ac_induction_continuous_A": 13.5, "output_ac_induction_open_loop_peak_A": 20.3, "output_ac_induction_closed_loop_peak_A": 40.5, "motor_power_kW": 5.5, "motor_power_hp": 7.5 },
+        { "part_number_suffix": "03400160", "frame_size": 3, "output_servo_rated_A": 16, "output_servo_peak_A": 48, "output_ac_induction_continuous_A": 16, "output_ac_induction_open_loop_peak_A": 24, "output_ac_induction_closed_loop_peak_A": 48, "motor_power_kW": 5.5, "motor_power_hp": 10.0 }
+      ]
+    }
+  ]
+}
