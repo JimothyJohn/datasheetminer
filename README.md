@@ -9,7 +9,7 @@ Extract technical specifications from product datasheets using AI. Dual deployme
 ## Features
 
 - **AI-Powered Analysis**: Extract specs, summarize documents, and answer questions using Google Gemini AI
-- **Dual Deployment**: Run as AWS Lambda API or local CLI tool
+- **Dual Deployment**: Run as AWS Lambda API, remote MCP, or local CLI tool
 - **Multiple Formats**: Output as JSON, Markdown, or plain text
 - **Easy Integration**: MCP-ready for database and workflow integration
 - **Production Ready**: Serverless architecture with auto-scaling

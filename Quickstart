@@ -95,7 +95,7 @@ main() {
 
     PROMPT="Identify the individual components along with their key specifications. Use this schema: $(cat SCHEMA.md) to capture the important characteristics based on the information provided. Outline the schema as a JSON object. Create a list of JSON objects like this one for each product found."
 
-    uv run datasheetminer --prompt "$PROMPT" --url "MPP-Brochure-Rev2-Jan2021.pdf"
+    uv run datasheetminer --prompt "$PROMPT" --url "https://acim.nidec.com/drives/control-techniques/-/media/Project/Nidec/ControlTechniques/Documents/en-en/Digitax-HD-Brochure-EN-Web.pdf" --pages 28,29,33,35
     exit 0
 
     . .env

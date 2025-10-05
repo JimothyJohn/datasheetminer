@@ -262,6 +262,10 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 *.json
+*.cursor
+*.vscode
+*.devcontainer
+schema/
 
 # Keep docs assets
 !docs/*.jpg

@@ -302,10 +302,10 @@
                 <img src="datasheetminer.jpg" alt="Datasheet Miner">
             </div>
             <h1>Datasheet Miner</h1>
-            <p class="tagline">AI-Powered Technical Document Analysis</p>
+            <p class="tagline">Structured Data Extraction from Technical Documents</p>
             <p style="color: var(--text-muted); max-width: 700px; margin: 0 auto 40px;">
-                Extract technical specifications from product datasheets using Google's Gemini AI.
-                Deploy as a serverless AWS Lambda API or run locally via CLI.
+                Automatically extract structured data from PDF datasheets and technical documents,
+                enabling database storage and automated querying. Deploy as AWS Lambda or run locally.
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/yourusername/datasheetminer" class="btn btn-primary">View on GitHub</a>
@@ -319,34 +319,34 @@
             <h2 class="section-title">Key Features</h2>
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>AI-Powered Analysis</h3>
-                    <p>Leverage Google's Gemini AI to extract technical specifications, summarize documents, and answer questions about PDF datasheets with high accuracy.</p>
+                    <div class="feature-icon">📋</div>
+                    <h3>Structured Data Output</h3>
+                    <p>Extract technical specifications in consistent, structured formats ready for database insertion and automated processing.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">☁️</div>
-                    <h3>Serverless Architecture</h3>
-                    <p>Deploy to AWS Lambda for automatic scaling, pay-per-use pricing, and zero infrastructure management. Perfect for production workloads.</p>
+                    <div class="feature-icon">🗄️</div>
+                    <h3>Database Integration</h3>
+                    <p>Output formats designed for direct loading into relational databases, enabling SQL queries and data analysis workflows.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Automated Querying</h3>
+                    <p>Store extracted data to enable programmatic searches across thousands of datasheets without manual document review.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">💻</div>
                     <h3>CLI & API</h3>
-                    <p>Run analyses locally with the CLI tool or integrate via REST API. Supports JSON, markdown, and text output formats.</p>
+                    <p>Run locally via command line or deploy as REST API. Supports JSON, markdown, and text output formats.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>Secure & Private</h3>
-                    <p>API key authentication, CORS enabled, and AWS IAM integration. Your documents and API keys stay secure.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Fast & Efficient</h3>
-                    <p>Optimized for quick document processing with configurable timeout and memory settings. Handles large PDFs with ease.</p>
+                    <div class="feature-icon">⚙️</div>
+                    <h3>Batch Processing</h3>
+                    <p>Process multiple documents efficiently with batch operations, suitable for large-scale data extraction projects.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔧</div>
-                    <h3>Easy Integration</h3>
-                    <p>MCP-ready, batch processing support, and comprehensive examples. Integrate with databases, workflows, or automation tools.</p>
+                    <h3>MCP Integration</h3>
+                    <p>Model Context Protocol support enables integration with databases, ETL pipelines, and data warehouses.</p>
                 </div>
             </div>
         </div>
@@ -359,7 +359,7 @@
             <div class="deployment-options">
                 <div class="deployment-card">
                     <h3>🖥️ Local CLI</h3>
-                    <p>Perfect for testing and local development</p>
+                    <p>Extract and process documents locally</p>
                     <div class="code-block">
                         <pre><code><span class="code-comment"># Install dependencies</span>
 <span class="code-keyword">curl</span> -LsSf https://astral.sh/uv/install.sh | sh
@@ -374,16 +374,16 @@
   --url <span class="code-string">"https://example.com/datasheet.pdf"</span></code></pre>
                     </div>
                     <ul>
-                        <li>No AWS account needed</li>
-                        <li>Instant results</li>
-                        <li>Multiple output formats</li>
-                        <li>Batch processing ready</li>
+                        <li>JSON output for database loading</li>
+                        <li>Batch processing support</li>
+                        <li>Direct SQLite/PostgreSQL integration</li>
+                        <li>No cloud dependencies</li>
                     </ul>
                 </div>
 
                 <div class="deployment-card">
                     <h3>☁️ AWS Lambda</h3>
-                    <p>Production-ready serverless deployment</p>
+                    <p>Scalable API for application integration</p>
                     <div class="code-block">
                         <pre><code><span class="code-comment"># Install AWS SAM CLI</span>
 <span class="code-keyword">brew install</span> aws-sam-cli
@@ -398,10 +398,10 @@
   -d <span class="code-string">'{"prompt": "...", "url": "..."}'</span></code></pre>
                     </div>
                     <ul>
-                        <li>Auto-scaling</li>
-                        <li>Pay-per-use pricing</li>
-                        <li>REST API endpoint</li>
-                        <li>Production ready</li>
+                        <li>REST API for application integration</li>
+                        <li>Serverless scaling</li>
+                        <li>Pay-per-request pricing</li>
+                        <li>JSON response format</li>
                     </ul>
                 </div>
             </div>
@@ -427,28 +427,28 @@
             <h2 class="section-title">Use Cases</h2>
             <div class="features-grid">
                 <div class="feature-card">
-                    <h3>📊 Product Comparison</h3>
-                    <p>Extract specifications from multiple vendor datasheets to create side-by-side comparisons and find the best component for your needs.</p>
+                    <h3>🗄️ Technical Database Creation</h3>
+                    <p>Build searchable databases of component specifications extracted from manufacturer datasheets for programmatic access.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🔍 Technical Research</h3>
-                    <p>Quickly analyze hundreds of datasheets to gather market intelligence, identify trends, and compile technical documentation.</p>
+                    <h3>🔍 Specification Search</h3>
+                    <p>Query extracted data across thousands of components using SQL to find parts matching technical requirements.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🏭 Engineering Automation</h3>
-                    <p>Automate the extraction of motor specs, drive parameters, or component ratings to populate databases and engineering tools.</p>
+                    <h3>📊 Data Analysis Pipelines</h3>
+                    <p>Feed structured specification data into analytical tools for market analysis, trend identification, and comparative studies.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>📝 Documentation Generation</h3>
-                    <p>Generate summaries, technical briefs, and formatted documentation from source datasheets automatically.</p>
+                    <h3>🏭 Engineering Tool Integration</h3>
+                    <p>Populate design tools, PLM systems, and ERP databases with accurate technical specifications from source documents.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🎯 Parts Selection</h3>
-                    <p>Query datasheets with natural language to find components matching specific requirements without manual reading.</p>
+                    <h3>🔄 Legacy Document Digitization</h3>
+                    <p>Convert PDF archives into structured data for modern database systems and enable programmatic access to historical specifications.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🔄 Data Migration</h3>
-                    <p>Extract structured data from legacy PDF documentation to migrate into modern databases and systems.</p>
+                    <h3>⚙️ Automated BOM Management</h3>
+                    <p>Extract and store component specifications to support automated bill-of-materials validation and component selection.</p>
                 </div>
             </div>
         </div>
@@ -489,7 +489,7 @@
                 <a href="https://github.com/yourusername/datasheetminer/blob/main/CLI_README.md">CLI Guide</a>
             </div>
             <p style="color: var(--text-muted); margin-bottom: 10px;">
-                Built with ❤️ using Google Gemini AI and AWS Lambda
+                Structured data extraction using Google Gemini AI
             </p>
             <p style="color: var(--text-muted); font-size: 0.9rem;">
                 © 2025 Datasheet Miner. Open Source Project.
