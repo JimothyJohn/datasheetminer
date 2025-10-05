@@ -24,12 +24,10 @@ from dotenv import load_dotenv
 
 # Handle imports for both module and direct execution
 try:
-    from .miner import analyze_document
-    from .utils import extract_json_from_string
+    from .utils import *
 except ImportError:
     # Fallback for direct execution
-    from miner import analyze_document
-    from utils import extract_json_from_string
+    from utils import *
 
 # Load environment variables from .env file if it exists
 load_dotenv()

@@ -1,12 +1,14 @@
-import argparse
 import tempfile
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Optional
 import json
 
 import requests
 import PyPDF2
 from requests import HTTPError
+
+from llm import generate_content
+import httpx
 
 
 class PageRangeError(ValueError):
@@ -186,42 +188,59 @@ def process_pdf_from_url(url: str, page_ranges_str: str) -> Path | None:
             return None
 
 
-def main() -> None:
+def analyze_document(
+    prompt: str, url: str, api_key: str, pages_str: Optional[str] = None
+):
     """
-    Main function to handle command-line arguments and orchestrate the PDF extraction.
+    Generate AI response for document analysis.
+
+    Args:
+        prompt: The analysis prompt
+        url: URL or local file path of the PDF document to analyze
+        api_key: Gemini API key for authentication
+        pages_str: Optional string specifying pages to extract (e.g., '1,3-5,7')
+
+    Returns:
+        Generated content response from the LLM
     """
-    parser = argparse.ArgumentParser(
-        description="Download a PDF and extract specific pages."
-    )
-    parser.add_argument("url", help="The URL of the PDF to download.")
-    parser.add_argument(
-        "pages",
-        help="The pages to extract, e.g., '1,3:5,8' for pages 1, 3, 4, 5, and 8.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        default="extracted_pages.pdf",
-        help="The name of the output PDF file.",
-    )
+    doc_data = None
+    input_pdf_path = None
 
-    args = parser.parse_args()
+    try:
+        if not url.startswith(("http://", "https://")):
+            input_pdf_path = Path(url)
+        else:
+            temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+            input_pdf_path = Path(temp_pdf.name)
+            with httpx.Client(timeout=httpx.Timeout(25.0)) as http_client:
+                response = http_client.get(url)
+                response.raise_for_status()
+                input_pdf_path.write_bytes(response.content)
 
-    # AI-generated comment: Use the new process_pdf_from_url function for the CLI.
-    processed_pdf_path = process_pdf_from_url(args.url, args.pages)
+        if pages_str and input_pdf_path:
+            pages = parse_page_ranges(pages_str.replace("-", ":"))
+            with tempfile.NamedTemporaryFile(
+                suffix=".pdf", delete=False
+            ) as temp_output_pdf:
+                output_pdf_path = Path(temp_output_pdf.name)
 
-    if processed_pdf_path:
-        # AI-generated comment: Move the temporary file to the desired output location.
-        final_output_path = Path(args.output)
-        try:
-            processed_pdf_path.rename(final_output_path)
-            print(f"Final output saved to {final_output_path}")
-        except OSError as e:
-            print(f"Error moving file: {e}")
-            # AI-generated comment: Clean up the temporary file if the move fails.
-            processed_pdf_path.unlink()
+            extract_pdf_pages(input_pdf_path, output_pdf_path, pages)
+            doc_data = output_pdf_path.read_bytes()
+            output_pdf_path.unlink()  # Clean up the extracted pages PDF
+        elif input_pdf_path:
+            doc_data = input_pdf_path.read_bytes()
 
+    finally:
+        # If the input was a URL, a temporary file was created for it.
+        if (
+            url.startswith(("http://", "https://"))
+            and input_pdf_path
+            and input_pdf_path.exists()
+        ):
+            input_pdf_path.unlink()
 
-if __name__ == "__main__":
-    # AI-generated comment: Run the main synchronous function.
-    main()
+    if doc_data:
+        return generate_content(prompt, doc_data, api_key)
+    else:
+        # Handle case where doc_data could not be created
+        raise Exception("Could not process PDF to generate document data.")
