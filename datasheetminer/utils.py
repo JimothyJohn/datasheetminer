@@ -2,12 +2,10 @@ import tempfile
 from pathlib import Path
 from typing import List, Set, Optional
 import json
+import argparse
 
-import requests
 import PyPDF2
-from requests import HTTPError
 
-from llm import generate_content
 import httpx
 
 
@@ -99,16 +97,16 @@ def download_pdf(url: str, destination: Path) -> None:
     Raises:
         HTTPError: If there is an issue with the download.
     """
-    # AI-generated comment: Use a standard requests call for synchronous download.
+    # AI-generated comment: Use a standard httpx call for synchronous download.
     try:
-        response = requests.get(url, timeout=30)
+        response = httpx.get(url, timeout=30)
         response.raise_for_status()  # Raises an exception for bad status codes
         with open(destination, "wb") as f:
             f.write(response.content)
 
         print(f"Successfully downloaded PDF from {url}")
 
-    except HTTPError as e:
+    except httpx.HTTPError as e:
         print(f"Error downloading PDF: {e}")
         raise
 
@@ -180,7 +178,7 @@ def process_pdf_from_url(url: str, page_ranges_str: str) -> Path | None:
             download_pdf(url, Path(temp_pdf.name))
             extract_pdf_pages(Path(temp_pdf.name), output_path, page_numbers)
             return output_path
-        except HTTPError:
+        except httpx.HTTPError:
             print("Could not process the PDF due to a download error.")
             return None
         except Exception as e:
@@ -188,20 +186,18 @@ def process_pdf_from_url(url: str, page_ranges_str: str) -> Path | None:
             return None
 
 
-def analyze_document(
-    prompt: str, url: str, api_key: str, pages_str: Optional[str] = None
-):
+def get_document(
+    url: str,
+    pages_str: Optional[str] = None,
+) -> bytes | None:
     """
     Generate AI response for document analysis.
 
     Args:
-        prompt: The analysis prompt
         url: URL or local file path of the PDF document to analyze
-        api_key: Gemini API key for authentication
         pages_str: Optional string specifying pages to extract (e.g., '1,3-5,7')
 
-    Returns:
-        Generated content response from the LLM
+    Returns: None
     """
     doc_data = None
     input_pdf_path = None
@@ -239,8 +235,115 @@ def analyze_document(
         ):
             input_pdf_path.unlink()
 
-    if doc_data:
-        return generate_content(prompt, doc_data, api_key)
-    else:
-        # Handle case where doc_data could not be created
-        raise Exception("Could not process PDF to generate document data.")
+    return doc_data
+
+
+def validate_page_ranges(value: str) -> str:
+    """
+    Validates the page range string format. It doesn't parse it into a list,
+    as the processing function will handle that. This is just for basic validation.
+    e.g., "1,3-5,7"
+
+    Args:
+        value: The string containing page ranges.
+
+    Returns:
+        The original string if valid.
+
+    Raises:
+        argparse.ArgumentTypeError: If the format is invalid.
+    """
+    if not value:
+        raise argparse.ArgumentTypeError("Pages argument cannot be empty.")
+
+    # A simple regex could be used here for stricter validation,
+    # but for now we'll just check for invalid characters.
+    valid_chars = set("0123456789,-")
+    if not all(char in valid_chars for char in value):
+        raise argparse.ArgumentTypeError(
+            f"Invalid characters in page range string: '{value}'"
+        )
+    return value
+
+
+def validate_url(value: str) -> str:
+    """
+    Validate that the provided URL or file path is valid.
+
+    AI-generated comment: This validator ensures the URL is properly formatted or
+    the file path exists before proceeding with the analysis.
+
+    Args:
+        value: The URL or file path value to validate
+
+    Returns:
+        The validated URL or file path string
+
+    Raises:
+        argparse.ArgumentTypeError: If the URL/path is invalid or inaccessible
+    """
+    if not value:
+        return value
+
+    # Check if it's a file path
+    if not value.startswith(("http://", "https://")):
+        file_path = Path(value)
+        if not file_path.exists():
+            raise argparse.ArgumentTypeError(f"File not found: {value}")
+        if not file_path.is_file():
+            raise argparse.ArgumentTypeError(f"Not a file: {value}")
+        return str(file_path.absolute())
+
+    return value
+
+
+def validate_api_key(value: Optional[str]) -> str:
+    """
+    Validate that the API key is provided and not empty.
+
+    AI-generated comment: This validator ensures the API key is present and
+    properly formatted before making httpx to the Gemini API.
+
+    Args:
+        value: The API key value to validate
+
+    Returns:
+        The validated API key string
+
+    Raises:
+        argparse.ArgumentTypeError: If the API key is missing or invalid
+    """
+    if not value:
+        raise argparse.ArgumentTypeError(
+            "API key is required. Use --x-api-key or set GEMINI_API_KEY environment variable"
+        )
+
+    if len(value.strip()) < 10:  # Basic length validation
+        raise argparse.ArgumentTypeError("API key appears to be too short")
+
+    return value.strip()
+
+
+def format_response(response: str, format_type: str) -> str:
+    """
+    Format the response according to the specified output format.
+
+    AI-generated comment: This function provides multiple output formats to make
+    the CLI output more flexible and useful for different use cases, including
+    integration with other tools and systems.
+    """
+    if format_type == "json":
+        # AI-generated comment: This part of the function is now primarily for
+        # non-Pydantic model responses. The main logic handles the parsed models directly.
+        return json.dumps(
+            {"response": response, "status": "success", "timestamp": str(Path().cwd())},
+            indent=2,
+        )
+
+    elif format_type == "markdown":
+        # AI-generated comment: Convert the response to markdown format for
+        # better readability and integration with markdown processors.
+        return f"# Document Analysis Response\n\n{response}\n\n---\n*Generated by Datasheetminer CLI*"
+
+    else:  # text format (default)
+        return response

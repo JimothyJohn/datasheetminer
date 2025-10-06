@@ -11,7 +11,9 @@ The lambda_handler function takes two arguments:
 
 import json
 import logging
-from gemini import analyze_document
+
+from datasheetminer.llm import generate_content
+from datasheetminer.utils import get_document
 
 # Configure logging
 logger = logging.getLogger()
@@ -38,8 +40,9 @@ def lambda_handler(event, context) -> None:
         headers = event.get("headers", {})
         body_raw = event.get("body", "{}")
         body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
-        prompt = body.get("prompt", "")
-        url = body.get("url", "")
+        url = body.get("url")
+        pages = body.get("pages")
+        schema = body.get("type")
         api_key = headers.get("x-api-key")
 
         if not api_key:
@@ -53,13 +56,23 @@ def lambda_handler(event, context) -> None:
             context.fail("API key is missing or invalid.")
             return
 
+        if not url or not pages or not schema:
+            logger.warning("Missing url, pages, or type in request body.")
+            context.fail("Request body must contain url, pages, and type.")
+            return
+
     except Exception as e:
         logger.error(f"Error processing request: {e}")
         context.fail(f"Error processing request: {e}")
         return
 
     try:
-        response_stream = analyze_document(prompt, url, user_api_key)
+        doc_data = get_document(url, pages)
+        if doc_data is None:
+            context.fail("Failed to get document data.")
+            return
+
+        response_stream = generate_content(doc_data, user_api_key, schema)
         for chunk in response_stream:
             if hasattr(chunk, "text"):
                 context.write(chunk.text.encode("utf-8"))

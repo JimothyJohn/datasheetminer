@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Extract technical specifications from product datasheets using AI. Deploy as an AWS Lambda service or run locally via CLI.">
+    <meta name="description" content="Turn PDF datasheets into searchable data. Extract motor and drive specs automatically instead of reading hundreds of PDFs manually.">
     <title>Datasheet Miner - AI-Powered PDF Analysis</title>
     <style>
         * {
@@ -302,10 +302,10 @@
                 <img src="datasheetminer.jpg" alt="Datasheet Miner">
             </div>
             <h1>Datasheet Miner</h1>
-            <p class="tagline">Structured Data Extraction from Technical Documents</p>
+            <p class="tagline">Turn PDF Datasheets into Searchable Data</p>
             <p style="color: var(--text-muted); max-width: 700px; margin: 0 auto 40px;">
-                Automatically extract structured data from PDF datasheets and technical documents,
-                enabling database storage and automated querying. Deploy as AWS Lambda or run locally.
+                Extract technical specifications from product datasheets and save them as structured data.
+                Search through thousands of products in seconds instead of opening PDFs one by one.
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/yourusername/datasheetminer" class="btn btn-primary">View on GitHub</a>
@@ -316,37 +316,37 @@
 
     <section class="features">
         <div class="container">
-            <h2 class="section-title">Key Features</h2>
+            <h2 class="section-title">What It Does</h2>
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">📋</div>
-                    <h3>Structured Data Output</h3>
-                    <p>Extract technical specifications in consistent, structured formats ready for database insertion and automated processing.</p>
+                    <h3>Reads PDFs for You</h3>
+                    <p>Point it at a motor or drive datasheet, and it automatically pulls out all the important specs like voltage, power, and dimensions.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🗄️</div>
-                    <h3>Database Integration</h3>
-                    <p>Output formats designed for direct loading into relational databases, enabling SQL queries and data analysis workflows.</p>
+                    <h3>Organizes Everything</h3>
+                    <p>Saves the data in a clean, consistent format (JSON) that you can drop straight into a spreadsheet or database.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
-                    <h3>Automated Querying</h3>
-                    <p>Store extracted data to enable programmatic searches across thousands of datasheets without manual document review.</p>
+                    <h3>Makes Data Searchable</h3>
+                    <p>Find all motors with exactly 230V and 2HP in your collection—no more digging through hundreds of PDF files.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">💻</div>
-                    <h3>CLI & API</h3>
-                    <p>Run locally via command line or deploy as REST API. Supports JSON, markdown, and text output formats.</p>
+                    <h3>Three Ways to Use It</h3>
+                    <p>Run it on your computer, set it up as a cloud service, or connect it to AI assistants—whatever works for you.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚙️</div>
-                    <h3>Batch Processing</h3>
-                    <p>Process multiple documents efficiently with batch operations, suitable for large-scale data extraction projects.</p>
+                    <h3>Handles Big Jobs</h3>
+                    <p>Process hundreds of datasheets at once instead of copy-pasting specs manually. Perfect for building product catalogs.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔧</div>
-                    <h3>MCP Integration</h3>
-                    <p>Model Context Protocol support enables integration with databases, ETL pipelines, and data warehouses.</p>
+                    <div class="feature-icon">🎯</div>
+                    <h3>Picks Specific Pages</h3>
+                    <p>Tell it to read only the pages you care about. Skip the marketing fluff and get straight to the technical tables.</p>
                 </div>
             </div>
         </div>
@@ -354,69 +354,50 @@
 
     <section class="quickstart" id="quickstart">
         <div class="container">
-            <h2 class="section-title">Quick Start</h2>
+            <h2 class="section-title">How to Use It</h2>
 
             <div class="deployment-options">
                 <div class="deployment-card">
-                    <h3>🖥️ Local CLI</h3>
-                    <p>Extract and process documents locally</p>
-                    <div class="code-block">
-                        <pre><code><span class="code-comment"># Install dependencies</span>
-<span class="code-keyword">curl</span> -LsSf https://astral.sh/uv/install.sh | sh
-<span class="code-keyword">uv</span> sync
-
-<span class="code-comment"># Set your Gemini API key</span>
-<span class="code-keyword">export</span> GEMINI_API_KEY=<span class="code-string">"your-api-key"</span>
-
-<span class="code-comment"># Analyze a document</span>
-<span class="code-keyword">uv run datasheetminer</span> \
-  --prompt <span class="code-string">"Extract specifications"</span> \
-  --url <span class="code-string">"https://example.com/datasheet.pdf"</span></code></pre>
-                    </div>
+                    <h3>🖥️ On Your Computer</h3>
+                    <p>Run it locally to process datasheets on your machine</p>
                     <ul>
-                        <li>JSON output for database loading</li>
-                        <li>Batch processing support</li>
-                        <li>Direct SQLite/PostgreSQL integration</li>
-                        <li>No cloud dependencies</li>
+                        <li>Install once, use anytime offline</li>
+                        <li>Process documents one at a time or in batches</li>
+                        <li>Save results as JSON files for later use</li>
+                        <li>No monthly fees or cloud accounts needed</li>
                     </ul>
                 </div>
 
                 <div class="deployment-card">
-                    <h3>☁️ AWS Lambda</h3>
-                    <p>Scalable API for application integration</p>
-                    <div class="code-block">
-                        <pre><code><span class="code-comment"># Install AWS SAM CLI</span>
-<span class="code-keyword">brew install</span> aws-sam-cli
-
-<span class="code-comment"># Build and deploy</span>
-<span class="code-keyword">sam build</span>
-<span class="code-keyword">sam deploy</span> --guided
-
-<span class="code-comment"># Test your API</span>
-<span class="code-keyword">curl</span> -X POST https://your-api.amazonaws.com/Prod/hello \
-  -H <span class="code-string">"x-api-key: your-gemini-key"</span> \
-  -d <span class="code-string">'{"prompt": "...", "url": "..."}'</span></code></pre>
-                    </div>
+                    <h3>☁️ As a Cloud Service</h3>
+                    <p>Deploy to AWS for web apps and automated systems</p>
                     <ul>
-                        <li>REST API for application integration</li>
-                        <li>Serverless scaling</li>
-                        <li>Pay-per-request pricing</li>
-                        <li>JSON response format</li>
+                        <li>Access it from anywhere via a web link</li>
+                        <li>Automatically scales when you process more files</li>
+                        <li>Only pay for what you actually use</li>
+                        <li>Connect it to your existing software</li>
+                    </ul>
+                </div>
+
+                <div class="deployment-card">
+                    <h3>🤖 With AI Assistants</h3>
+                    <p>Let Claude or other AI tools use it automatically</p>
+                    <ul>
+                        <li>Ask Claude to analyze datasheets for you</li>
+                        <li>AI can compare specs across multiple products</li>
+                        <li>Natural language instead of complex commands</li>
+                        <li>Great for one-off questions and quick lookups</li>
                     </ul>
                 </div>
             </div>
 
             <div style="margin-top: 60px;">
-                <h3 style="text-align: center; margin-bottom: 30px; font-size: 1.8rem;">Technology Stack</h3>
+                <h3 style="text-align: center; margin-bottom: 30px; font-size: 1.8rem;">Built With</h3>
                 <div class="tech-stack">
-                    <span class="badge">Python 3.11+</span>
+                    <span class="badge">Python</span>
                     <span class="badge">Google Gemini AI</span>
                     <span class="badge">AWS Lambda</span>
-                    <span class="badge">AWS SAM</span>
-                    <span class="badge">API Gateway</span>
-                    <span class="badge">Click CLI</span>
-                    <span class="badge">pytest</span>
-                    <span class="badge">ruff</span>
+                    <span class="badge">Pydantic</span>
                 </div>
             </div>
         </div>
@@ -424,31 +405,31 @@
 
     <section class="features" style="background: rgba(0, 0, 0, 0.2);">
         <div class="container">
-            <h2 class="section-title">Use Cases</h2>
+            <h2 class="section-title">Who Uses This</h2>
             <div class="features-grid">
                 <div class="feature-card">
-                    <h3>🗄️ Technical Database Creation</h3>
-                    <p>Build searchable databases of component specifications extracted from manufacturer datasheets for programmatic access.</p>
+                    <h3>🏭 Equipment Distributors</h3>
+                    <p>Build a searchable catalog of all your motors and drives without manually typing in every spec from PDFs.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🔍 Specification Search</h3>
-                    <p>Query extracted data across thousands of components using SQL to find parts matching technical requirements.</p>
+                    <h3>🔧 Engineering Teams</h3>
+                    <p>Quickly find products that match your project requirements—"show me all 460V motors with 5HP"—in seconds.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>📊 Data Analysis Pipelines</h3>
-                    <p>Feed structured specification data into analytical tools for market analysis, trend identification, and comparative studies.</p>
+                    <h3>📊 Market Researchers</h3>
+                    <p>Compare specs across hundreds of competing products to spot trends and analyze what features are common.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🏭 Engineering Tool Integration</h3>
-                    <p>Populate design tools, PLM systems, and ERP databases with accurate technical specifications from source documents.</p>
+                    <h3>💼 Procurement Specialists</h3>
+                    <p>Load product data into your ERP or purchasing system without paying someone to type it all in manually.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🔄 Legacy Document Digitization</h3>
-                    <p>Convert PDF archives into structured data for modern database systems and enable programmatic access to historical specifications.</p>
+                    <h3>📚 Technical Documentation Teams</h3>
+                    <p>Turn old PDF archives into modern databases that people can actually search through and use.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>⚙️ Automated BOM Management</h3>
-                    <p>Extract and store component specifications to support automated bill-of-materials validation and component selection.</p>
+                    <h3>🛒 E-commerce Sites</h3>
+                    <p>Extract specs from manufacturer PDFs and use them to populate detailed product pages automatically.</p>
                 </div>
             </div>
         </div>
@@ -456,27 +437,40 @@
 
     <section class="quickstart">
         <div class="container">
-            <h2 class="section-title">Example API Request</h2>
+            <h2 class="section-title">What You Get</h2>
+            <p style="text-align: center; color: var(--text-muted); max-width: 700px; margin: 0 auto 40px;">
+                Instead of messy PDFs with specs scattered across pages, you get clean, organized data
+                that looks the same for every product. Here's what comes out:
+            </p>
             <div class="code-block">
-                <pre><code><span class="code-keyword">POST</span> /hello
-<span class="code-keyword">Content-Type:</span> application/json
-<span class="code-keyword">x-api-key:</span> your-gemini-api-key
-
-{
-  <span class="code-string">"prompt"</span>: <span class="code-string">"Extract all voltage, current, and power specifications. Format as a table."</span>,
-  <span class="code-string">"url"</span>: <span class="code-string">"https://example.com/motor-datasheet.pdf"</span>
-}
-
-<span class="code-comment">// Response</span>
-{
-  <span class="code-string">"message"</span>: <span class="code-string">"| Parameter | Min | Typical | Max | Unit |
-|-----------|-----|---------|-----|------|
-| Input Voltage | 200 | 220 | 240 | V |
-| Rated Current | - | 1.1 | - | A |
-| Peak Current | - | - | 6.6 | A |
-| Rated Power | - | 0.52 | - | kW |"</span>
-}</code></pre>
+                <pre><code>[
+  {
+    <span class="code-string">"manufacturer"</span>: <span class="code-string">"ACME Motors"</span>,
+    <span class="code-string">"model_number"</span>: <span class="code-string">"AC-2300-5HP"</span>,
+    <span class="code-string">"voltage"</span>: {
+      <span class="code-string">"min"</span>: 200,
+      <span class="code-string">"max"</span>: 240,
+      <span class="code-string">"unit"</span>: <span class="code-string">"V"</span>
+    },
+    <span class="code-string">"power"</span>: {
+      <span class="code-string">"value"</span>: 5,
+      <span class="code-string">"unit"</span>: <span class="code-string">"HP"</span>
+    },
+    <span class="code-string">"current"</span>: {
+      <span class="code-string">"rated"</span>: 6.8,
+      <span class="code-string">"unit"</span>: <span class="code-string">"A"</span>
+    },
+    <span class="code-string">"weight"</span>: {
+      <span class="code-string">"value"</span>: 45,
+      <span class="code-string">"unit"</span>: <span class="code-string">"lbs"</span>
+    }
+  }
+]</code></pre>
             </div>
+            <p style="text-align: center; color: var(--text-muted); max-width: 700px; margin: 40px auto 0;">
+                This format works with spreadsheets, databases, and any programming language.
+                No more copying and pasting from PDFs!
+            </p>
         </div>
     </section>
 
@@ -484,12 +478,11 @@
         <div class="container">
             <div class="footer-links">
                 <a href="https://github.com/yourusername/datasheetminer">GitHub</a>
-                <a href="https://github.com/yourusername/datasheetminer/issues">Issues</a>
-                <a href="https://github.com/yourusername/datasheetminer/blob/main/README.md">Documentation</a>
-                <a href="https://github.com/yourusername/datasheetminer/blob/main/CLI_README.md">CLI Guide</a>
+                <a href="https://github.com/yourusername/datasheetminer/issues">Report Issues</a>
+                <a href="https://github.com/yourusername/datasheetminer/blob/main/CLAUDE.md">Documentation</a>
             </div>
             <p style="color: var(--text-muted); margin-bottom: 10px;">
-                Structured data extraction using Google Gemini AI
+                Powered by Google Gemini AI
             </p>
             <p style="color: var(--text-muted); font-size: 0.9rem;">
                 © 2025 Datasheet Miner. Open Source Project.

@@ -8,7 +8,7 @@ to AWS Lambda. It serves as a wrapper around the core analysis functionality and
 be easily extended for MCP (Model Context Protocol) integration.
 
 Usage:
-    uv run datasheetminer --prompt "Analyze this document" --url "https://example.com/doc.pdf" --x-api-key $KEYVAR
+    uv run datasheetminer --url "https://example.com/doc.pdf" --x-api-key $KEYVAR
     uv run datasheetminer --help
 """
 
@@ -18,111 +18,26 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
-# Handle imports for both module and direct execution
-try:
-    from .utils import *
-except ImportError:
-    # Fallback for direct execution
-    from utils import *
+from datasheetminer.utils import (
+    get_document,
+    validate_api_key,
+    validate_page_ranges,
+    validate_url,
+)
+from datasheetminer.llm import generate_content
 
 # Load environment variables from .env file if it exists
 load_dotenv()
 
 # Configure logging for CLI
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=os.environ.get("LOG_LEVEL"),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-def parse_page_ranges(value: str) -> str:
-    """
-    Validates the page range string format. It doesn't parse it into a list,
-    as the processing function will handle that. This is just for basic validation.
-    e.g., "1,3-5,7"
-
-    Args:
-        value: The string containing page ranges.
-
-    Returns:
-        The original string if valid.
-
-    Raises:
-        argparse.ArgumentTypeError: If the format is invalid.
-    """
-    if not value:
-        raise argparse.ArgumentTypeError("Pages argument cannot be empty.")
-
-    # A simple regex could be used here for stricter validation,
-    # but for now we'll just check for invalid characters.
-    valid_chars = set("0123456789,-")
-    if not all(char in valid_chars for char in value):
-        raise argparse.ArgumentTypeError(
-            f"Invalid characters in page range string: '{value}'"
-        )
-    return value
-
-
-def validate_url(value: str) -> str:
-    """
-    Validate that the provided URL or file path is valid.
-
-    AI-generated comment: This validator ensures the URL is properly formatted or
-    the file path exists before proceeding with the analysis.
-
-    Args:
-        value: The URL or file path value to validate
-
-    Returns:
-        The validated URL or file path string
-
-    Raises:
-        argparse.ArgumentTypeError: If the URL/path is invalid or inaccessible
-    """
-    if not value:
-        return value
-
-    # Check if it's a file path
-    if not value.startswith(("http://", "https://")):
-        file_path = Path(value)
-        if not file_path.exists():
-            raise argparse.ArgumentTypeError(f"File not found: {value}")
-        if not file_path.is_file():
-            raise argparse.ArgumentTypeError(f"Not a file: {value}")
-        return str(file_path.absolute())
-
-    return value
-
-
-def validate_api_key(value: Optional[str]) -> str:
-    """
-    Validate that the API key is provided and not empty.
-
-    AI-generated comment: This validator ensures the API key is present and
-    properly formatted before making requests to the Gemini API.
-
-    Args:
-        value: The API key value to validate
-
-    Returns:
-        The validated API key string
-
-    Raises:
-        argparse.ArgumentTypeError: If the API key is missing or invalid
-    """
-    if not value:
-        raise argparse.ArgumentTypeError(
-            "API key is required. Use --x-api-key or set GEMINI_API_KEY environment variable"
-        )
-
-    if len(value.strip()) < 10:  # Basic length validation
-        raise argparse.ArgumentTypeError("API key appears to be too short")
-
-    return value.strip()
 
 
 def main() -> None:
@@ -136,13 +51,13 @@ def main() -> None:
     Examples:
         # Basic usage with environment variable
         export GEMINI_API_KEY="your-api-key"
-        uv run datasheetminer --prompt "Summarize this document" --url "https://example.com/doc.pdf"
+        uv run datasheetminer --url "https://example.com/doc.pdf"
 
         # Save output to file
-        uv run datasheetminer -p "Extract key specifications" -u "https://example.com/spec.pdf" -o analysis.txt
+        uv run datasheetminer -u "https://example.com/spec.pdf" -o analysis.txt
 
         # Use markdown output format
-        uv run datasheetminer -p "Create a technical summary" -u "https://example.com/tech.pdf" -f markdown
+        uv run datasheetminer -u "https://example.com/tech.pdf"
     """
     parser = argparse.ArgumentParser(
         description="Datasheetminer CLI - Analyze PDF documents using Gemini AI.",
@@ -150,22 +65,23 @@ def main() -> None:
     Examples:
         # Basic usage with environment variable
         export GEMINI_API_KEY="your-api-key"
-        datasheetminer --prompt "Summarize this document" --url "https://example.com/doc.pdf"
+        datasheetminer --url "https://example.com/doc.pdf"
 
         # Save output to file
-        datasheetminer -p "Extract key specifications" -u "https://example.com/spec.pdf" -o analysis.txt
+        datasheetminer -u "https://example.com/spec.pdf" -o analysis.txt
 
         # Use markdown output format
-        datasheetminer -p "Create a technical summary" -u "https://example.com/tech.pdf" -f markdown
+        datasheetminer -u "https://example.com/tech.pdf"
     """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
     parser.add_argument(
-        "-p",
-        "--prompt",
+        "-t",
+        "--type",
+        choices=["motor", "drive"],
         required=True,
-        help="The analysis prompt to send to Gemini AI",
+        help="The type of schema to use for analysis (motor or drive)",
     )
     parser.add_argument(
         "-u",
@@ -175,9 +91,10 @@ def main() -> None:
         help="URL of the PDF document to analyze",
     )
     parser.add_argument(
+        "-p",
         "--pages",
         required=True,
-        type=parse_page_ranges,
+        type=validate_page_ranges,
         help="Specific pages of the PDF to analyze. e.g., '1,3-5,7'. This is a required argument.",
     )
     parser.add_argument(
@@ -188,19 +105,9 @@ def main() -> None:
         "-o",
         "--output",
         type=Path,
+        default=Path("output.json"),
         help="Output file path for saving the response (optional)",
     )
-    parser.add_argument(
-        "-f",
-        "--format",
-        choices=["text", "json", "markdown"],
-        default="text",
-        help="Output format for the response",
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose logging"
-    )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     args = parser.parse_args()
 
@@ -211,49 +118,49 @@ def main() -> None:
     except argparse.ArgumentTypeError as e:
         parser.error(str(e))
 
-    # Set logging level based on verbose flag
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
     logger.info(f"Starting document analysis for URL: {args.url}")
-    logger.info(f"Prompt: {args.prompt}")
     logger.info(f"Pages: {args.pages}")
 
     try:
         # AI-generated comment: Process the document analysis and handle the single response.
         # The response is now a single object, not a stream.
-        response = analyze_document(
-            args.prompt, args.url, validated_api_key, args.pages
-        )
+        doc_data = get_document(args.url, args.pages)
+        if doc_data is None:
+            print("Could not retrieve document.", file=sys.stderr)
+            sys.exit(1)
 
-        if not response or not hasattr(response, "text") or not response.text.strip():
+        response = generate_content(doc_data, validated_api_key, args.type)
+
+        if not response or not hasattr(response, "parsed") or not response.parsed:
             print("No response received from Gemini AI", file=sys.stderr)
             sys.exit(1)
 
-        full_response = response.text
+        # AI-generated comment: The response.parsed attribute now contains a list of Pydantic
+        # model instances. We can iterate through them and convert them to dictionaries
+        # for JSON serialization.
+        parsed_data = [item.model_dump() for item in response.parsed]
 
         # Output the response
         if args.output:
             try:
-                # AI-generated comment: Extract, validate, and format the JSON response.
-                json_str = extract_json_from_string(full_response)
-                parsed_json = json.loads(json_str)
-                formatted_response = json.dumps(parsed_json, indent=2)
+                # AI-generated comment: Serialize the parsed data to a formatted JSON string.
+                formatted_response = json.dumps(parsed_data, indent=2)
 
                 # Save to file
                 args.output.write_text(formatted_response, encoding="utf-8")
                 print(f"Response saved to: {args.output}", file=sys.stderr)
-            except ValueError as e:
-                # AI-generated comment: Handle cases where the response is not valid JSON.
-                print(
-                    f"Warning: Could not parse JSON from response: {e}",
-                    file=sys.stderr,
-                )
-                print("Saving raw response instead.", file=sys.stderr)
-                args.output.write_text(full_response, encoding="utf-8")
+            except Exception as e:
+                # AI-generated comment: Handle cases where serialization fails.
+                print(f"Error saving response: {e}", file=sys.stderr)
+                # Fallback to saving the raw text if available
+                if hasattr(response, "text"):
+                    args.output.write_text(response.text, encoding="utf-8")
+                    print("Saved raw response instead.", file=sys.stderr)
         else:
             # Print to stdout
-            formatted_response = format_response(full_response, args.format)
+            # AI-generated comment: For stdout, we'll also print the formatted JSON.
+            # The format_response function is no longer needed for JSON output.
+            formatted_response = json.dumps(parsed_data, indent=2)
             print(formatted_response)
 
         logger.info("Document analysis completed successfully")
@@ -262,36 +169,6 @@ def main() -> None:
         logger.error(f"Error during document analysis: {e}")
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-
-def format_response(response: str, format_type: str) -> str:
-    """
-    Format the response according to the specified output format.
-
-    AI-generated comment: This function provides multiple output formats to make
-    the CLI output more flexible and useful for different use cases, including
-    integration with other tools and systems.
-
-    Args:
-        response: The raw response text from Gemini AI
-        format_type: The desired output format ('text', 'json', or 'markdown')
-
-    Returns:
-        The formatted response string
-    """
-    if format_type == "json":
-        return json.dumps(
-            {"response": response, "status": "success", "timestamp": str(Path().cwd())},
-            indent=2,
-        )
-
-    elif format_type == "markdown":
-        # AI-generated comment: Convert the response to markdown format for
-        # better readability and integration with markdown processors.
-        return f"# Document Analysis Response\n\n{response}\n\n---\n*Generated by Datasheetminer CLI*"
-
-    else:  # text format (default)
-        return response
 
 
 if __name__ == "__main__":
