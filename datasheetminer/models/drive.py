@@ -37,7 +37,7 @@ class ValuesUnit(BaseModel):
 class Drive(BaseModel):
     """A Pydantic model representing the specifications of a drive."""
 
-    item_id: str = Field(..., alias="_id")
+    id: str = Field(..., alias="_id")
     type: str
     part_number: str
     series: str

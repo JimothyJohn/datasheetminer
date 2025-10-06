@@ -267,3 +267,4 @@ $RECYCLE.BIN/
 *.devcontainer/
 schema/
 tests/
+datasheets/

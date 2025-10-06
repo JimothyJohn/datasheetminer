@@ -102,6 +102,8 @@ main() {
     # Deploy updates to AWS
     echo "Updating endpoint..."
     uv run ruff format && \
+        uv run ruff check --fix && \
+        uv run mypy datasheetminer && \
         PYTHONPATH="datasheetminer" uv run pytest tests/unit && \
         sam validate --lint && \
         sam build && \
