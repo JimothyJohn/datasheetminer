@@ -18,11 +18,14 @@ import logging
 import os
 import sys
 from pathlib import Path
+from uuid import UUID
 
 from dotenv import load_dotenv
 
+from datasheetminer.models.common import Datasheet
 from datasheetminer.utils import (
     get_document,
+    parse_page_ranges,
     validate_api_key,
     validate_page_ranges,
     validate_url,
@@ -38,6 +41,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+class UUIDEncoder(json.JSONEncoder):
+    """A custom JSON encoder to handle UUID objects."""
+
+    def default(self, obj):
+        """Convert UUID objects to strings, let the base class handle others."""
+        if isinstance(obj, UUID):
+            # if the obj is uuid, we simply return the value of uuid
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def main() -> None:
@@ -93,9 +107,9 @@ def main() -> None:
     parser.add_argument(
         "-p",
         "--pages",
-        required=True,
         type=validate_page_ranges,
-        help="Specific pages of the PDF to analyze. e.g., '1,3-5,7'. This is a required argument.",
+        default=None,
+        help="Specific pages of the PDF to analyze. e.g., '1,3-5,7'. If not provided, the entire document is used.",
     )
     parser.add_argument(
         "--x-api-key",
@@ -132,8 +146,29 @@ def main() -> None:
         response = generate_content(doc_data, validated_api_key, args.type)
 
         if not response or not hasattr(response, "parsed") or not response.parsed:
+            logger.error("No valid response received from Gemini AI.")
+            logger.debug(f"Raw Gemini response: {response}")
+            if response and hasattr(response, "text"):
+                logger.error(f"Gemini response text: {response.text}")
             print("No response received from Gemini AI", file=sys.stderr)
             sys.exit(1)
+
+        # AI-generated comment: I will now inject the datasheet URL and page numbers
+        # into the parsed Pydantic models before they are serialized to JSON. This
+        # ensures that the output data includes the source document information.
+        try:
+            page_list = []
+            if args.pages:
+                # The parse_page_ranges function now handles both '-' and ':'.
+                # It returns 0-indexed pages, so we add 1 to each for 1-based display.
+                page_list = [p + 1 for p in parse_page_ranges(args.pages)]
+
+            datasheet_info = Datasheet(url=args.url, pages=page_list)
+            for item in response.parsed:
+                if hasattr(item, "datasheet_url"):
+                    item.datasheet_url = datasheet_info
+        except Exception as e:
+            logger.warning(f"Could not set datasheet_url on parsed models: {e}")
 
         # AI-generated comment: The response.parsed attribute now contains a list of Pydantic
         # model instances. We can iterate through them and convert them to dictionaries
@@ -144,7 +179,7 @@ def main() -> None:
         if args.output:
             try:
                 # AI-generated comment: Serialize the parsed data to a formatted JSON string.
-                formatted_response = json.dumps(parsed_data, indent=2)
+                formatted_response = json.dumps(parsed_data, indent=2, cls=UUIDEncoder)
 
                 # Save to file
                 args.output.write_text(formatted_response, encoding="utf-8")
@@ -160,7 +195,7 @@ def main() -> None:
             # Print to stdout
             # AI-generated comment: For stdout, we'll also print the formatted JSON.
             # The format_response function is no longer needed for JSON output.
-            formatted_response = json.dumps(parsed_data, indent=2)
+            formatted_response = json.dumps(parsed_data, indent=2, cls=UUIDEncoder)
             print(formatted_response)
 
         logger.info("Document analysis completed successfully")

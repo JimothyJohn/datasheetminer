@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Set, Optional
 import json
 import argparse
+import re
 
 import PyPDF2
 
@@ -41,8 +42,15 @@ def parse_page_ranges(page_ranges_str: str) -> List[int]:
         if not part:
             continue
         try:
-            if ":" in part:
-                start_str, end_str = part.split(":")
+            if ":" in part or "-" in part:
+                # AI-generated comment: Use regex to split by either ':' or '-' to handle
+                # different range notations like '1-5' or '1:5'. This makes the CLI
+                # more user-friendly.
+                range_parts = re.split(r"[:-]", part)
+                if len(range_parts) != 2:
+                    raise PageRangeError(f"Invalid range format: '{part}'")
+
+                start_str, end_str = range_parts
                 start = int(start_str)
                 end = int(end_str)
                 if start > end:
@@ -214,7 +222,7 @@ def get_document(
                 input_pdf_path.write_bytes(response.content)
 
         if pages_str and input_pdf_path:
-            pages = parse_page_ranges(pages_str.replace("-", ":"))
+            pages = parse_page_ranges(pages_str)
             with tempfile.NamedTemporaryFile(
                 suffix=".pdf", delete=False
             ) as temp_output_pdf:
@@ -258,7 +266,7 @@ def validate_page_ranges(value: str) -> str:
 
     # A simple regex could be used here for stricter validation,
     # but for now we'll just check for invalid characters.
-    valid_chars = set("0123456789,-")
+    valid_chars = set("0123456789,-:")
     if not all(char in valid_chars for char in value):
         raise argparse.ArgumentTypeError(
             f"Invalid characters in page range string: '{value}'"

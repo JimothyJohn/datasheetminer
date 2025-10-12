@@ -1,16 +1,16 @@
 [project]
 name = "datasheetminer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Extract technical specifications from product datasheets using AI."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "google-genai>=1.29.0",
-    "python-dotenv>=1.1.1",
     "httpx>=0.27.0",
     "pypdf2>=3.0.1",
     "pydantic>=2.11.7",
     "boto3>=1.40.45",
+    "uuid>=1.30",
 ]
 
 [project.scripts]

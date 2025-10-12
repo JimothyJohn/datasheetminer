@@ -7,23 +7,17 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from .common import Datasheet, Dimensions, MinMaxUnit, ValueUnit
-
-
-# AI-generated comment:
-# The following are reusable sub-models for common data structures found in the drive schema.
-# Creating these smaller, reusable models improves maintainability and readability.
-
-
-class ValuesUnit(BaseModel):
-    """Represents a list of numeric values with a corresponding unit."""
-
-    values: List[float]
-    unit: str
+from datasheetminer.models.common import (
+    Datasheet,
+    Dimensions,
+    MinMaxUnit,
+    ValueUnit,
+)
 
 
 # AI-generated comment:
@@ -35,37 +29,37 @@ class ValuesUnit(BaseModel):
 
 
 class Drive(BaseModel):
-    """A Pydantic model representing the specifications of a drive."""
+    """A Pydantic model representing the specifications of a servo drive."""
 
-    id: str = Field(..., alias="_id")
-    type: str
-    part_number: str
-    series: str
-    datasheet: Datasheet
-    manufacturer: str
-    release_year: int
-    input_voltage: MinMaxUnit
-    frequency: ValuesUnit
-    phases: List[int]
-    rated_current: ValueUnit
-    peak_current: ValueUnit
-    output_power: ValueUnit
-    switching_frequency: ValuesUnit
-    dimensions: Dimensions
-    fieldbus: List[str]
-    control_modes: List[str]
-    encoder_feedback_support: List[str]
-    ethernet_ports: int
-    digital_inputs: int
-    digital_outputs: int
-    analog_inputs: int
-    analog_outputs: int
-    safety_features: List[str]
-    safety_rating: List[str]
-    approvals: List[str]
-    humidity: float
-    weight: ValueUnit
-    ip_rating: int
-    warranty: ValueUnit
-    max_ambient_temp: ValueUnit
-    min_ambient_temp: ValueUnit
+    id: UUID = Field(..., alias="_id")
+    type: Optional[Literal["servo", "variable frequency"]] = None
+    part_number: Optional[str] = None
+    series: Optional[str] = None
+    datasheet_url: Optional[Datasheet] = None
+    manufacturer: Optional[str] = None
+    release_year: Optional[int] = None
+    input_voltage: Optional[MinMaxUnit] = None
+    input_voltage_frequency: Optional[List[ValueUnit]] = None
+    input_voltage_phases: Optional[List[int]] = None
+    rated_current: Optional[ValueUnit] = None
+    peak_current: Optional[ValueUnit] = None
+    output_power: Optional[ValueUnit] = None
+    switching_frequency: Optional[List[ValueUnit]] = None
+    dimensions: Optional[Dimensions] = None
+    fieldbus: Optional[List[str]] = None
+    control_modes: Optional[List[str]] = None
+    encoder_feedback_support: Optional[List[str]] = None
+    ethernet_ports: Optional[int] = None
+    digital_inputs: Optional[int] = None
+    digital_outputs: Optional[int] = None
+    analog_inputs: Optional[int] = None
+    analog_outputs: Optional[int] = None
+    safety_features: Optional[List[str]] = None
+    safety_rating: Optional[List[str]] = None
+    approvals: Optional[List[str]] = None
+    max_humidity: Optional[float] = None
+    weight: Optional[ValueUnit] = None
+    ip_rating: Optional[int] = None
+    warranty: Optional[ValueUnit] = None
+    max_ambient_temp: Optional[ValueUnit] = None
+    min_ambient_temp: Optional[ValueUnit] = None
