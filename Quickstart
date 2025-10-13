@@ -93,7 +93,7 @@ main() {
 
     check_dependencies
 
-    . .env
+    . .env.example
 
     # AI-generated comment:
     # The following commands use jq to dynamically extract the URL and page numbers
@@ -102,11 +102,15 @@ main() {
     # modifying the script itself. The -r flag removes the quotes from the URL string,
     # and `join(",")` converts the JSON array of pages into a comma-separated string
     # suitable for the --pages argument.
-    URL=$(jq -r '.drives[0].url' datasheets/urls.json)
-    PAGES=$(jq -r '.drives[0].pages | join(",")' datasheets/urls.json)
+    URL=$(jq -r '.drives[1].url' datasheets/urls.json)
+    PAGES=$(jq -r '.drives[1].pages | join(",")' datasheets/urls.json)
 
     uv pip install -e . && \
-        uv run datasheetminer --url "$URL" --type drive --pages "$PAGES"
+        uv run datasheetminer/scraper.py \
+        --output "powersmart.json" \
+        --url "$URL" \
+        --type drive \
+        --pages "$PAGES"
     exit 0
 
     # Deploy updates to AWS

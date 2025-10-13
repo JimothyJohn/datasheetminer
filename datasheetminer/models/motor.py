@@ -8,15 +8,13 @@
 from __future__ import annotations
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.product import ProductBase
 
-from datasheetminer.models.common import Datasheet, Dimensions, MinMaxUnit, ValueUnit
 
-
-class Motor(BaseModel):
+class Motor(ProductBase):
     """A Pydantic model representing the specifications of a motor."""
 
-    item_id: str = Field(..., alias="_id")
     type: Optional[
         Literal[
             "brushless dc",
@@ -28,12 +26,8 @@ class Motor(BaseModel):
             "hybrid",
         ]
     ] = None
-    part_number: Optional[str] = None
     series: Optional[str] = None
-    datasheet_url: Optional[Datasheet] = None
-    input_voltage: Optional[MinMaxUnit] = None
-    manufacturer: Optional[str] = None
-    release_year: Optional[int] = None
+    rated_voltage: Optional[MinMaxUnit] = None
     rated_speed: Optional[ValueUnit] = None
     rated_torque: Optional[ValueUnit] = None
     peak_torque: Optional[ValueUnit] = None
@@ -42,12 +36,9 @@ class Motor(BaseModel):
     poles: Optional[int] = None
     rated_current: Optional[ValueUnit] = None
     peak_current: Optional[ValueUnit] = None
-    weight: Optional[ValueUnit] = None
-    dimensions: Optional[Dimensions] = None
     voltage_constant: Optional[ValueUnit] = None
     torque_constant: Optional[ValueUnit] = None
     resistance: Optional[ValueUnit] = None
     inductance: Optional[ValueUnit] = None
     ip_rating: Optional[int] = None
-    warranty: Optional[ValueUnit] = None
     rotor_inertia: Optional[ValueUnit] = None

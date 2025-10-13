@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -51,13 +51,12 @@ class Dimensions(BaseModel):
     """Represents physical dimensions of an object."""
 
     width: Optional[float] = None
-    depth: Optional[float] = None
+    length: Optional[float] = None
     height: Optional[float] = None
-    unit: Optional[str] = None
+    unit: Optional[str] = "mm"
 
 
 class Datasheet(BaseModel):
     """Represents information about a product datasheet."""
 
     url: Optional[str] = None
-    pages: Optional[List[int]] = None

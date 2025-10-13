@@ -20,7 +20,6 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from dotenv import load_dotenv
 
 from datasheetminer.models.common import Datasheet
 from datasheetminer.utils import (
@@ -32,12 +31,10 @@ from datasheetminer.utils import (
 )
 from datasheetminer.llm import generate_content
 
-# Load environment variables from .env file if it exists
-load_dotenv()
 
 # Configure logging for CLI
 logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL"),
+    level=os.environ.get("LOG_LEVEL", "INFO"),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)

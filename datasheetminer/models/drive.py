@@ -8,16 +8,12 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional
-from uuid import UUID
-
-from pydantic import BaseModel, Field
 
 from datasheetminer.models.common import (
-    Datasheet,
-    Dimensions,
     MinMaxUnit,
     ValueUnit,
 )
+from datasheetminer.models.product import ProductBase
 
 
 # AI-generated comment:
@@ -28,16 +24,11 @@ from datasheetminer.models.common import (
 # field to a more Python-friendly `id` attribute.
 
 
-class Drive(BaseModel):
+class Drive(ProductBase):
     """A Pydantic model representing the specifications of a servo drive."""
 
-    id: UUID = Field(..., alias="_id")
     type: Optional[Literal["servo", "variable frequency"]] = None
-    part_number: Optional[str] = None
     series: Optional[str] = None
-    datasheet_url: Optional[Datasheet] = None
-    manufacturer: Optional[str] = None
-    release_year: Optional[int] = None
     input_voltage: Optional[MinMaxUnit] = None
     input_voltage_frequency: Optional[List[ValueUnit]] = None
     input_voltage_phases: Optional[List[int]] = None
@@ -45,7 +36,6 @@ class Drive(BaseModel):
     peak_current: Optional[ValueUnit] = None
     output_power: Optional[ValueUnit] = None
     switching_frequency: Optional[List[ValueUnit]] = None
-    dimensions: Optional[Dimensions] = None
     fieldbus: Optional[List[str]] = None
     control_modes: Optional[List[str]] = None
     encoder_feedback_support: Optional[List[str]] = None
@@ -58,8 +48,6 @@ class Drive(BaseModel):
     safety_rating: Optional[List[str]] = None
     approvals: Optional[List[str]] = None
     max_humidity: Optional[float] = None
-    weight: Optional[ValueUnit] = None
     ip_rating: Optional[int] = None
-    warranty: Optional[ValueUnit] = None
     max_ambient_temp: Optional[ValueUnit] = None
     min_ambient_temp: Optional[ValueUnit] = None
