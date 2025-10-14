@@ -41,7 +41,6 @@ datasheetminer/
 ```
 google-genai>=1.29.0      # Gemini AI client with structured output
 pydantic>=2.0.0           # Data validation and schemas
-python-dotenv>=1.0.0      # Environment variables
 ```
 
 ### Development

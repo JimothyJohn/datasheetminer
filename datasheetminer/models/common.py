@@ -54,9 +54,3 @@ class Dimensions(BaseModel):
     length: Optional[float] = None
     height: Optional[float] = None
     unit: Optional[str] = "mm"
-
-
-class Datasheet(BaseModel):
-    """Represents information about a product datasheet."""
-
-    url: Optional[str] = None

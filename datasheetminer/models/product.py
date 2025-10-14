@@ -7,19 +7,42 @@
 from __future__ import annotations
 
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
-from datasheetminer.models.common import Datasheet, Dimensions, ValueUnit
+from datasheetminer.models.common import Dimensions, ValueUnit
 
 
 class ProductBase(BaseModel):
-    """A base model for products with common attributes."""
+    """
+    A base model for products with common attributes, designed for DynamoDB.
 
-    id: UUID = Field(..., alias="_id")
+    This model uses a composite primary key (PK, SK) to align with DynamoDB's
+    single-table design best practices.
+
+    Attributes:
+        PK: The Partition Key. Formatted as 'PRODUCT#<product_type>'.
+        SK: The Sort Key. Formatted as 'PRODUCT#<product_id>'.
+        product_id: The unique identifier (UUID) for the product.
+    """
+
+    model_config = {"populate_by_name": True}
+
+    @computed_field
+    @property
+    def PK(self) -> str:
+        return f"PRODUCT#{self.product_type.upper()}"
+
+    @computed_field
+    @property
+    def SK(self) -> str:
+        return f"PRODUCT#{self.product_id}"
+
+    product_id: UUID = Field(default_factory=uuid4)
+    product_type: str
     part_number: Optional[str] = None
-    manufacturer: Optional[str] = None
+    manufacturer: str
     datasheet_url: Optional[str] = None
     release_year: Optional[int] = None
     dimensions: Optional[Dimensions] = None
