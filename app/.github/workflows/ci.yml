@@ -1,0 +1,133 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'app/**'
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'app/**'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app/backend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: app/backend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: app/backend
+        run: npm test
+
+      - name: Build
+        working-directory: app/backend
+        run: npm run build
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: app/frontend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: app/frontend
+        run: npm test
+
+      - name: Build
+        working-directory: app/frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/infrastructure/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Build backend
+        working-directory: app/backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build frontend
+        working-directory: app/frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install CDK dependencies
+        working-directory: app/infrastructure
+        run: npm ci
+
+      - name: CDK Synth
+        working-directory: app/infrastructure
+        run: npm run synth
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          DYNAMODB_TABLE_NAME: ${{ secrets.DYNAMODB_TABLE_NAME || 'products' }}
+
+      - name: CDK Deploy
+        working-directory: app/infrastructure
+        run: npm run deploy:all -- --require-approval never
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          DYNAMODB_TABLE_NAME: ${{ secrets.DYNAMODB_TABLE_NAME || 'products' }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
+          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}

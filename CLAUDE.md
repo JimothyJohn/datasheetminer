@@ -2,9 +2,14 @@
 
 ## Project Overview
 
-Datasheetminer is a command-line tool for extracting technical data from PDF datasheets using Google's Gemini AI.
+Datasheetminer is a comprehensive solution for extracting and managing technical data from PDF datasheets using Google's Gemini AI.
 
-The tool provides AI-powered PDF analysis capabilities with structured JSON output based on Pydantic schemas. It's designed for local use, making it easy to process datasheets without requiring cloud deployment or complex infrastructure.
+**Components:**
+1. **CLI Tool (Python)**: Extract technical data from PDFs using AI
+2. **Web Application (TypeScript)**: View and manage product data via web interface
+3. **AWS Infrastructure (CDK)**: Deploy serverless backend to AWS
+
+The tool provides AI-powered PDF analysis capabilities with structured JSON output based on Pydantic schemas, along with a web interface for viewing and managing the extracted data.
 
 ## Architecture
 
@@ -12,7 +17,7 @@ The tool provides AI-powered PDF analysis capabilities with structured JSON outp
 
 ```
 datasheetminer/
-├── datasheetminer/              # Source code
+├── datasheetminer/              # Python CLI source code
 │   ├── scraper.py               # CLI entry point
 │   ├── llm.py                   # LLM interface (Gemini AI)
 │   ├── config.py                # Configuration management
@@ -21,33 +26,103 @@ datasheetminer/
 │   │   ├── product.py           # Base product schema
 │   │   ├── motor.py             # Motor datasheet schema
 │   │   └── drive.py             # Drive datasheet schema
+│   └── db/                      # Database utilities
+│       ├── dynamo.py            # DynamoDB client
+│       ├── query.py             # Query utility
+│       └── pusher.py            # Data pusher utility
+├── app/                         # Web application (ISOLATED)
+│   ├── backend/                 # Express + TypeScript API
+│   │   ├── src/
+│   │   │   ├── index.ts         # Express app entry point
+│   │   │   ├── config/          # Configuration
+│   │   │   ├── db/              # DynamoDB service
+│   │   │   ├── routes/          # API routes
+│   │   │   └── types/           # TypeScript types
+│   │   ├── tests/               # Backend tests
+│   │   └── package.json         # Backend dependencies
+│   ├── frontend/                # React + TypeScript UI
+│   │   ├── src/
+│   │   │   ├── App.tsx          # Main React app
+│   │   │   ├── components/      # React components
+│   │   │   ├── api/             # API client
+│   │   │   └── types/           # TypeScript types
+│   │   ├── public/              # Static assets
+│   │   └── package.json         # Frontend dependencies
+│   ├── infrastructure/          # AWS CDK (TypeScript)
+│   │   ├── lib/
+│   │   │   ├── database-stack.ts  # DynamoDB table
+│   │   │   ├── api-stack.ts       # API Gateway + Lambda
+│   │   │   └── config.ts          # CDK configuration
+│   │   ├── bin/
+│   │   │   └── app.ts           # CDK app entry point
+│   │   └── package.json         # CDK dependencies
+│   ├── .github/                 # CI/CD workflows
+│   │   └── workflows/
+│   │       └── ci.yml           # GitHub Actions workflow
+│   ├── package.json             # Root package.json (workspaces)
+│   └── README.md                # App documentation
 ├── docs/                        # Documentation website
 │   └── index.html               # GitHub Pages site
-├── tests/                       # Test suite (currently minimal)
-├── pyproject.toml               # Project config & dependencies
-└── uv.lock                      # Locked dependencies
+├── tests/                       # Python test suite
+├── pyproject.toml               # Python project config
+└── uv.lock                      # Python locked dependencies
 ```
 
 ### Component Responsibilities
 
+**Python CLI:**
 - **scraper.py**: CLI entry point with argument parsing, validation, and structured JSON output
 - **llm.py**: Gemini AI integration with structured output using Pydantic schemas
 - **config.py**: Environment and configuration management
 - **models/**: Pydantic models for structured JSON output (motor, drive, common schemas)
+- **db/**: Database utilities for querying and pushing data to DynamoDB
+
+**Web Application (app/):**
+- **backend/**: Express.js REST API with TypeScript
+  - DynamoDB service for CRUD operations
+  - REST endpoints matching Python utilities (query.py, pusher.py)
+  - Type-safe operations with TypeScript types mirroring Pydantic models
+- **frontend/**: React single-page application
+  - Dashboard showing product summary statistics
+  - Product list with filtering (motors, drives, all)
+  - Responsive, minimalistic UI design
+- **infrastructure/**: AWS CDK for infrastructure as code
+  - DynamoDB table with single-table design
+  - API Gateway + Lambda for serverless backend
+  - Optional custom domain with HTTPS support
+  - Configurable via environment variables
 
 ## Dependencies
 
-### Runtime
+### Python CLI Runtime
 ```
 google-genai>=1.29.0      # Gemini AI client with structured output
 pydantic>=2.0.0           # Data validation and schemas
+boto3>=1.40.45            # AWS SDK for Python
 ```
 
-### Development
+### Python Development
 ```
 pytest>=8.4.1             # Testing framework
 ruff>=0.12.7              # Linter and formatter
 uv                        # Fast Python package manager
+```
+
+### Web Application (TypeScript/Node.js)
+```
+# Backend
+express>=4.21.2           # Web framework
+@aws-sdk/client-dynamodb>=3.700.0  # AWS SDK for DynamoDB
+zod>=3.24.1               # Runtime type validation
+
+# Frontend
+react>=18.3.1             # UI framework
+react-router-dom>=7.1.1   # Routing
+vite>=6.0.5               # Build tool
+
+# Infrastructure
+aws-cdk-lib>=2.173.4      # AWS CDK framework
+constructs>=10.4.2        # CDK constructs
 ```
 
 ## CLI Reference
@@ -281,10 +356,104 @@ The codebase is designed for extensibility:
 - **models/**: Pydantic schemas make it easy to add new document types
 - **Modular design**: Easy to extend with new features and capabilities
 
+## Web Application
+
+The web application (`app/`) is a complete TypeScript-based solution for viewing and managing products extracted by the CLI tool. It's completely isolated from the Python CLI and can be developed, tested, and deployed independently.
+
+### Quick Start
+
+```bash
+cd app
+
+# Install all dependencies
+npm install
+
+# Development (runs backend + frontend concurrently)
+npm run dev
+
+# Backend will run on http://localhost:3001
+# Frontend will run on http://localhost:3000
+```
+
+### Architecture
+
+**Backend (Express + TypeScript):**
+- REST API with endpoints matching Python utilities
+- DynamoDB integration for data storage
+- Type-safe with TypeScript types mirroring Pydantic models
+- Comprehensive test coverage with Jest
+
+**Frontend (React + TypeScript):**
+- Modern React with functional components and hooks
+- Responsive, minimalistic UI design
+- Dashboard with summary statistics
+- Product list with filtering capabilities
+
+**Infrastructure (AWS CDK):**
+- DynamoDB table with single-table design (PK/SK pattern)
+- API Gateway + Lambda for serverless deployment
+- Optional custom domain with HTTPS certificate
+- Infrastructure as code with TypeScript
+
+### API Endpoints
+
+```
+GET  /health                    # Health check
+GET  /api/products/summary      # Get product counts
+GET  /api/products              # List products (with filtering)
+GET  /api/products/:id          # Get product by ID
+POST /api/products              # Create product(s)
+DELETE /api/products/:id        # Delete product
+```
+
+### Deployment
+
+```bash
+cd app
+
+# Build everything
+npm run build
+
+# Deploy to AWS (requires AWS credentials)
+cd infrastructure
+npm run deploy
+
+# Or use GitHub Actions for CI/CD (see .github/workflows/ci.yml)
+```
+
+### Configuration
+
+Environment variables for deployment:
+```bash
+# Required
+AWS_ACCOUNT_ID=your-account-id
+AWS_REGION=us-east-1
+DYNAMODB_TABLE_NAME=products
+
+# Optional: HTTPS with custom domain
+DOMAIN_NAME=api.example.com
+CERTIFICATE_ARN=arn:aws:acm:...
+HOSTED_ZONE_ID=Z1234567890ABC
+```
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
+```
+
 ## Use Cases
 
 - **Product Comparison**: Extract specs from multiple datasheets for side-by-side comparison
 - **Database Population**: Automate extraction of technical data into databases
+- **Web Interface**: View and manage products via intuitive web application
 - **Documentation Generation**: Generate summaries and technical briefs from source PDFs
 - **Parts Selection**: Query datasheets to find suitable components for projects
 - **Engineering Automation**: Extract motor/drive specs for integration into engineering tools
@@ -292,7 +461,7 @@ The codebase is designed for extensibility:
 
 ## Support
 
-- **Documentation**: See README.md, CLAUDE.md, and [GitHub Pages](https://jimothyjohn.github.io/datasheetminer/)
+- **Documentation**: See README.md, CLAUDE.md, app/README.md, and [GitHub Pages](https://jimothyjohn.github.io/datasheetminer/)
 - **Issues**: Report bugs via [GitHub Issues](https://github.com/jimothyjohn/datasheetminer/issues)
 - **API Key**: Get your Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 

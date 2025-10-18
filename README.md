@@ -6,10 +6,6 @@ Extract technical specifications from product datasheets using AI. Dual deployme
 [![Python 3.12+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-## Features
-
-- **AI-Powered Analysis**: Extract specs, summarize documents, and answer questions using Google Gemini AI
-
 ## Quick Start
 
 ### Option 1: CLI (Local)
