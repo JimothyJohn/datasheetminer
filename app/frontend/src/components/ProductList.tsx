@@ -217,19 +217,8 @@ export default function ProductList() {
       {/* Right side - results section */}
       <main className="results-main">
         <div className="results-header">
-          <div className="results-header-left">
-            <span className="results-count">
-              {sortedProducts.length} {sortedProducts.length === 1 ? 'result' : 'results'}
-            </span>
-            {loading && products.length > 0 && (
-              <span style={{ marginLeft: '1rem', opacity: 0.6, fontSize: '0.9rem' }}>
-                Refreshing...
-              </span>
-            )}
-          </div>
-
           {/* Sort controls */}
-          <div className="results-header-right">
+          <div className="results-header-left">
             {sorts.length > 0 ? (
               <div className="sort-control-active">
                 <span className="sort-label-inline">Sorted by:</span>
@@ -289,6 +278,17 @@ export default function ProductList() {
               </button>
             )}
           </div>
+
+          <div className="results-header-right">
+            <span className="results-count">
+              {sortedProducts.length} {sortedProducts.length === 1 ? 'result' : 'results'}
+            </span>
+            {loading && products.length > 0 && (
+              <span style={{ marginLeft: '1rem', opacity: 0.6, fontSize: '0.9rem' }}>
+                Refreshing...
+              </span>
+            )}
+          </div>
         </div>
 
         {sortedProducts.length === 0 ? (
@@ -308,8 +308,8 @@ export default function ProductList() {
                 onClick={(e) => handleProductClick(product, e)}
               >
                 <div className="product-card-header">
-                  <span className="product-manufacturer">{product.manufacturer || 'Unknown'}</span>
                   <span className="product-part">{product.part_number || 'N/A'}</span>
+                  <span className="product-manufacturer">{product.manufacturer || 'Unknown'}</span>
                 </div>
                 <div className="product-card-specs">
                   {product.product_type === 'motor' && 'rated_power' in product && (

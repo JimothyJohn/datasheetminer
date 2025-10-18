@@ -137,12 +137,13 @@ export default function AttributeSelector({
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
-                <div className="attribute-selector-item-name">
-                  {attr.displayName}
-                </div>
-                <div className="attribute-selector-item-meta">
-                  <span className="attribute-selector-item-key">{attr.key}</span>
-                  <span className="attribute-selector-item-type">{attr.type}</span>
+                <div className="attribute-selector-item-content">
+                  <span className="attribute-selector-item-name">
+                    {attr.displayName}
+                  </span>
+                  {attr.unit && (
+                    <span className="attribute-selector-item-unit">{attr.unit}</span>
+                  )}
                 </div>
               </div>
             ))

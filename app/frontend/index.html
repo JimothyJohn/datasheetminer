@@ -3,11 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DatasheetMiner</title>
+
+    <!-- ===== MOBILE & PWA OPTIMIZATIONS ===== -->
+
+    <!-- Responsive viewport with mobile-friendly settings -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+
+    <!-- PWA: Make app installable on mobile devices -->
+    <meta name="theme-color" content="#242a25" />
+    <meta name="description" content="Product search and filtering for motors and drives with advanced filtering capabilities" />
+
+    <!-- iOS PWA: Enable standalone mode (hides Safari UI) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DatasheetMiner" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Performance: Preconnect to API domain (if different from app domain) -->
+    <!-- <link rel="preconnect" href="https://your-api-domain.com" crossorigin> -->
+
+    <!-- Performance: DNS prefetch for external resources -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+
+    <!-- Retro Terminal/Military Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <title>DatasheetMiner - Product Search</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration (uncomment when service worker is ready) -->
+    <!--
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[SW] Registered:', reg.scope))
+            .catch(err => console.error('[SW] Registration failed:', err));
+        });
+      }
+    </script>
+    -->
   </body>
 </html>
