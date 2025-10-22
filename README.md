@@ -1,4 +1,3 @@
-![datasheetminer.jpg](docs/datasheetminer.jpg)
 # Datasheet Miner
 
 Extract technical specifications from product datasheets using AI. Dual deployment modes: AWS Lambda REST API or local CLI tool.

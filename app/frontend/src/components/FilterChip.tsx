@@ -87,51 +87,54 @@ export default function FilterChip({ filter, onUpdate, onRemove, suggestedValues
 
   return (
     <div className="filter-chip-minimal" data-operator={filter.operator || '='}>
-      <span className="filter-attribute">{filter.displayName}</span>
-
-      <button
-        className="filter-operator"
-        data-operator={filter.operator || '='}
-        onClick={cycleOperator}
-        title="Click to cycle operator: = → > → < → !="
-      >
-        {filter.operator || '='}
-      </button>
-
-      <div className="filter-input-wrapper">
-        <input
-          ref={inputRef}
-          type="text"
-          className="filter-input"
-          value={editValue}
-          onChange={(e) => handleValueChange(e.target.value)}
-          onFocus={handleFocus}
-          placeholder="value..."
-          autoFocus={!filter.value}
-        />
-
-        {showDropdown && filteredSuggestions.length > 0 && (
-          <div ref={dropdownRef} className="filter-dropdown">
-            {filteredSuggestions.slice(0, 10).map((value, index) => (
-              <div
-                key={index}
-                className="filter-dropdown-item"
-                onClick={() => handleSelectSuggestion(value)}
-              >
-                {String(value)}
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="filter-chip-header">
+        <span className="filter-attribute">{filter.displayName}</span>
+        <button
+          className="filter-remove"
+          onClick={onRemove}
+          title="Remove filter"
+        >
+          ×
+        </button>
       </div>
 
-      <button
-        className="filter-remove"
-        onClick={onRemove}
-        title="Remove filter"
-      >
-        ×
-      </button>
+      <div className="filter-chip-controls">
+        <button
+          className="filter-operator"
+          data-operator={filter.operator || '='}
+          onClick={cycleOperator}
+          title="Click to cycle operator: = → > → < → !="
+        >
+          {filter.operator || '='}
+        </button>
+
+        <div className="filter-input-wrapper">
+          <input
+            ref={inputRef}
+            type="text"
+            className="filter-input"
+            value={editValue}
+            onChange={(e) => handleValueChange(e.target.value)}
+            onFocus={handleFocus}
+            placeholder="value..."
+            autoFocus={!filter.value}
+          />
+
+          {showDropdown && filteredSuggestions.length > 0 && (
+            <div ref={dropdownRef} className="filter-dropdown">
+              {filteredSuggestions.slice(0, 10).map((value, index) => (
+                <div
+                  key={index}
+                  className="filter-dropdown-item"
+                  onClick={() => handleSelectSuggestion(value)}
+                >
+                  {String(value)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

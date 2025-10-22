@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Turn PDF datasheets into searchable data. Extract motor and drive specs automatically instead of reading hundreds of PDFs manually.">
-    <title>Datasheet Miner - AI-Powered PDF Analysis</title>
+    <meta name="description" content="Making it easy to size, select, and get moving. Extract motor and drive specs automatically.">
+    <title>Datasheet Miner - Product Search & Analysis</title>
     <style>
         * {
             margin: 0;
@@ -12,353 +12,217 @@
             box-sizing: border-box;
         }
 
-        /* Light theme variables */
+        /* Light theme - Earthy Green */
         :root[data-theme="light"] {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8f9fa;
-            --bg-tertiary: #e9ecef;
-            --bg-gradient-start: #f8f9fa;
-            --bg-gradient-end: #ffffff;
-            --text-primary: #212529;
-            --text-secondary: #495057;
-            --text-tertiary: #6c757d;
-            --border-color: #dee2e6;
-            --border-color-light: #e9ecef;
-            --accent-primary: #007bff;
-            --accent-secondary: #0056b3;
-            --accent-gradient-start: #007bff;
-            --accent-gradient-end: #0056b3;
-            --card-bg: #ffffff;
-            --card-border: #e0e0e0;
-            --header-bg-start: #2c3e50;
-            --header-bg-end: #1a252f;
-            --header-text: #ffffff;
-            --code-bg: #f8f9fa;
-            --shadow-sm: rgba(0, 0, 0, 0.05);
-            --shadow-md: rgba(0, 0, 0, 0.1);
-            --shadow-lg: rgba(0, 0, 0, 0.15);
+            --bg-primary: #f2f4f1;
+            --bg-secondary: #e7ebe5;
+            --bg-tertiary: #d8ddd5;
+            --text-primary: #2d3a2e;
+            --text-secondary: #5a6b5c;
+            --text-tertiary: #8a9a8c;
+            --border-color: #c5cfc7;
+            --accent-primary: #6b8e6f;
+            --accent-secondary: #567a5a;
+            --card-bg: #f7f9f6;
+            --code-bg: #e7ebe5;
+            --shadow-sm: rgba(45, 58, 46, 0.08);
+            --shadow-md: rgba(45, 58, 46, 0.12);
         }
 
-        /* Dark theme variables (default) */
+        /* Dark theme (default) - Earthy Green */
         :root[data-theme="dark"],
         :root {
-            --bg-primary: #1a1d23;
-            --bg-secondary: #21252b;
-            --bg-tertiary: #282c34;
-            --bg-gradient-start: #1a1d23;
-            --bg-gradient-end: #21252b;
-            --text-primary: #e9ecef;
-            --text-secondary: #ced4da;
-            --text-tertiary: #adb5bd;
-            --border-color: #343a40;
-            --border-color-light: #2c3136;
-            --accent-primary: #4da3ff;
-            --accent-secondary: #1e7ed9;
-            --accent-gradient-start: #4da3ff;
-            --accent-gradient-end: #1e7ed9;
-            --card-bg: #21252b;
-            --card-border: #2c3136;
-            --header-bg-start: #0f1419;
-            --header-bg-end: #1a1d23;
-            --header-text: #e9ecef;
-            --code-bg: #282c34;
+            --bg-primary: #1a1e1b;
+            --bg-secondary: #242a25;
+            --bg-tertiary: #313833;
+            --text-primary: #e2e7e3;
+            --text-secondary: #b8c3ba;
+            --text-tertiary: #8a9a8c;
+            --border-color: #3a4239;
+            --accent-primary: #7a9e7e;
+            --accent-secondary: #6b8e6f;
+            --card-bg: #242a25;
+            --code-bg: #242a25;
             --shadow-sm: rgba(0, 0, 0, 0.2);
             --shadow-md: rgba(0, 0, 0, 0.3);
-            --shadow-lg: rgba(0, 0, 0, 0.4);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             line-height: 1.6;
             color: var(--text-primary);
-            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background: var(--bg-primary);
             min-height: 100vh;
-            transition: background 0.3s ease, color 0.3s ease;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 2rem;
         }
 
         header {
-            padding: 60px 0 80px;
-            text-align: center;
-            background: linear-gradient(135deg, var(--header-bg-start) 0%, var(--header-bg-end) 100%);
+            padding: 3rem 0;
+            background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
             box-shadow: 0 4px 12px var(--shadow-md);
             position: relative;
-            overflow: hidden;
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg,
-                transparent 0%,
-                rgba(77, 163, 255, 0.1) 50%,
-                transparent 100%);
-            animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
         }
 
         .theme-toggle {
             position: absolute;
-            top: 20px;
-            right: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            padding: 0.5rem;
-            color: var(--header-text);
+            top: 1.5rem;
+            right: 2rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.45rem;
             cursor: pointer;
+            box-shadow: 0 1px 3px var(--shadow-sm);
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-            z-index: 10;
-            width: 44px;
-            height: 44px;
-        }
-
-        .theme-toggle:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-
-        .theme-toggle svg {
-            display: block;
-        }
-
-        .logo-container {
-            margin-bottom: 30px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .logo-container img {
-            max-width: 400px;
-            width: 100%;
-            height: auto;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px var(--shadow-lg);
         }
 
         h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 1rem;
         }
 
         .tagline {
-            font-size: 1.5rem;
+            text-align: center;
+            font-size: 1.2rem;
             color: var(--text-secondary);
-            margin-bottom: 40px;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 2rem;
         }
 
         .cta-buttons {
             display: flex;
-            gap: 20px;
+            gap: 1rem;
             justify-content: center;
             flex-wrap: wrap;
-            position: relative;
-            z-index: 1;
         }
 
         .btn {
             display: inline-block;
-            padding: 14px 32px;
-            font-size: 1.1rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
             font-weight: 600;
             text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
+            border-radius: 4px;
+            border: 1px solid;
+            transition: all 0.2s;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
+            background: var(--accent-primary);
             color: white;
-            box-shadow: 0 2px 4px var(--shadow-sm);
+            border-color: var(--accent-primary);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-primary) 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px var(--shadow-md);
+            background: var(--accent-secondary);
         }
 
         .btn-secondary {
-            background: transparent;
+            background: var(--bg-secondary);
             color: var(--text-primary);
             border-color: var(--border-color);
         }
 
         .btn-secondary:hover {
             border-color: var(--accent-primary);
-            background: var(--bg-secondary);
         }
 
-        .features {
-            padding: 80px 0;
+        section {
+            padding: 4rem 0;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--text-primary);
         }
 
         .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 50px;
+            gap: 2rem;
         }
 
         .feature-card {
             background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
-            padding: 40px;
-            border-radius: 12px;
-            border: 1px solid var(--card-border);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px var(--shadow-sm);
+            padding: 2rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 6px var(--shadow-sm);
         }
 
         .feature-card:hover {
-            transform: translateY(-5px);
             border-color: var(--accent-primary);
-            box-shadow: 0 10px 40px var(--shadow-md);
         }
 
         .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
         }
 
         .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
             color: var(--text-primary);
         }
 
         .feature-card p {
             color: var(--text-secondary);
-            line-height: 1.7;
-        }
-
-        .quickstart {
-            padding: 80px 0;
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        .section-title {
-            font-size: 2.5rem;
-            text-align: center;
-            margin-bottom: 50px;
-            color: var(--text-primary);
         }
 
         .code-block {
             background: var(--code-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 25px;
-            margin: 25px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
             overflow-x: auto;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
             line-height: 1.6;
-            box-shadow: 0 4px 12px var(--shadow-sm);
         }
 
         .code-block pre {
             color: var(--text-primary);
         }
 
-        .code-comment {
-            color: var(--text-tertiary);
-        }
-
-        .code-keyword {
-            color: #f59e0b;
-        }
-
-        .code-string {
-            color: #10b981;
-        }
-
-        .deployment-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 40px;
-            margin-top: 50px;
-        }
-
-        .deployment-card {
-            background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 12px var(--shadow-sm);
-        }
-
-        .deployment-card h3 {
-            font-size: 1.8rem;
-            margin-bottom: 20px;
-            color: var(--accent-primary);
-        }
-
-        .deployment-card ul {
-            list-style: none;
-            margin: 20px 0;
-        }
-
-        .deployment-card li {
-            padding: 10px 0;
-            padding-left: 30px;
-            position: relative;
-            color: var(--text-secondary);
-        }
-
-        .deployment-card li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #10b981;
-            font-weight: bold;
-        }
+        .code-comment { color: var(--text-tertiary); }
+        .code-keyword { color: #8aae8e; }
+        .code-string { color: #6b8e6f; }
 
         footer {
-            padding: 60px 0 40px;
+            padding: 3rem 0 2rem;
             text-align: center;
             border-top: 1px solid var(--border-color);
-            margin-top: 80px;
+            margin-top: 4rem;
         }
 
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 30px;
-            margin-bottom: 30px;
+            gap: 2rem;
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }
 
         .footer-links a {
             color: var(--text-tertiary);
             text-decoration: none;
-            transition: color 0.3s ease;
         }
 
         .footer-links a:hover {
@@ -366,78 +230,27 @@
         }
 
         @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-
-            .tagline {
-                font-size: 1.2rem;
-            }
-
-            .section-title {
-                font-size: 2rem;
-            }
-
-            .deployment-options {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 6px 12px;
-            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-            border: 1px solid var(--accent-primary);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin: 5px;
-            color: var(--accent-primary);
-            transition: all 0.2s;
-        }
-
-        .badge:hover {
-            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px var(--shadow-sm);
-        }
-
-        .tech-stack {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 30px;
+            h1 { font-size: 2rem; }
+            .tagline { font-size: 1rem; }
+            .section-title { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
     <header>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-            <svg id="theme-icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <svg id="theme-icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
-            <svg id="theme-icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
                 <circle cx="12" cy="12" r="5"></circle>
                 <line x1="12" y1="1" x2="12" y2="3"></line>
                 <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
         </button>
         <div class="container">
-            <div class="logo-container">
-                <img src="datasheetminer.jpg" alt="Datasheet Miner">
-            </div>
             <h1>Datasheet Miner</h1>
-            <p class="tagline">AI-Powered PDF Analysis</p>
-            <p style="color: var(--text-muted); max-width: 700px; margin: 0 auto 40px;">
-                Extract technical specifications from product datasheets using AI.
-                Simple command-line tool powered by Google Gemini.
-            </p>
+            <p class="tagline">Making it easy to size, select, and get moving</p>
             <div class="cta-buttons">
                 <a href="https://github.com/jimothyjohn/datasheetminer" class="btn btn-primary">View on GitHub</a>
                 <a href="#quickstart" class="btn btn-secondary">Get Started</a>
@@ -445,54 +258,50 @@
         </div>
     </header>
 
-    <section class="features">
+    <section>
         <div class="container">
             <h2 class="section-title">What It Does</h2>
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🤖</div>
-                    <h3>AI-Powered Analysis</h3>
-                    <p>Extract specs, summarize documents, and answer questions using Google Gemini AI with structured output validation.</p>
+                    <h3>AI-Powered Extraction</h3>
+                    <p>Extract specs from PDF datasheets using Google Gemini AI with structured output validation.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🗄️</div>
-                    <h3>Structured Data Output</h3>
-                    <p>Saves data in validated JSON format based on Pydantic schemas—ready for databases, spreadsheets, or APIs.</p>
+                    <h3>Structured Data</h3>
+                    <p>Get validated JSON output ready for databases, spreadsheets, or APIs.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">💻</div>
-                    <h3>Simple CLI Tool</h3>
-                    <p>Easy-to-use command-line interface for local processing—no complex setup or cloud accounts required.</p>
+                    <h3>Simple CLI</h3>
+                    <p>Easy command-line interface for local processing—no complex setup required.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3>Selective Page Processing</h3>
-                    <p>Specify exact pages or ranges to analyze (e.g., "1,3-5,7"). Skip marketing content and focus on technical specs.</p>
+                    <div class="feature-icon">🌐</div>
+                    <h3>Web Interface</h3>
+                    <p>Modern web app for viewing and managing extracted product specifications.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">📐</div>
-                    <h3>Schema-Driven Extraction</h3>
-                    <p>Pre-built schemas for motors and drives. Extensible Pydantic models for custom product types and specifications.</p>
+                    <h3>Schema-Driven</h3>
+                    <p>Pre-built schemas for motors and drives with extensible Pydantic models.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
                     <h3>Fast & Efficient</h3>
-                    <p>Powered by Google Gemini AI for accurate extraction. Process PDFs quickly with minimal configuration.</p>
+                    <p>Process PDFs quickly with selective page processing and minimal configuration.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="quickstart" id="quickstart">
+    <section id="quickstart" style="background: var(--bg-secondary);">
         <div class="container">
             <h2 class="section-title">Quick Start</h2>
-
             <div style="max-width: 800px; margin: 0 auto;">
                 <div class="code-block">
-                    <pre><code><span class="code-comment"># Install uv package manager</span>
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-<span class="code-comment"># Install dependencies</span>
+                    <pre><code><span class="code-comment"># Install dependencies</span>
 uv sync
 
 <span class="code-comment"># Set your Gemini API key</span>
@@ -500,111 +309,36 @@ uv sync
 
 <span class="code-comment"># Analyze a document</span>
 uv run datasheetminer/scraper.py \
-  --output device.json \
-  --url http://example.com/my.pdf \
-  --type drive \
-  --pages 1,2,3</code></pre>
-                </div>
-
-                <div style="margin-top: 40px; padding: 30px; background: var(--code-bg); border: 1px solid var(--border-color); border-radius: 12px;">
-                    <h3 style="margin-bottom: 20px; color: var(--secondary-color);">Command Options</h3>
-                    <ul style="list-style: none; margin: 0;">
-                        <li style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">
-                            <code>--url</code> - URL of the PDF datasheet to analyze
-                        </li>
-                        <li style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">
-                            <code>--type</code> - Schema type: <code>motor</code> or <code>drive</code>
-                        </li>
-                        <li style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">
-                            <code>--pages</code> - Page ranges: <code>1,2,3</code> or <code>1-5</code> or <code>1,3-5,7</code>
-                        </li>
-                        <li style="padding: 10px 0;">
-                            <code>--output</code> - Output JSON file path (optional, defaults to output.json)
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div style="margin-top: 60px;">
-                <h3 style="text-align: center; margin-bottom: 30px; font-size: 1.8rem;">Built With</h3>
-                <div class="tech-stack">
-                    <span class="badge">Python 3.12+</span>
-                    <span class="badge">Google Gemini AI</span>
-                    <span class="badge">Pydantic</span>
-                    <span class="badge">uv</span>
+  --type motor \
+  --url https://example.com/datasheet.pdf \
+  --pages 1-5 \
+  --output specs.json</code></pre>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="features" style="background: rgba(0, 0, 0, 0.2);">
+    <section>
         <div class="container">
             <h2 class="section-title">Use Cases</h2>
             <div class="features-grid">
                 <div class="feature-card">
                     <h3>📊 Product Comparison</h3>
-                    <p>Extract specs from multiple datasheets for side-by-side comparison and analysis.</p>
+                    <p>Extract specs from multiple datasheets for side-by-side analysis.</p>
                 </div>
                 <div class="feature-card">
                     <h3>🗄️ Database Population</h3>
-                    <p>Automate extraction of technical data into databases—no manual data entry required.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>📚 Documentation Generation</h3>
-                    <p>Generate summaries and technical briefs from source PDFs automatically.</p>
+                    <p>Automate extraction of technical data—no manual entry required.</p>
                 </div>
                 <div class="feature-card">
                     <h3>🔧 Parts Selection</h3>
-                    <p>Query datasheets with natural language to find suitable components for your project.</p>
+                    <p>Query datasheets to find suitable components for your project.</p>
                 </div>
                 <div class="feature-card">
                     <h3>⚙️ Engineering Automation</h3>
-                    <p>Extract motor and drive specs for integration into engineering tools and workflows.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>🛒 E-commerce Integration</h3>
-                    <p>Populate product pages with specifications extracted from manufacturer datasheets.</p>
+                    <p>Extract specs for integration into engineering tools and workflows.</p>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section class="quickstart">
-        <div class="container">
-            <h2 class="section-title">What You Get</h2>
-            <p style="text-align: center; color: var(--text-muted); max-width: 700px; margin: 0 auto 40px;">
-                Instead of messy PDFs with specs scattered across pages, you get clean, organized data
-                that looks the same for every product. Here's what comes out:
-            </p>
-            <div class="code-block">
-                <pre><code>[
-  {
-    <span class="code-string">"manufacturer"</span>: <span class="code-string">"ACME Motors"</span>,
-    <span class="code-string">"model_number"</span>: <span class="code-string">"AC-2300-5HP"</span>,
-    <span class="code-string">"voltage"</span>: {
-      <span class="code-string">"min"</span>: 200,
-      <span class="code-string">"max"</span>: 240,
-      <span class="code-string">"unit"</span>: <span class="code-string">"V"</span>
-    },
-    <span class="code-string">"power"</span>: {
-      <span class="code-string">"value"</span>: 5,
-      <span class="code-string">"unit"</span>: <span class="code-string">"HP"</span>
-    },
-    <span class="code-string">"current"</span>: {
-      <span class="code-string">"rated"</span>: 6.8,
-      <span class="code-string">"unit"</span>: <span class="code-string">"A"</span>
-    },
-    <span class="code-string">"weight"</span>: {
-      <span class="code-string">"value"</span>: 45,
-      <span class="code-string">"unit"</span>: <span class="code-string">"lbs"</span>
-    }
-  }
-]</code></pre>
-            </div>
-            <p style="text-align: center; color: var(--text-muted); max-width: 700px; margin: 40px auto 0;">
-                This format works with spreadsheets, databases, and any programming language.
-                No more copying and pasting from PDFs!
-            </p>
         </div>
     </section>
 
@@ -612,12 +346,9 @@ uv run datasheetminer/scraper.py \
         <div class="container">
             <div class="footer-links">
                 <a href="https://github.com/jimothyjohn/datasheetminer">GitHub</a>
-                <a href="https://github.com/jimothyjohn/datasheetminer/issues">Report Issues</a>
+                <a href="https://github.com/jimothyjohn/datasheetminer/issues">Issues</a>
                 <a href="https://github.com/jimothyjohn/datasheetminer/blob/main/CLAUDE.md">Documentation</a>
             </div>
-            <p style="color: var(--text-muted); margin-bottom: 10px;">
-                Powered by Google Gemini AI
-            </p>
             <p style="color: var(--text-tertiary); font-size: 0.9rem;">
                 © 2025 Datasheet Miner. Open Source Project.
             </p>
@@ -625,45 +356,37 @@ uv run datasheetminer/scraper.py \
     </footer>
 
     <script>
-        // Theme toggle functionality
         function toggleTheme() {
             const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
+            const current = html.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
 
-            // Toggle icon visibility
-            const moonIcon = document.getElementById('theme-icon-moon');
-            const sunIcon = document.getElementById('theme-icon-sun');
-
+            const moon = document.getElementById('theme-icon-moon');
+            const sun = document.getElementById('theme-icon-sun');
             if (newTheme === 'dark') {
-                moonIcon.style.display = 'block';
-                sunIcon.style.display = 'none';
+                moon.style.display = 'block';
+                sun.style.display = 'none';
             } else {
-                moonIcon.style.display = 'none';
-                sunIcon.style.display = 'block';
+                moon.style.display = 'none';
+                sun.style.display = 'block';
             }
         }
 
-        // Initialize theme on page load
         (function() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = savedTheme === 'dark' || savedTheme === null;
-            const theme = prefersDark ? 'dark' : 'light';
-
+            const saved = localStorage.getItem('theme');
+            const theme = saved || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
 
-            const moonIcon = document.getElementById('theme-icon-moon');
-            const sunIcon = document.getElementById('theme-icon-sun');
-
+            const moon = document.getElementById('theme-icon-moon');
+            const sun = document.getElementById('theme-icon-sun');
             if (theme === 'dark') {
-                moonIcon.style.display = 'block';
-                sunIcon.style.display = 'none';
+                moon.style.display = 'block';
+                sun.style.display = 'none';
             } else {
-                moonIcon.style.display = 'none';
-                sunIcon.style.display = 'block';
+                moon.style.display = 'none';
+                sun.style.display = 'block';
             }
         })();
     </script>

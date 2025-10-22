@@ -19,6 +19,8 @@ export default function ProductList() {
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showSortSelector, setShowSortSelector] = useState(false);
   const [draggedSortIndex, setDraggedSortIndex] = useState<number | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Load products when product type changes or on mount
   useEffect(() => {
@@ -54,40 +56,11 @@ export default function ProductList() {
     [products, filters]
   );
 
-  // Get available attributes for sorting based on filtered results
-  // Filter out attributes where all filtered products have the same value
+  // Get available attributes for sorting based on product type
+  // Simply show all attributes for the selected product type
   const availableAttributes = useMemo(() => {
-    const allAttributes = getAttributesForType(productType);
-    if (filteredProducts.length === 0) return allAttributes;
-
-    return allAttributes.filter(attr => {
-      // Check if attribute exists in any product
-      const valuesWithAttribute = filteredProducts.filter(product => {
-        const value = (product as any)[attr.key];
-        return value !== undefined && value !== null;
-      });
-
-      if (valuesWithAttribute.length === 0) return false;
-
-      // Get all unique values for this attribute
-      const uniqueValues = new Set();
-      valuesWithAttribute.forEach(product => {
-        const value = (product as any)[attr.key];
-        // Normalize the value for comparison
-        let normalizedValue: string;
-        if (typeof value === 'object' && value !== null) {
-          // Handle ValueUnit, MinMaxUnit, arrays, etc.
-          normalizedValue = JSON.stringify(value);
-        } else {
-          normalizedValue = String(value);
-        }
-        uniqueValues.add(normalizedValue);
-      });
-
-      // Only include if there are multiple different values
-      return uniqueValues.size > 1;
-    });
-  }, [filteredProducts, productType]);
+    return getAttributesForType(productType);
+  }, [productType]);
 
   // Handle sort selection
   const handleSortSelect = (attribute: typeof availableAttributes[0]) => {
@@ -153,6 +126,20 @@ export default function ProductList() {
     () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
     [filteredProducts, sorts]
   );
+
+  // Paginate products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedProducts.slice(startIndex, endIndex);
+  }, [sortedProducts, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+
+  // Reset to page 1 when filters, sorts, or items per page change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, sorts, itemsPerPage]);
 
   const formatValue = (value: any): string => {
     if (!value) return 'N/A';
@@ -237,6 +224,7 @@ export default function ProductList() {
                       <span className="sort-attribute-inline">{sort.displayName}</span>
                       <button
                         className="sort-direction-btn-inline"
+                        data-direction={sort.direction}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggleSortDirection(index);
@@ -280,8 +268,21 @@ export default function ProductList() {
           </div>
 
           <div className="results-header-right">
+            {/* Pagination controls */}
+            <div className="pagination-controls">
+              <label className="pagination-label">Show:</label>
+              <select
+                className="pagination-select"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
             <span className="results-count">
-              {sortedProducts.length} {sortedProducts.length === 1 ? 'result' : 'results'}
+              {sortedProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedProducts.length)}`} of {sortedProducts.length}
             </span>
             {loading && products.length > 0 && (
               <span style={{ marginLeft: '1rem', opacity: 0.6, fontSize: '0.9rem' }}>
@@ -300,44 +301,97 @@ export default function ProductList() {
             </p>
           </div>
         ) : (
-          <div className="product-grid">
-            {sortedProducts.map((product) => (
-              <div
-                key={product.product_id}
-                className="product-card-minimal"
-                onClick={(e) => handleProductClick(product, e)}
-              >
-                <div className="product-card-header">
-                  <span className="product-part">{product.part_number || 'N/A'}</span>
-                  <span className="product-manufacturer">{product.manufacturer || 'Unknown'}</span>
-                </div>
-                <div className="product-card-specs">
-                  {product.product_type === 'motor' && 'rated_power' in product && (
-                    <span className="spec-item">
-                      Power: {formatValue(product.rated_power)}
-                    </span>
-                  )}
-                  {product.product_type === 'drive' && 'output_power' in product && (
-                    <span className="spec-item">
-                      Power: {formatValue(product.output_power)}
-                    </span>
-                  )}
-                </div>
-                {/* Show sorted values if sorting is active */}
-                {sorts.length > 0 && (
-                  <div className="product-sort-values">
-                    {getSortValues(product).map((sortValue, idx) => (
-                      <div key={idx} className="product-sort-value">
-                        <span className="sort-value-order">{idx + 1}</span>
-                        <span className="sort-value-label">{sortValue.label}:</span>
-                        <span className="sort-value-content">{sortValue.value}</span>
-                      </div>
-                    ))}
+          <>
+            <div className="product-grid">
+              {paginatedProducts.map((product) => (
+                <div
+                  key={product.product_id}
+                  className="product-card-minimal"
+                  onClick={(e) => handleProductClick(product, e)}
+                >
+                  <div className="product-card-header">
+                    <span className="product-part">{product.part_number || 'N/A'}</span>
+                    <span className="product-manufacturer">{product.manufacturer || 'Unknown'}</span>
                   </div>
-                )}
+                  <div className="product-card-specs">
+                    {product.product_type === 'motor' && (
+                      <>
+                        {'rated_power' in product && product.rated_power && (
+                          <span className="spec-item">
+                            Power: {formatValue(product.rated_power)}
+                          </span>
+                        )}
+                        {'rated_voltage' in product && product.rated_voltage && (
+                          <span className="spec-item">
+                            Voltage: {formatValue(product.rated_voltage)}
+                          </span>
+                        )}
+                        {'rated_current' in product && product.rated_current && (
+                          <span className="spec-item">
+                            Current: {formatValue(product.rated_current)}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {product.product_type === 'drive' && (
+                      <>
+                        {'output_power' in product && product.output_power && (
+                          <span className="spec-item">
+                            Power: {formatValue(product.output_power)}
+                          </span>
+                        )}
+                        {'input_voltage' in product && product.input_voltage && (
+                          <span className="spec-item">
+                            Voltage: {formatValue(product.input_voltage)}
+                          </span>
+                        )}
+                        {'rated_current' in product && product.rated_current && (
+                          <span className="spec-item">
+                            Current: {formatValue(product.rated_current)}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {/* Show sorted values if sorting is active */}
+                  {sorts.length > 0 && (
+                    <div className="product-sort-values">
+                      {getSortValues(product).map((sortValue, idx) => (
+                        <div key={idx} className="product-sort-value">
+                          <span className="sort-value-order">{idx + 1}</span>
+                          <span className="sort-value-label">{sortValue.label}:</span>
+                          <span className="sort-value-content">{sortValue.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination navigation */}
+            {totalPages > 1 && (
+              <div className="pagination-nav">
+                <button
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next →
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </main>
 

@@ -23,7 +23,7 @@
  */
 
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import ThemeToggle from './components/ThemeToggle';
 import NetworkStatus from './components/NetworkStatus';
@@ -89,23 +89,17 @@ function App() {
         <NetworkStatus />
 
         <div className="app">
-          {/* ===== HEADER ===== */}
+          {/* ===== HEADER WITH INLINE NAVIGATION ===== */}
           <header className="header">
-            <h1>Product Search</h1>
+            <div className="header-left">
+              <h1>Product Search</h1>
+              <nav className="nav-inline">
+                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dashboard</NavLink>
+                <NavLink to="/products" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Products</NavLink>
+              </nav>
+            </div>
             <ThemeToggle />
           </header>
-
-          {/* ===== NAVIGATION ===== */}
-          <nav className="nav">
-            <ul>
-              <li>
-                <Link to="/">Dashboard</Link>
-              </li>
-              <li>
-                <Link to="/products">Products</Link>
-              </li>
-            </ul>
-          </nav>
 
           {/* ===== ROUTES WITH SUSPENSE ===== */}
           <Suspense fallback={<LoadingFallback />}>
