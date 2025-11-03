@@ -15,7 +15,7 @@ from datasheetminer.models.product import ProductBase
 class Motor(ProductBase):
     """A Pydantic model representing the specifications of a motor."""
 
-    product_type: str = "motor"
+    product_type: Literal["motor"] = "motor"
     type: Optional[
         Literal[
             "brushless dc",

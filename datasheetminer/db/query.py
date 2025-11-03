@@ -19,7 +19,10 @@ from datasheetminer.models.motor import Motor
 class TableInspector:
     """Utility class to inspect DynamoDB table contents."""
 
-    def __init__(self, table_name: str = "products"):
+    db_client: DynamoDBClient
+    table_name: str
+
+    def __init__(self, table_name: str = "products") -> None:
         """Initialize TableInspector with DynamoDB client.
         Args:
             table_name: Name of the DynamoDB table (default: "products")
@@ -36,11 +39,11 @@ class TableInspector:
         print(f"Counting items in table '{self.table_name}'...")
 
         # Get all items
-        all_items = self.db_client.list_all()
+        all_items: List[Any] = self.db_client.list_all()
 
         # Count by type
-        motor_count = sum(1 for item in all_items if isinstance(item, Motor))
-        drive_count = sum(1 for item in all_items if isinstance(item, Drive))
+        motor_count: int = sum(1 for item in all_items if isinstance(item, Motor))
+        drive_count: int = sum(1 for item in all_items if isinstance(item, Drive))
 
         return {
             "total": len(all_items),
@@ -65,6 +68,7 @@ class TableInspector:
             f"Listing {item_type} items from table '{self.table_name}' (limit: {limit})..."
         )
 
+        items: List[Any]
         if item_type == "all":
             items = self.db_client.list_all(limit=limit)
         elif item_type == "motor":
@@ -75,8 +79,9 @@ class TableInspector:
             raise ValueError(f"Invalid item type: {item_type}")
 
         # Convert to dictionaries
-        results = []
+        results: List[Dict[str, Any]] = []
         for item in items:
+            item_dict: Dict[str, Any]
             if show_details:
                 # Full model dump with JSON serialization
                 item_dict = item.model_dump(by_alias=True, mode="json")
@@ -105,8 +110,10 @@ class TableInspector:
         """
         print(f"Retrieving {item_type} with ID: {item_id}...")
 
-        model_class = Motor if item_type == "motor" else Drive
-        item = self.db_client.read(item_id, model_class)
+        model_class: type[Motor] | type[Drive] = (
+            Motor if item_type == "motor" else Drive
+        )
+        item: Any = self.db_client.read(item_id, model_class)
 
         if item:
             return item.model_dump(by_alias=True, mode="json")
@@ -119,7 +126,7 @@ class TableInspector:
         print(f"TABLE SUMMARY: {self.table_name}")
         print("=" * 60)
 
-        counts = self.count_items()
+        counts: Dict[str, int] = self.count_items()
         print(f"Total items:  {counts['total']}")
         print(f"Motors:       {counts['motors']}")
         print(f"products:       {counts['products']}")
@@ -128,7 +135,7 @@ class TableInspector:
 
 def main() -> int:
     """CLI entry point for the query utility."""
-    parser = argparse.ArgumentParser(
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Query and inspect DynamoDB table contents",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -201,10 +208,10 @@ Environment Variables:
         help="Show full item details (default: summary only)",
     )
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     # Initialize inspector
-    inspector = TableInspector(table_name=args.table)
+    inspector: TableInspector = TableInspector(table_name=args.table)
 
     try:
         if args.summary:
@@ -213,7 +220,7 @@ Environment Variables:
 
         elif args.list:
             # List items
-            items = inspector.list_items(
+            items: List[Dict[str, Any]] = inspector.list_items(
                 item_type=args.type, limit=args.limit, show_details=args.details
             )
 
@@ -227,7 +234,7 @@ Environment Variables:
 
         elif args.get:
             # Get specific item
-            item = inspector.get_item_by_id(args.get, args.type)
+            item: Dict[str, Any] = inspector.get_item_by_id(args.get, args.type)
 
             if item:
                 print("\nItem found:\n")

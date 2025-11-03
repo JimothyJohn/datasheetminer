@@ -2,8 +2,14 @@
 
 Extract technical specifications from product datasheets using AI. Dual deployment modes: AWS Lambda REST API or local CLI tool.
 
-[![Python 3.12+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+## TODO
+
+[] Split products into product families with pages
+[] Add a field to ValueUnit that will set the default filter functinoality, ge, le, equal, not equal.
+[] Add functionality to create the BaseModel as a template for the rest of the items using the JSON file input and the manufacturer and product fields.
 
 ## Quick Start
 

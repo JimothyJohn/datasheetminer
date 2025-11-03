@@ -6,6 +6,7 @@ import { useState, useMemo } from 'react';
 import { FilterCriterion, SortConfig, getAttributesForType } from '../types/filters';
 import { ProductType, Product } from '../types/models';
 import { extractUniqueValues } from '../utils/filterValues';
+import { useApp } from '../context/AppContext';
 import AttributeSelector from './AttributeSelector';
 import FilterChip from './FilterChip';
 
@@ -29,6 +30,10 @@ export default function FilterBar({
   onProductTypeChange
 }: FilterBarProps) {
   const [showAttributeSelector, setShowAttributeSelector] = useState(false);
+  const [editingFilterIndex, setEditingFilterIndex] = useState<number | null>(null);
+
+  // Get categories from context for dynamic dropdown
+  const { categories } = useApp();
 
   // Get all available attributes for the current product type
   const availableAttributes = useMemo(() => {
@@ -48,16 +53,44 @@ export default function FilterBar({
     return cache;
   }, [products, filters]);
 
-  // Handle adding a new filter
-  const handleAddFilter = (attribute: typeof availableAttributes[0]) => {
-    const newFilter: FilterCriterion = {
-      attribute: attribute.key,
-      mode: 'include',
-      operator: '=',
-      displayName: attribute.displayName,
-    };
-    onFiltersChange([...filters, newFilter]);
+  // Handle adding a new filter or editing an existing one
+  const handleAddOrEditFilter = (attribute: typeof availableAttributes[0]) => {
+    // Only add operator for numeric types (number, object, range)
+    const isNumericType = ['number', 'object', 'range'].includes(attribute.type);
+
+    if (editingFilterIndex !== null) {
+      // Edit existing filter - preserve value and operator
+      const existingFilter = filters[editingFilterIndex];
+      const updatedFilter: FilterCriterion = {
+        ...existingFilter,
+        attribute: attribute.key,
+        displayName: attribute.displayName,
+        // Only preserve operator if the new attribute is also numeric
+        ...(isNumericType ? {} : { operator: undefined }),
+        // If changing to a different attribute, clear the value
+        value: undefined,
+      };
+      const newFilters = [...filters];
+      newFilters[editingFilterIndex] = updatedFilter;
+      onFiltersChange(newFilters);
+      setEditingFilterIndex(null);
+    } else {
+      // Add new filter
+      const newFilter: FilterCriterion = {
+        attribute: attribute.key,
+        mode: 'include',
+        ...(isNumericType && { operator: '=' }), // Only add operator for numeric types
+        displayName: attribute.displayName,
+      };
+      onFiltersChange([...filters, newFilter]);
+    }
     setShowAttributeSelector(false);
+  };
+
+  // Handle clicking on filter attribute to edit it
+  const handleEditFilterAttribute = (index: number) => {
+    setEditingFilterIndex(index);
+    setShowAttributeSelector(true);
   };
 
   // Handle updating a filter
@@ -80,7 +113,7 @@ export default function FilterBar({
 
   return (
     <div className="filter-bar-minimal">
-      {/* Product type selector at the top */}
+      {/* Product type selector at the top - dynamically populated */}
       <div className="filter-controls-top">
         <select
           value={productType}
@@ -88,8 +121,11 @@ export default function FilterBar({
           className="product-type-select"
         >
           <option value="all">All Products</option>
-          <option value="motor">Motors</option>
-          <option value="drive">Drives</option>
+          {categories.map((category) => (
+            <option key={category.type} value={category.type}>
+              {category.display_name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -99,7 +135,10 @@ export default function FilterBar({
       <div className="filter-add-container">
         <button
           className="btn-add-filter"
-          onClick={() => setShowAttributeSelector(true)}
+          onClick={() => {
+            setEditingFilterIndex(null);
+            setShowAttributeSelector(true);
+          }}
           title="Add filter (Ctrl+K)"
         >
           + Add Filter
@@ -107,7 +146,29 @@ export default function FilterBar({
         <span className="hint-text">Press Ctrl+K to add filter</span>
       </div>
 
-      {/* Clear all button */}
+      {/* Filter chips - populate below */}
+      <div className="filter-chips-container">
+        {filters.map((filter, index) => {
+          // Find attribute metadata for this filter
+          const attributeMetadata = availableAttributes.find(
+            attr => attr.key === filter.attribute
+          );
+
+          return (
+            <FilterChip
+              key={`${filter.attribute}-${index}`}
+              filter={filter}
+              attributeType={attributeMetadata?.type}
+              suggestedValues={suggestedValuesByAttribute.get(filter.attribute) || []}
+              onUpdate={(updated) => handleUpdateFilter(index, updated)}
+              onRemove={() => handleRemoveFilter(index)}
+              onEditAttribute={() => handleEditFilterAttribute(index)}
+            />
+          );
+        })}
+      </div>
+
+      {/* Clear all button - at the bottom to avoid accidental clicks */}
       {(filters.length > 0 || sort) && (
         <div className="filter-clear-container">
           <button
@@ -120,24 +181,14 @@ export default function FilterBar({
         </div>
       )}
 
-      {/* Filter chips - populate below */}
-      <div className="filter-chips-container">
-        {filters.map((filter, index) => (
-          <FilterChip
-            key={`${filter.attribute}-${index}`}
-            filter={filter}
-            suggestedValues={suggestedValuesByAttribute.get(filter.attribute) || []}
-            onUpdate={(updated) => handleUpdateFilter(index, updated)}
-            onRemove={() => handleRemoveFilter(index)}
-          />
-        ))}
-      </div>
-
       {/* Attribute Selector Modal for Filters */}
       <AttributeSelector
         attributes={availableAttributes}
-        onSelect={handleAddFilter}
-        onClose={() => setShowAttributeSelector(false)}
+        onSelect={handleAddOrEditFilter}
+        onClose={() => {
+          setShowAttributeSelector(false);
+          setEditingFilterIndex(null);
+        }}
         isOpen={showAttributeSelector}
       />
     </div>

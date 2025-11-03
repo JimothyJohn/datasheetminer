@@ -260,7 +260,7 @@ $RECYCLE.BIN/
 *.log
 *.tmp
 *.bak
-*.json
+*.txt
 *.cursor/
 *.claude/
 *.vscode/
@@ -268,3 +268,6 @@ $RECYCLE.BIN/
 schema/
 tests/
 datasheets/
+*.changelog/
+urls.json
+outputs/

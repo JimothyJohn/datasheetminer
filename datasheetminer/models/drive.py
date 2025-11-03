@@ -27,7 +27,7 @@ from datasheetminer.models.product import ProductBase
 class Drive(ProductBase):
     """A Pydantic model representing the specifications of a servo drive."""
 
-    product_type: str = "drive"
+    product_type: Literal["drive"] = "drive"
     type: Optional[Literal["servo", "variable frequency"]] = None
     series: Optional[str] = None
     input_voltage: Optional[MinMaxUnit] = None

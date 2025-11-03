@@ -20,7 +20,7 @@
  * @module filters
  */
 
-import { Product } from './models';
+import { Product, ProductType } from './models';
 
 // ========== Type Definitions ==========
 
@@ -226,10 +226,16 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
  * @param productType - Product type filter ('motor', 'drive', or 'all')
  * @returns Array of applicable attribute metadata
  */
-export const getAttributesForType = (productType: 'motor' | 'drive' | 'all'): AttributeMetadata[] => {
+export const getAttributesForType = (productType: ProductType): AttributeMetadata[] => {
   // Fast path: type-specific attributes
   if (productType === 'motor') return getMotorAttributes();
   if (productType === 'drive') return getDriveAttributes();
+
+  // For product types without defined attributes, return empty array (for now)
+  // TODO: Define attribute schemas for robot_arm and gearhead types
+  if (productType === 'robot_arm' || productType === 'gearhead') {
+    return [];
+  }
 
   // ===== COMPUTE COMMON ATTRIBUTES =====
   // For 'all' type, find intersection of motor and drive attributes

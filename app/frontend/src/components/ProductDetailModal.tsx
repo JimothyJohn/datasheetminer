@@ -5,6 +5,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Product } from '../types/models';
+import { formatPropertyLabel } from '../utils/formatting';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -59,6 +60,12 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
       return { display: `${value.min} - ${value.max}`, unit: value.unit };
     }
     if (Array.isArray(value)) {
+      // Check if array contains objects with value/unit
+      if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'value' in value[0] && 'unit' in value[0]) {
+        const formattedValues = value.map(item => String(item.value)).join(', ');
+        const commonUnit = value[0].unit;
+        return { display: formattedValues, unit: commonUnit };
+      }
       return { display: value.join(', ') };
     }
     return { display: String(value) };
@@ -67,31 +74,43 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
   const renderNestedObject = (value: any) => {
     const entries = Object.entries(value);
 
-    // Check if all nested values have the same unit
-    const allUnits = entries
-      .map(([_, v]: [string, any]) => {
-        if (typeof v === 'object' && v !== null && 'unit' in v) return v.unit;
-        return null;
-      })
-      .filter(Boolean);
+    // Check if there's a separate "unit" property at the same level
+    const separateUnit = entries.find(([key, _]) => key.toLowerCase() === 'unit');
+    const commonUnit = separateUnit ? separateUnit[1] : null;
 
-    const commonUnit = allUnits.length === entries.length && allUnits.every(u => u === allUnits[0])
-      ? allUnits[0]
-      : null;
+    // If there's a separate unit property, filter it out from the entries
+    const filteredEntries = commonUnit
+      ? entries.filter(([key, _]) => key.toLowerCase() !== 'unit')
+      : entries;
+
+    // If no separate unit, check if all nested values have the same unit
+    let finalUnit = commonUnit;
+    if (!finalUnit) {
+      const allUnits = filteredEntries
+        .map(([_, v]: [string, any]) => {
+          if (typeof v === 'object' && v !== null && 'unit' in v) return v.unit;
+          return null;
+        })
+        .filter(Boolean);
+
+      finalUnit = allUnits.length === filteredEntries.length && allUnits.every(u => u === allUnits[0])
+        ? allUnits[0]
+        : null;
+    }
 
     return (
       <table className="spec-subtable">
         <tbody>
-          {entries.map(([subKey, subValue]: [string, any]) => {
+          {filteredEntries.map(([subKey, subValue]: [string, any]) => {
             const formatted = formatValue(subValue);
-            const subLabel = subKey.charAt(0).toUpperCase() + subKey.slice(1);
-            const displayUnit = commonUnit || formatted.unit;
+            const subLabel = formatPropertyLabel(subKey);
+            const displayUnit: string = (finalUnit || formatted.unit || '') as string;
 
             return (
               <tr key={subKey} className="spec-subrow">
                 <td className="spec-sublabel">{subLabel}</td>
                 <td className="spec-subvalue">{formatted.display}</td>
-                <td className="spec-subunit">{displayUnit || ''}</td>
+                <td className="spec-subunit">{displayUnit}</td>
               </tr>
             );
           })}
@@ -142,10 +161,7 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
     Object.entries(product).forEach(([key, value]) => {
       if (skipKeys.includes(key)) return;
 
-      const label = key
-        .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
+      const label = formatPropertyLabel(key);
 
       const category = categorize(key);
       categories[category].push({ key, label, value });

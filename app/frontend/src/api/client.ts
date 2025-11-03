@@ -211,6 +211,33 @@ class ApiClient {
   // ========== Public API Methods ==========
 
   /**
+   * Get all unique product categories with counts
+   *
+   * Fetches all product types that exist in the database, along with their counts.
+   * Returns dynamic list that updates as new product types are added.
+   * Used by Dashboard and ProductList components for category selection.
+   *
+   * Backend Endpoint: GET /api/products/categories
+   *
+   * @returns Promise<Array<{ type: string; count: number; display_name: string }>>
+   * @throws Error if request fails or no data received
+   *
+   * Performance: ~100-300ms (scans all products to determine types)
+   */
+  async getCategories(): Promise<Array<{ type: string; count: number; display_name: string }>> {
+    const response = await this.request<Array<{ type: string; count: number; display_name: string }>>(
+      '/api/products/categories'
+    );
+
+    if (!response.data) {
+      throw new Error('No categories data received');
+    }
+
+    console.log(`[ApiClient] Received ${response.data.length} product categories`);
+    return response.data;
+  }
+
+  /**
    * Get product summary statistics
    *
    * Fetches aggregated counts: total products, total motors, total drives.

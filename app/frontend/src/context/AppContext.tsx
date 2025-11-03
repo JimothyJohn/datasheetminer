@@ -22,12 +22,23 @@ import { Product, ProductSummary, ProductType } from '../types/models';
 import { apiClient } from '../api/client';
 
 /**
+ * Product category interface
+ * Represents a unique product type with count and display name
+ */
+export interface ProductCategory {
+  type: string;          // Internal type name (e.g., 'motor', 'robot_arm')
+  count: number;         // Number of products of this type
+  display_name: string;  // Human-readable name (e.g., 'Motors', 'Robot Arms')
+}
+
+/**
  * Core application state interface
  * Contains the minimal state needed for the entire app
  */
 interface AppState {
   products: Product[];        // Currently displayed products
   summary: ProductSummary | null;  // Aggregated product statistics
+  categories: ProductCategory[];    // All unique product categories with counts
   loading: boolean;           // Global loading indicator
   error: string | null;       // Latest error message (null if no error)
 }
@@ -40,6 +51,8 @@ interface AppContextType extends AppState {
   // Data fetching operations
   loadProducts: (type?: ProductType) => Promise<void>;  // Fetch products with caching
   loadSummary: () => Promise<void>;                     // Fetch summary statistics
+  loadCategories: () => Promise<void>;                  // Fetch all product categories
+  forceRefresh: () => Promise<void>;                    // Clear cache and force refresh
 
   // CRUD operations with optimistic updates for better UX
   addProduct: (product: Partial<Product>) => Promise<void>;      // Create new product
@@ -48,6 +61,7 @@ interface AppContextType extends AppState {
   // Direct state setters (used sparingly, prefer methods above)
   setProducts: (products: Product[]) => void;
   setSummary: (summary: ProductSummary) => void;
+  setCategories: (categories: ProductCategory[]) => void;
   setError: (error: string | null) => void;
 }
 
@@ -69,6 +83,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ========== Core State ==========
   const [products, setProducts] = useState<Product[]>([]);
   const [summary, setSummary] = useState<ProductSummary | null>(null);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -222,6 +237,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [summary]);
 
+  /**
+   * Load all product categories with intelligent caching
+   *
+   * Fetches all unique product types that exist in the database.
+   * This is used to dynamically populate category selectors without
+   * hardcoding product types.
+   *
+   * Strategy:
+   * 1. If categories exist → return immediately + background refresh
+   * 2. If no categories → show loading + fetch from API
+   *
+   * @returns Promise that resolves when initial load completes
+   *
+   * Performance: ~0ms with cache, ~100-300ms without cache
+   */
+  const loadCategories = useCallback(async () => {
+    console.log('[AppContext] loadCategories called');
+
+    // ===== CACHE CHECK =====
+    if (categories.length > 0) {
+      console.log(`[AppContext] Categories cache HIT: ${categories.length} categories`);
+
+      // ===== BACKGROUND REFRESH =====
+      console.log('[AppContext] Starting background refresh for categories');
+      apiClient.getCategories().then(data => {
+        // Only update if data changed
+        if (JSON.stringify(data) !== JSON.stringify(categories)) {
+          console.log(`[AppContext] Categories changed: ${data.length} categories`);
+          setCategories(data);
+        } else {
+          console.log('[AppContext] Categories unchanged');
+        }
+      }).catch((err) => {
+        // Silently fail - cached categories still valid
+        console.warn('[AppContext] Categories background refresh failed (non-critical):', err);
+      });
+
+      return; // Exit early
+    }
+
+    // ===== CACHE MISS =====
+    console.log('[AppContext] Categories cache MISS, fetching from API');
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await apiClient.getCategories();
+      console.log(`[AppContext] Categories API response: ${data.length} categories`, data);
+      setCategories(data);
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load categories';
+      console.error('[AppContext] Failed to load categories:', err);
+      setError(errorMsg);
+
+    } finally {
+      setLoading(false);
+    }
+  }, [categories]);
+
   // ========== CRUD Operations with Optimistic Updates ==========
 
   /**
@@ -257,14 +333,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // ===== OPTIMISTIC UPDATE: Increment summary counts =====
       if (summary && product.product_type) {
-        const newSummary = { ...summary, total: summary.total + 1 };
+        const newSummary: ProductSummary = { ...summary, total: summary.total + 1 };
 
-        if (product.product_type === 'motor') {
-          newSummary.motors = summary.motors + 1;
-          console.log(`[AppContext] Optimistically incremented motor count to ${newSummary.motors}`);
-        } else if (product.product_type === 'drive') {
-          newSummary.drives = summary.drives + 1;
-          console.log(`[AppContext] Optimistically incremented drive count to ${newSummary.drives}`);
+        // Increment count for this product type (e.g., motors, drives, robot_arms)
+        const typePluralKey = `${product.product_type}s`; // motor -> motors, drive -> drives
+        if (typePluralKey in newSummary) {
+          newSummary[typePluralKey] = (newSummary[typePluralKey] as number || 0) + 1;
+          console.log(`[AppContext] Optimistically incremented ${typePluralKey} count to ${newSummary[typePluralKey]}`);
         }
 
         setSummary(newSummary);
@@ -339,14 +414,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // ===== OPTIMISTIC UPDATE: Decrement summary counts =====
       if (summary && deletedProduct) {
-        const newSummary = { ...summary, total: summary.total - 1 };
+        const newSummary: ProductSummary = { ...summary, total: summary.total - 1 };
 
-        if (deletedProduct.product_type === 'motor') {
-          newSummary.motors = summary.motors - 1;
-          console.log(`[AppContext] Optimistically decremented motor count to ${newSummary.motors}`);
-        } else if (deletedProduct.product_type === 'drive') {
-          newSummary.drives = summary.drives - 1;
-          console.log(`[AppContext] Optimistically decremented drive count to ${newSummary.drives}`);
+        // Decrement count for this product type (e.g., motors, drives, robot_arms)
+        const typePluralKey = `${deletedProduct.product_type}s`; // motor -> motors, drive -> drives
+        if (typePluralKey in newSummary) {
+          newSummary[typePluralKey] = Math.max(0, (newSummary[typePluralKey] as number || 0) - 1);
+          console.log(`[AppContext] Optimistically decremented ${typePluralKey} count to ${newSummary[typePluralKey]}`);
         }
 
         setSummary(newSummary);
@@ -378,6 +452,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [products, summary, currentProductType, loadProducts, loadSummary]);
 
+  /**
+   * Force refresh all data by clearing cache
+   *
+   * Use this when you know data has changed externally (e.g., items added
+   * directly to DynamoDB) and you want to bypass the cache completely.
+   *
+   * @returns Promise that resolves when refresh completes
+   */
+  const forceRefresh = useCallback(async () => {
+    console.log('[AppContext] Force refresh: clearing all caches');
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Clear all caches
+      setProductCache(new Map());
+      setSummary(null);
+      setCategories([]);
+
+      // Reload data from scratch
+      await Promise.all([
+        loadProducts(currentProductType),
+        loadSummary(),
+        loadCategories()
+      ]);
+
+      console.log('[AppContext] Force refresh complete');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to refresh';
+      console.error('[AppContext] Force refresh failed:', err);
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentProductType, loadProducts, loadSummary, loadCategories]);
+
   // ========== Context Value Assembly ==========
 
   /**
@@ -388,12 +499,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // State
     products,       // Currently displayed products
     summary,        // Product statistics (total, motors, drives)
+    categories,     // All unique product categories with counts
     loading,        // Global loading indicator
     error,          // Latest error message
 
     // Data loading methods
     loadProducts,   // Fetch products with intelligent caching
     loadSummary,    // Fetch summary with caching
+    loadCategories, // Fetch categories with caching
+    forceRefresh,   // Clear cache and force refresh
 
     // CRUD operations
     addProduct,     // Create new product (optimistic)
@@ -402,6 +516,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Direct state setters (use sparingly)
     setProducts,
     setSummary,
+    setCategories,
     setError,
   };
 

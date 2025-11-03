@@ -17,38 +17,61 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
-from uuid import UUID
+from typing import Any, List, Optional, Type
 
 
-from datasheetminer.models.common import Datasheet
+from datasheetminer.config import SCHEMA_CHOICES
+from datasheetminer.db.dynamo import DynamoDBClient
+from datasheetminer.models.product import ProductBase
 from datasheetminer.utils import (
     get_document,
-    parse_page_ranges,
     validate_api_key,
-    validate_page_ranges,
-    validate_url,
+    UUIDEncoder,
+    get_product_info_from_json,
+    parse_gemini_response,
 )
 from datasheetminer.llm import generate_content
 
 
+class ElapsedTimeFormatter(logging.Formatter):
+    """
+    AI-generated comment: This custom logging formatter converts log timestamps into
+    an elapsed time format (M:SS), making it easier to track the duration of
+    different stages of the program execution. It's initialized once and calculates
+    all subsequent log times relative to its creation.
+    """
+
+    def __init__(self, fmt=None, datefmt=None, style="%"):
+        super().__init__(fmt, datefmt, style)
+        self.start_time = time.time()
+
+    def formatTime(self, record, datefmt=None):
+        """
+        AI-generated comment: This method is overridden from the base Formatter class.
+        It calculates the time elapsed since the program started and formats it
+        as M:SS.
+        """
+        elapsed_seconds = record.created - self.start_time
+        minutes, seconds = divmod(elapsed_seconds, 60)
+        return f"{int(minutes)}:{int(seconds):02}"
+
+
 # Configure logging for CLI
+# AI-generated comment: A handler is created and equipped with the custom
+# ElapsedTimeFormatter. This handler is then passed to logging.basicConfig to ensure
+# all log messages will be formatted with elapsed time.
+handler = logging.StreamHandler()
+handler.setFormatter(
+    ElapsedTimeFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[handler],
 )
-logger = logging.getLogger(__name__)
-
-
-class UUIDEncoder(json.JSONEncoder):
-    """A custom JSON encoder to handle UUID objects."""
-
-    def default(self, obj):
-        """Convert UUID objects to strings, let the base class handle others."""
-        if isinstance(obj, UUID):
-            # if the obj is uuid, we simply return the value of uuid
-            return str(obj)
-        return json.JSONEncoder.default(self, obj)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -70,7 +93,7 @@ def main() -> None:
         # Use markdown output format
         uv run datasheetminer -u "https://example.com/tech.pdf"
     """
-    parser = argparse.ArgumentParser(
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Datasheetminer CLI - Analyze PDF documents using Gemini AI.",
         epilog="""
     Examples:
@@ -90,24 +113,10 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--type",
-        choices=["motor", "drive"],
         required=True,
-        help="The type of schema to use for analysis (motor or drive)",
+        help="The type of schema to use for analysis (motor, drive, gearhead, robot_arm, etc)",
     )
-    parser.add_argument(
-        "-u",
-        "--url",
-        required=True,
-        type=validate_url,
-        help="URL of the PDF document to analyze",
-    )
-    parser.add_argument(
-        "-p",
-        "--pages",
-        type=validate_page_ranges,
-        default=None,
-        help="Specific pages of the PDF to analyze. e.g., '1,3-5,7'. If not provided, the entire document is used.",
-    )
+
     parser.add_argument(
         "--x-api-key",
         help="Gemini API key (can also be set via GEMINI_API_KEY environment variable)",
@@ -119,30 +128,108 @@ def main() -> None:
         default=Path("output.json"),
         help="Output file path for saving the response (optional)",
     )
+    parser.add_argument(
+        "--from-json",
+        type=str,
+        required=True,
+        help="Path to a JSON file with product info.",
+    )
+    parser.add_argument(
+        "--json-index",
+        type=int,
+        required=True,
+        help="Index of the product in the JSON file.",
+    )
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
+
+    try:
+        info = get_product_info_from_json(
+            args.from_json, f"{args.type}", args.json_index
+        )
+        url_raw = info.get("url")
+        pages = info.get("pages")
+        manufacturer_raw = info.get("manufacturer")
+        product_name_raw = info.get("product_name")
+        product_type_raw = args.type or info.get("product_type")
+    except (FileNotFoundError, ValueError) as e:
+        parser.error(str(e))
+
+    # After potentially loading from JSON, check for required args
+    required_info = ["url", "manufacturer", "product_name"]
+    missing_info = [
+        arg for arg in required_info if info is None or info.get(arg) is None
+    ]
+    if missing_info:
+        parser.error(f"Missing required info in JSON: {', '.join(missing_info)}")
+
+    # AI-generated comment: Validate product_type is provided (required via argparse)
+    if not product_type_raw:
+        parser.error("Product type is required")
+
+    # AI-generated comment: Type narrowing - after validation we know these are not None
+    manufacturer: str = manufacturer_raw  # type: ignore[assignment]
+    product_name: str = product_name_raw  # type: ignore[assignment]
+    url: str = url_raw  # type: ignore[assignment]
+    product_type: str = product_type_raw  # type: ignore[assignment]
 
     # Manually handle API key validation
-    api_key = args.x_api_key or os.environ.get("GEMINI_API_KEY")
+    api_key: Optional[str] = args.x_api_key or os.environ.get("GEMINI_API_KEY")
     try:
-        validated_api_key = validate_api_key(api_key)
+        validated_api_key: str = validate_api_key(api_key)
     except argparse.ArgumentTypeError as e:
         parser.error(str(e))
 
-    logger.info(f"Starting document analysis for URL: {args.url}")
-    logger.info(f"Pages: {args.pages}")
+    # AI-generated comment:
+    # Before proceeding with the analysis, check if a product with the same
+    # product_type, manufacturer, and product_name already exists in the database
+    # to avoid redundant scraping. Including manufacturer provides enhanced precision
+    # to handle cases where different manufacturers might have identically named products.
+    # This is an important optimization that saves both time and resources (API calls, compute time, etc.).
+    client: DynamoDBClient = DynamoDBClient()
+    model_class: Type[ProductBase] = SCHEMA_CHOICES[args.type]
+
+    if client.product_exists(product_type, manufacturer, product_name, model_class):
+        logger.warning(
+            f"⚠️  Product '{product_name}' by manufacturer '{manufacturer}' with product_type '{product_type}' "
+            f"already exists in the database. Skipping scraping to avoid duplicates."
+        )
+        sys.exit(0)
+
+    logger.info(f"Starting document analysis for: {url}")
+    logger.info(f"Pages: {pages}")
 
     try:
         # AI-generated comment: Process the document analysis and handle the single response.
         # The response is now a single object, not a stream.
-        doc_data = get_document(args.url, args.pages)
+        doc_data: Optional[bytes] = get_document(url, pages)
         if doc_data is None:
             print("Could not retrieve document.", file=sys.stderr)
             sys.exit(1)
 
-        response = generate_content(doc_data, validated_api_key, args.type)
+        response: Any = generate_content(doc_data, validated_api_key, args.type)
 
-        if not response or not hasattr(response, "parsed") or not response.parsed:
+        # AI-generated comment: Save the raw Gemini response to a file for debugging.
+        # This helps diagnose parsing issues when the response is truncated or malformed.
+        if response and hasattr(response, "text"):
+            debug_output_path = Path("gemini_response_debug.txt")
+            try:
+                debug_output_path.write_text(response.text, encoding="utf-8")
+                logger.info(f"Raw Gemini response saved to: {debug_output_path}")
+            except Exception as e:
+                logger.warning(f"Could not save debug response: {e}")
+
+        # AI-generated comment: Use the centralized parsing utility from utils.py
+        # This handles both automatic and manual parsing with fallback strategies
+        try:
+            parsed_models: List[Any] = parse_gemini_response(
+                response, SCHEMA_CHOICES[args.type], args.type
+            )
+        except (ValueError, TypeError) as e:
+            logger.error(f"Failed to parse Gemini response: {e}")
+            parsed_models = []
+
+        if not parsed_models:
             logger.error("No valid response received from Gemini AI.")
             logger.debug(f"Raw Gemini response: {response}")
             if response and hasattr(response, "text"):
@@ -150,37 +237,44 @@ def main() -> None:
             print("No response received from Gemini AI", file=sys.stderr)
             sys.exit(1)
 
-        # AI-generated comment: I will now inject the datasheet URL and page numbers
-        # into the parsed Pydantic models before they are serialized to JSON. This
-        # ensures that the output data includes the source document information.
-        try:
-            page_list = []
-            if args.pages:
-                # The parse_page_ranges function now handles both '-' and ':'.
-                # It returns 0-indexed pages, so we add 1 to each for 1-based display.
-                page_list = [p + 1 for p in parse_page_ranges(args.pages)]
-
-            datasheet_info = Datasheet(url=args.url, pages=page_list)
-            for item in response.parsed:
-                if hasattr(item, "datasheet_url"):
-                    item.datasheet_url = datasheet_info
-        except Exception as e:
-            logger.warning(f"Could not set datasheet_url on parsed models: {e}")
-
         # AI-generated comment: The response.parsed attribute now contains a list of Pydantic
         # model instances. We can iterate through them and convert them to dictionaries
         # for JSON serialization.
-        parsed_data = [item.model_dump() for item in response.parsed]
+        # AI-generated comment:
+        # Manually set the manufacturer, product_name, and datasheet_url on each
+        # parsed model. The LLM is only responsible for extracting the technical
+        # specifications, so we need to add the metadata from urls.json to
+        # ensure it's stored in DynamoDB. This is critical for the duplicate
+        # check to work correctly on subsequent runs.
+        for model in parsed_models:
+            model.manufacturer = manufacturer
+            model.product_name = product_name
+            model.product_type = product_type
+            model.datasheet_url = url
+
+        parsed_data: List[Any] = [item.model_dump() for item in parsed_models]
 
         # Output the response
         if args.output:
             try:
                 # AI-generated comment: Serialize the parsed data to a formatted JSON string.
-                formatted_response = json.dumps(parsed_data, indent=2, cls=UUIDEncoder)
+                formatted_response: str = json.dumps(
+                    parsed_data, indent=2, cls=UUIDEncoder
+                )
 
                 # Save to file
                 args.output.write_text(formatted_response, encoding="utf-8")
                 print(f"Response saved to: {args.output}", file=sys.stderr)
+                success_count: int = client.batch_create(parsed_models)
+                print(
+                    f"Successfully pushed {success_count} items to DynamoDB",
+                    file=sys.stderr,
+                )
+                failure_count: int = len(parsed_data) - success_count
+                logger.info(
+                    f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"
+                )
+
             except Exception as e:
                 # AI-generated comment: Handle cases where serialization fails.
                 print(f"Error saving response: {e}", file=sys.stderr)

@@ -4,24 +4,31 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { FilterCriterion, ComparisonOperator } from '../types/filters';
+import { FilterCriterion, ComparisonOperator, AttributeMetadata } from '../types/filters';
 
 interface FilterChipProps {
   filter: FilterCriterion;
+  attributeType?: AttributeMetadata['type'];
   onUpdate: (updatedFilter: FilterCriterion) => void;
   onRemove: () => void;
+  onEditAttribute: () => void;
   suggestedValues?: Array<string | number>;
 }
 
-export default function FilterChip({ filter, onUpdate, onRemove, suggestedValues = [] }: FilterChipProps) {
+export default function FilterChip({ filter, attributeType, onUpdate, onRemove, onEditAttribute, suggestedValues = [] }: FilterChipProps) {
   const [editValue, setEditValue] = useState(filter.value ? String(filter.value) : '');
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState(suggestedValues);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Cycle through comparison operators
+  // Determine if this attribute supports comparison operators (only numeric types)
+  const isNumericType = attributeType && ['number', 'object', 'range'].includes(attributeType);
+
+  // Cycle through comparison operators (only for numeric types)
   const cycleOperator = () => {
+    if (!isNumericType) return; // Don't allow cycling for non-numeric types
+
     const operators: ComparisonOperator[] = ['=', '>', '<', '!='];
     const currentIndex = operators.indexOf(filter.operator || '=');
     const nextOp = operators[(currentIndex + 1) % operators.length];
@@ -88,7 +95,14 @@ export default function FilterChip({ filter, onUpdate, onRemove, suggestedValues
   return (
     <div className="filter-chip-minimal" data-operator={filter.operator || '='}>
       <div className="filter-chip-header">
-        <span className="filter-attribute">{filter.displayName}</span>
+        <span
+          className="filter-attribute"
+          onClick={onEditAttribute}
+          style={{ cursor: 'pointer' }}
+          title="Click to change attribute"
+        >
+          {filter.displayName}
+        </span>
         <button
           className="filter-remove"
           onClick={onRemove}
@@ -99,14 +113,17 @@ export default function FilterChip({ filter, onUpdate, onRemove, suggestedValues
       </div>
 
       <div className="filter-chip-controls">
-        <button
-          className="filter-operator"
-          data-operator={filter.operator || '='}
-          onClick={cycleOperator}
-          title="Click to cycle operator: = → > → < → !="
-        >
-          {filter.operator || '='}
-        </button>
+        {/* Only show operator button for numeric types */}
+        {isNumericType && (
+          <button
+            className="filter-operator"
+            data-operator={filter.operator || '='}
+            onClick={cycleOperator}
+            title="Click to cycle operator: = → > → < → !="
+          >
+            {filter.operator || '='}
+          </button>
+        )}
 
         <div className="filter-input-wrapper">
           <input

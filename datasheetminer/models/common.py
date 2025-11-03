@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -15,6 +15,13 @@ from pydantic import BaseModel, field_validator, model_validator
 # AI-generated comment:
 # The following are reusable sub-models for common data structures.
 # Creating these smaller, reusable models improves maintainability and readability.
+
+
+class Datasheet(BaseModel):
+    """Represents information about a product datasheet."""
+
+    url: Optional[str] = None
+    pages: Optional[List[int]] = None
 
 
 class ValueUnit(BaseModel):
@@ -45,12 +52,3 @@ class MinMaxUnit(BaseModel):
             self.min = None
             self.max = None
         return self
-
-
-class Dimensions(BaseModel):
-    """Represents physical dimensions of an object."""
-
-    width: Optional[float] = None
-    length: Optional[float] = None
-    height: Optional[float] = None
-    unit: Optional[str] = "mm"

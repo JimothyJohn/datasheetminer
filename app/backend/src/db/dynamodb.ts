@@ -8,11 +8,14 @@ import {
   GetItemCommand,
   PutItemCommand,
   QueryCommand,
+  QueryCommandOutput,
   DeleteItemCommand,
   BatchWriteItemCommand,
+  AttributeValue,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { Product, ProductType } from '../types/models';
+import { VALID_PRODUCT_TYPES, formatDisplayName } from '../config/productTypes';
 
 export interface DynamoDBConfig {
   tableName: string;
@@ -101,38 +104,66 @@ export class DynamoDBService {
 
   /**
    * List products by type with optional filtering
+   * Automatically handles DynamoDB pagination to fetch all results
    */
   async list(
     productType: ProductType = 'all',
     limit?: number
   ): Promise<Product[]> {
     try {
-      // If 'all', we need to query both types
+      // If 'all', query all valid product types dynamically
       if (productType === 'all') {
-        const [motors, drives] = await Promise.all([
-          this.list('motor', limit),
-          this.list('drive', limit),
-        ]);
-        return [...motors, ...drives];
+        const allTypePromises = VALID_PRODUCT_TYPES.map(type =>
+          this.list(type as ProductType, limit)
+        );
+        const results = await Promise.all(allTypePromises);
+        return results.flat();
       }
 
       const typeUpper = productType.toUpperCase();
       const pk = `PRODUCT#${typeUpper}`;
+      const allItems: Product[] = [];
+      let lastEvaluatedKey: Record<string, AttributeValue> | undefined = undefined;
 
-      const result = await this.client.send(
-        new QueryCommand({
-          TableName: this.tableName,
-          KeyConditionExpression: 'PK = :pk',
-          ExpressionAttributeValues: marshall({ ':pk': pk }),
-          Limit: limit,
-        })
-      );
+      // Paginate through all results
+      let pageCount = 0;
+      do {
+        pageCount++;
+        console.log(`[DynamoDB] Query page ${pageCount} for ${productType} (current total: ${allItems.length})`);
 
-      if (!result.Items) {
-        return [];
-      }
+        const result: QueryCommandOutput = await this.client.send(
+          new QueryCommand({
+            TableName: this.tableName,
+            KeyConditionExpression: 'PK = :pk',
+            ExpressionAttributeValues: marshall({ ':pk': pk }),
+            Limit: limit,
+            ExclusiveStartKey: lastEvaluatedKey,
+          })
+        );
 
-      return result.Items.map((item) => this.deserializeProduct(unmarshall(item)));
+        console.log(`[DynamoDB] Page ${pageCount} returned ${result.Items?.length || 0} items, hasMore: ${!!result.LastEvaluatedKey}`);
+
+        if (result.Items && result.Items.length > 0) {
+          const items = result.Items.map((item: Record<string, AttributeValue>) =>
+            this.deserializeProduct(unmarshall(item))
+          );
+          allItems.push(...items);
+        }
+
+        // Check if there are more results to fetch
+        lastEvaluatedKey = result.LastEvaluatedKey;
+
+        // If a limit was specified and we've reached it, stop paginating
+        if (limit && allItems.length >= limit) {
+          console.log(`[DynamoDB] Reached limit of ${limit}, stopping pagination`);
+          break;
+        }
+
+      } while (lastEvaluatedKey);
+
+      console.log(`[DynamoDB] Query complete for ${productType}: ${allItems.length} total items from ${pageCount} pages`);
+
+      return allItems;
     } catch (error) {
       console.error('Error listing products:', error);
       return [];
@@ -190,18 +221,65 @@ export class DynamoDBService {
 
   /**
    * Count products by type
+   * Uses the fixed list method which now paginates through all results
+   * Returns counts for all valid product types dynamically
    */
-  async count(): Promise<{ total: number; motors: number; drives: number }> {
-    const [motors, drives] = await Promise.all([
-      this.list('motor'),
-      this.list('drive'),
-    ]);
+  async count(): Promise<Record<string, number> & { total: number }> {
+    // Query all product types in parallel
+    const countPromises = VALID_PRODUCT_TYPES.map(async type => ({
+      type,
+      products: await this.list(type as ProductType)
+    }));
 
-    return {
-      total: motors.length + drives.length,
-      motors: motors.length,
-      drives: drives.length,
-    };
+    const results = await Promise.all(countPromises);
+
+    // Build dynamic count object
+    const counts: Record<string, number> & { total: number } = { total: 0 };
+
+    for (const { type, products } of results) {
+      const count = products.length;
+      counts[type + 's'] = count; // e.g., "motors", "drives", "robot_arms"
+      counts.total += count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get all unique product categories and their counts
+   * Returns ALL valid product types (from config) with counts from database
+   * Shows types with 0 count if they have no products yet
+   * Handles case-insensitive matching since database may have inconsistent casing
+   */
+  async getCategories(): Promise<Array<{ type: string; count: number; display_name: string }>> {
+    try {
+      // Get all products from database
+      const allProducts = await this.listAll();
+
+      // Count products by type (case-insensitive)
+      const categoryCountMap = new Map<string, number>();
+      for (const product of allProducts) {
+        const type = product.product_type.toLowerCase(); // Normalize to lowercase
+        categoryCountMap.set(type, (categoryCountMap.get(type) || 0) + 1);
+      }
+
+      // Create array with ALL valid types (including those with 0 count)
+      const categories = VALID_PRODUCT_TYPES.map(type => ({
+        type,
+        count: categoryCountMap.get(type.toLowerCase()) || 0, // Case-insensitive lookup
+        display_name: formatDisplayName(type)
+      }));
+
+      // Sort by type name
+      categories.sort((a, b) => a.type.localeCompare(b.type));
+
+      console.log('[DynamoDB] Categories:', categories);
+
+      return categories;
+    } catch (error) {
+      console.error('Error getting categories:', error);
+      return [];
+    }
   }
 
   /**

@@ -23,7 +23,9 @@ from datasheetminer.models.motor import Motor
 class DataPusher:
     """Utility class to push JSON data into DynamoDB."""
 
-    def __init__(self, table_name: str = "products"):
+    db_client: DynamoDBClient
+
+    def __init__(self, table_name: str = "products") -> None:
         """Initialize DataPusher with DynamoDB client.
 
         Args:
@@ -41,7 +43,7 @@ class DataPusher:
             Normalized item dictionary
         """
         # Create a copy to avoid modifying the original
-        normalized = item.copy()
+        normalized: Dict[str, Any] = item.copy()
 
         # Handle nested datasheet_url structure
         if "datasheet_url" in normalized and isinstance(
@@ -81,14 +83,14 @@ class DataPusher:
         }
 
         # Check for drive-specific fields
-        drive_score = sum(1 for field in drive_fields if field in item)
+        drive_score: int = sum(1 for field in drive_fields if field in item)
 
         # Check for motor-specific fields
-        motor_score = sum(1 for field in motor_fields if field in item)
+        motor_score: int = sum(1 for field in motor_fields if field in item)
 
         # Use type field if present
         if "type" in item:
-            item_type = item["type"]
+            item_type: Any = item["type"]
             if item_type in ["servo", "variable frequency"]:
                 return "drive"
             elif item_type in [
@@ -127,7 +129,7 @@ class DataPusher:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         with open(file_path, "r") as f:
-            data = json.load(f)
+            data: Any = json.load(f)
 
         # Handle both single objects and arrays
         if isinstance(data, dict):
@@ -154,17 +156,17 @@ class DataPusher:
         for idx, item in enumerate(items):
             try:
                 # Normalize the item
-                normalized = self._normalize_json_item(item)
+                normalized: Dict[str, Any] = self._normalize_json_item(item)
 
                 # Detect model type
-                model_type = self._detect_model_type(normalized)
+                model_type: str = self._detect_model_type(normalized)
 
                 if model_type == "drive":
-                    model = Drive.model_validate(normalized)
+                    model: Drive = Drive.model_validate(normalized)
                     valid_models.append(model)
                 elif model_type == "motor":
-                    model = Motor.model_validate(normalized)
-                    valid_models.append(model)
+                    model_motor: Motor = Motor.model_validate(normalized)
+                    valid_models.append(model_motor)
                 else:
                     print(f"Warning: Could not detect type for item {idx}")
                     failed_items.append(
@@ -194,6 +196,9 @@ class DataPusher:
         """
         if not models:
             return 0, 0
+
+        success_count: int
+        failure_count: int
 
         if use_batch:
             # Use batch write
@@ -225,6 +230,7 @@ class DataPusher:
         print(f"Loading data from {file_path}...")
 
         # Load JSON data
+        items: List[Dict[str, Any]]
         try:
             items = self.load_json_file(file_path)
             print(f"Loaded {len(items)} items from file")
@@ -240,12 +246,16 @@ class DataPusher:
 
         # Validate and convert
         print("Validating items...")
+        valid_models: List[Union[Motor, Drive]]
+        failed_items: List[Dict[str, Any]]
         valid_models, failed_items = self.validate_and_convert(items)
         print(
             f"Validated {len(valid_models)} items, {len(failed_items)} items failed validation"
         )
 
         # Push to database
+        success_count: int
+        failure_count: int
         if valid_models:
             print(f"Pushing {len(valid_models)} items to DynamoDB...")
             success_count, failure_count = self.push_to_db(valid_models, use_batch)
@@ -269,7 +279,7 @@ class DataPusher:
 
 def main() -> int:
     """CLI entry point for the pusher utility."""
-    parser = argparse.ArgumentParser(
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Push JSON data from files into DynamoDB",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -310,13 +320,13 @@ Environment Variables:
         help="Use individual writes instead of batch writes",
     )
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     # Initialize pusher
-    pusher = DataPusher(table_name=args.table)
+    pusher: DataPusher = DataPusher(table_name=args.table)
 
     # Process file
-    result = pusher.process_file(args.file, use_batch=not args.no_batch)
+    result: Dict[str, Any] = pusher.process_file(args.file, use_batch=not args.no_batch)
 
     # Print summary
     print("\n" + "=" * 60)

@@ -202,11 +202,30 @@ uv run datasheetminer/scraper.py \
 
 ### Code Style
 - **Python version**: 3.12+
-- **Type hints**: Required for all function signatures
+- **Type annotations**: MANDATORY for ALL code
+  - **Function signatures**: All function parameters and return types MUST be annotated
+  - **Class attributes**: All class instance variables MUST be annotated
+  - **Local variables**: All local variables SHOULD be annotated, especially in complex functions
+  - **Collections**: Use `List[T]`, `Dict[K, V]`, `Set[T]`, `Optional[T]`, etc. from `typing`
+  - **Any type**: Use `Any` when type is truly dynamic or comes from external libraries
+  - **Example**:
+    ```python
+    from typing import List, Dict, Optional, Any
+
+    def process_data(items: List[Dict[str, Any]], limit: Optional[int] = None) -> Dict[str, int]:
+        result: Dict[str, int] = {}
+        count: int = 0
+        for item in items:
+            # Process item...
+            count += 1
+        return result
+    ```
 - **Docstrings**: Google-style for all public functions/classes
 - **Formatting**: Use `ruff format`
 - **Linting**: Use `ruff check`
 - **Line length**: 100 characters (configured in pyproject.toml)
+
+**IMPORTANT**: Code without proper type annotations is unacceptable and will not be merged. Type annotations are not optional - they are required for code quality, maintainability, and IDE support.
 
 ### Testing Requirements
 - **Coverage target**: 90%+ for production code (currently minimal test coverage)

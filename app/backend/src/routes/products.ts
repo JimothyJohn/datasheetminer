@@ -13,6 +13,26 @@ const router = Router();
 const db = new DynamoDBService({ tableName: config.dynamodb.tableName });
 
 /**
+ * GET /api/products/categories
+ * Get all unique product categories with counts
+ */
+router.get('/categories', async (_req: Request, res: Response) => {
+  try {
+    const categories = await db.getCategories();
+    res.json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    console.error('Error getting categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get categories',
+    });
+  }
+});
+
+/**
  * GET /api/products/summary
  * Get summary statistics about products in the database
  */
@@ -35,21 +55,15 @@ router.get('/summary', async (_req: Request, res: Response) => {
 /**
  * GET /api/products
  * List products with optional filtering
- * Query params: type (motor|drive|all), limit (number)
+ * Query params: type (any product type or 'all'), limit (number)
  */
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const type = (req.query.type as ProductType) || 'all';
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
 
-    // Validate type
-    if (!['motor', 'drive', 'all'].includes(type)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid type. Must be motor, drive, or all',
-      });
-      return;
-    }
+    // Accept any product type - no validation needed
+    // The database will return empty array if type doesn't exist
 
     const products = await db.list(type, limit);
 
@@ -70,17 +84,17 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 /**
  * GET /api/products/:id
  * Get a specific product by ID
- * Query params: type (motor|drive) - required
+ * Query params: type (any valid product type) - required
  */
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const type = req.query.type as ProductType;
 
-    if (!type || !['motor', 'drive'].includes(type)) {
+    if (!type) {
       res.status(400).json({
         success: false,
-        error: 'type query parameter is required and must be motor or drive',
+        error: 'type query parameter is required',
       });
       return;
     }
@@ -122,10 +136,10 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     // Validate products have required fields
     for (const product of products) {
-      if (!product.product_type || !['motor', 'drive'].includes(product.product_type)) {
+      if (!product.product_type) {
         res.status(400).json({
           success: false,
-          error: 'Each product must have a valid product_type (motor or drive)',
+          error: 'Each product must have a product_type field',
         });
         return;
       }
@@ -167,17 +181,17 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 /**
  * DELETE /api/products/:id
  * Delete a product by ID
- * Query params: type (motor|drive) - required
+ * Query params: type (any valid product type) - required
  */
 router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const type = req.query.type as ProductType;
 
-    if (!type || !['motor', 'drive'].includes(type)) {
+    if (!type) {
       res.status(400).json({
         success: false,
-        error: 'type query parameter is required and must be motor or drive',
+        error: 'type query parameter is required',
       });
       return;
     }

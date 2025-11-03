@@ -96,10 +96,14 @@ export interface Drive extends ProductBase {
 }
 
 export type Product = Motor | Drive;
-export type ProductType = 'motor' | 'drive' | 'all';
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'all';
 
+/**
+ * Product summary with dynamic counts per type
+ * The backend returns counts for all product types dynamically
+ * e.g., { total: 10, motors: 5, drives: 3, robot_arms: 2 }
+ */
 export interface ProductSummary {
   total: number;
-  motors: number;
-  drives: number;
+  [key: string]: number; // Dynamic property for each product type count (e.g., motors, drives, robot_arms)
 }

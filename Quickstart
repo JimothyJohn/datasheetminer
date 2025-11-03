@@ -93,24 +93,19 @@ main() {
 
     check_dependencies
 
-    . .env.example
+    . .env
 
     # AI-generated comment:
-    # The following commands use jq to dynamically extract the URL and page numbers
-    # from the datasheets/urls.json file. This approach makes the script more flexible,
-    # as you can easily change the target document by updating the JSON file without
-    # modifying the script itself. The -r flag removes the quotes from the URL string,
-    # and `join(",")` converts the JSON array of pages into a comma-separated string
-    # suitable for the --pages argument.
-    URL=$(jq -r '.drives[1].url' datasheets/urls.json)
-    PAGES=$(jq -r '.drives[1].pages | join(",")' datasheets/urls.json)
-
+    # The scraper can now read product information directly from the urls.json file.
+    # This simplifies the script by removing the need for jq and manual argument passing.
+    # We specify the file, the type of product (motor), and the index of the product
+    # to be scraped.
     uv pip install -e . && \
         uv run datasheetminer/scraper.py \
-        --output "powersmart.json" \
-        --url "$URL" \
-        --type drive \
-        --pages "$PAGES"
+        --type motor \
+        --from-json "urls.json" \
+        --output "output.json" \
+        --json-index 0
     exit 0
 
     # Deploy updates to AWS
