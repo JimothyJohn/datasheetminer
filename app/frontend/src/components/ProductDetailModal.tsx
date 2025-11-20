@@ -204,8 +204,8 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
             ) : (
               <p className="product-detail-part">{product.part_number || 'N/A'}</p>
             )}
-            {product.type && <p className="product-detail-type">Type: {product.type}</p>}
-            {product.series && <p className="product-detail-type">Series: {product.series}</p>}
+            {'type' in product && product.type && <p className="product-detail-type">Type: {product.type}</p>}
+            {'series' in product && product.series && <p className="product-detail-type">Series: {product.series}</p>}
           </div>
           <button className="product-detail-close" onClick={onClose} aria-label="Close">
             ×

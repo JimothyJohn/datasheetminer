@@ -30,6 +30,7 @@ class Motor(ProductBase):
     series: Optional[str] = None
     rated_voltage: Optional[MinMaxUnit] = None
     rated_speed: Optional[ValueUnit] = None
+    max_speed: Optional[ValueUnit] = None
     rated_torque: Optional[ValueUnit] = None
     peak_torque: Optional[ValueUnit] = None
     rated_power: Optional[ValueUnit] = None
@@ -43,3 +44,5 @@ class Motor(ProductBase):
     inductance: Optional[ValueUnit] = None
     ip_rating: Optional[int] = None
     rotor_inertia: Optional[ValueUnit] = None
+    axial_load_force_rating: Optional[MinMaxUnit] = None
+    radial_load_force_rating: Optional[MinMaxUnit] = None

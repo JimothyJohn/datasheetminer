@@ -27,6 +27,7 @@ export interface Dimensions {
 export interface ProductBase {
   product_id: string;
   product_type: string;
+  product_name?: string;
   manufacturer?: string;
   part_number?: string;
   datasheet_url?: Datasheet;
@@ -95,8 +96,50 @@ export interface Drive extends ProductBase {
   ambient_temp?: MinMaxUnit;
 }
 
-export type Product = Motor | Drive;
-export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'all';
+export interface RobotArm extends ProductBase {
+  product_type: 'robot_arm';
+  product_family?: string;
+  payload?: ValueUnit;
+  reach?: ValueUnit;
+  degrees_of_freedom?: number;
+  pose_repeatability?: ValueUnit;
+  max_tcp_speed?: ValueUnit;
+  ip_rating?: string;
+  cleanroom_class?: string;
+  noise_level?: ValueUnit;
+  mounting_position?: string;
+  operating_temp?: MinMaxUnit;
+  materials?: string[];
+  safety_certifications?: string[];
+}
+
+export interface Gearhead extends ProductBase {
+  product_type: 'gearhead';
+  gear_ratio?: number;
+  gear_type?: string;
+  stages?: number;
+  nominal_input_speed?: ValueUnit;
+  max_input_speed?: ValueUnit;
+  max_continuous_torque?: ValueUnit;
+  max_peak_torque?: ValueUnit;
+  backlash?: ValueUnit;
+  efficiency?: number;
+  torsional_rigidity?: ValueUnit;
+  rotor_inertia?: ValueUnit;
+  noise_level?: ValueUnit;
+  frame_size?: string;
+  input_shaft_diameter?: ValueUnit;
+  output_shaft_diameter?: ValueUnit;
+  max_radial_load?: ValueUnit;
+  max_axial_load?: ValueUnit;
+  ip_rating?: string;
+  operating_temp?: MinMaxUnit;
+  service_life?: ValueUnit;
+  lubrication_type?: string;
+}
+
+export type Product = Motor | Drive | RobotArm | Gearhead;
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'all' | null;
 
 /**
  * Product summary with dynamic counts per type

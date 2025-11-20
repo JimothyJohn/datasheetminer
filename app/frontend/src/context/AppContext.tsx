@@ -56,7 +56,7 @@ interface AppContextType extends AppState {
 
   // CRUD operations with optimistic updates for better UX
   addProduct: (product: Partial<Product>) => Promise<void>;      // Create new product
-  deleteProduct: (id: string, type: ProductType) => Promise<void>; // Delete existing product
+  deleteProduct: (id: string, type: Exclude<ProductType, null>) => Promise<void>; // Delete existing product
 
   // Direct state setters (used sparingly, prefer methods above)
   setProducts: (products: Product[]) => void;
@@ -99,7 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * Current product type being displayed
    * Used to determine which cache to invalidate on mutations
    */
-  const [currentProductType, setCurrentProductType] = useState<ProductType>('all');
+  const [currentProductType, setCurrentProductType] = useState<ProductType>(null);
 
   // ========== Data Loading Methods ==========
 
@@ -114,13 +114,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
    *
    * This provides instant feedback while ensuring data freshness.
    *
-   * @param type - Product type filter ('motor', 'drive', or 'all')
+   * @param type - Product type filter ('motor', 'drive', 'all', or null)
    * @returns Promise that resolves when initial load completes (cache or API)
    *
    * Performance: ~0ms with cache, ~200-500ms without cache
    */
   const loadProducts = useCallback(async (type: ProductType = 'all') => {
     console.log(`[AppContext] loadProducts called with type: ${type}`);
+
+    // Don't load if type is null (no selection)
+    if (type === null) {
+      console.log(`[AppContext] Skipping loadProducts - no product type selected`);
+      setProducts([]);
+      setCurrentProductType(null);
+      return;
+    }
 
     // ===== CACHE CHECK =====
     const cached = productCache.get(type);
@@ -391,7 +399,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
    *
    * Note: Cache is always cleared to prevent showing stale deleted products
    */
-  const deleteProduct = useCallback(async (id: string, type: ProductType) => {
+  const deleteProduct = useCallback(async (id: string, type: Exclude<ProductType, null>) => {
     console.log(`[AppContext] deleteProduct called for ID: ${id}, type: ${type}`);
 
     try {
@@ -473,6 +481,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCategories([]);
 
       // Reload data from scratch
+      // Note: loadProducts handles null currentProductType gracefully
       await Promise.all([
         loadProducts(currentProductType),
         loadSummary(),

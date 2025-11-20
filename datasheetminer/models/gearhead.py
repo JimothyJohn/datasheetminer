@@ -86,11 +86,9 @@ class Gearhead(ProductBase):
     )
 
     # --- Environmental & Service ---
-    ip_rating: Optional[str] = Field(
-        "IP65", description="Ingress Protection (IP) rating"
-    )
+    ip_rating: Optional[str] = Field(None, description="Ingress Protection (IP) rating")
     operating_temp: Optional[MinMaxUnit] = Field(
-        MinMaxUnit(min=-10, max=90, unit="°C"),
+        None,
         description="Operating temperature range",
     )
     service_life: Optional[ValueUnit] = Field(

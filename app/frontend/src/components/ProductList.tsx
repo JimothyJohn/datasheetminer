@@ -13,20 +13,23 @@ import AttributeSelector from './AttributeSelector';
 
 export default function ProductList() {
   const { products, categories, loading, error, loadProducts, loadCategories, forceRefresh } = useApp();
-  const [productType, setProductType] = useState<ProductType>('all');
+  const [productType, setProductType] = useState<ProductType>(null);
   const [filters, setFilters] = useState<FilterCriterion[]>([]);
   const [sorts, setSorts] = useState<SortConfig[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showSortSelector, setShowSortSelector] = useState(false);
-  const [editingSortIndex, setEditingSortIndex] = useState<number | null>(null);
   const [draggedSortIndex, setDraggedSortIndex] = useState<number | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
-    loadProducts(productType);
+    // Only load products if a product type is selected
+    if (productType !== null) {
+      loadProducts(productType);
+    }
     if (categories.length === 0) {
       loadCategories();
     }
@@ -67,55 +70,6 @@ export default function ProductList() {
     return getAttributesForType(productType);
   }, [productType]);
 
-  // Handle sort selection (add or edit)
-  const handleSortSelect = (attribute: typeof availableAttributes[0]) => {
-    if (editingSortIndex !== null) {
-      // Edit existing sort - preserve direction
-      const existingSort = sorts[editingSortIndex];
-      const updatedSort: SortConfig = {
-        ...existingSort,
-        attribute: attribute.key,
-        displayName: attribute.displayName
-      };
-      const newSorts = [...sorts];
-      newSorts[editingSortIndex] = updatedSort;
-      setSorts(newSorts);
-      setEditingSortIndex(null);
-    } else {
-      // Check if this attribute is already being sorted
-      const existingIndex = sorts.findIndex(s => s.attribute === attribute.key);
-
-      if (existingIndex !== -1) {
-        // Toggle direction if same attribute already exists
-        const newSorts = [...sorts];
-        newSorts[existingIndex] = {
-          ...newSorts[existingIndex],
-          direction: newSorts[existingIndex].direction === 'asc' ? 'desc' : 'asc'
-        };
-        setSorts(newSorts);
-      } else {
-        // Add new sort (max 3 sorts)
-        const newSort: SortConfig = {
-          attribute: attribute.key,
-          direction: 'asc',
-          displayName: attribute.displayName
-        };
-        setSorts(prev => [...prev, newSort].slice(0, 3)); // Limit to 3 sorts
-      }
-    }
-    setShowSortSelector(false);
-  };
-
-  // Handle clicking on sort attribute to edit it
-  const handleEditSortAttribute = (index: number) => {
-    setEditingSortIndex(index);
-    setShowSortSelector(true);
-  };
-
-  // Handle removing a specific sort
-  const handleRemoveSort = (index: number) => {
-    setSorts(prev => prev.filter((_, i) => i !== index));
-  };
 
   // Handle toggling sort direction
   const handleToggleSortDirection = (index: number) => {
@@ -169,23 +123,70 @@ export default function ProductList() {
   // Get which attributes are displayed in the main specs for each product type
   const getDisplayedAttributes = (productType: string): string[] => {
     if (productType === 'motor') {
-      return ['rated_power', 'rated_voltage', 'rated_current'];
+      return ['rated_power', 'rated_voltage', 'rated_current', 'rated_speed', 'rated_torque', 'peak_torque'];
     } else if (productType === 'drive') {
-      return ['output_power', 'input_voltage', 'rated_current'];
+      return ['output_power', 'input_voltage', 'rated_current', 'peak_current', 'input_voltage_phases', 'ip_rating'];
     }
     return [];
   };
 
-  // Get sort values for a product (only those NOT already displayed in main specs)
-  const getSortValues = (product: Product): Array<{ label: string; value: string }> => {
-    const displayedAttrs = getDisplayedAttributes(product.product_type);
+  // Get column header labels for the current product type with units from metadata
+  const getColumnHeaders = (): Array<{ key: string; label: string; unit: string | null }> => {
+    if (!productType) return [];
 
-    return sorts
-      .filter(sort => !displayedAttrs.includes(sort.attribute))
-      .map(sort => ({
-        label: sort.displayName,
-        value: formatValue((product as any)[sort.attribute])
-      }));
+    const displayedKeys = getDisplayedAttributes(productType);
+    const allAttributes = getAttributesForType(productType);
+
+    return displayedKeys.map(key => {
+      const attr = allAttributes.find(a => a.key === key);
+      return {
+        key: key,
+        label: attr ? attr.displayName : key,
+        unit: attr ? attr.unit || null : null
+      };
+    });
+  };
+
+  // Extract just the numeric value from a spec (no unit)
+  const extractNumericOnly = (value: any): string | null => {
+    if (!value) return null;
+
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'string') return value;
+
+    if (typeof value === 'object') {
+      // ValueUnit: { value: number, unit: string }
+      if ('value' in value && value.value !== null && value.value !== undefined) {
+        return String(value.value);
+      }
+
+      // MinMaxUnit: { min: number, max: number, unit: string }
+      // Handle cases where only one property might be present
+      const hasMin = 'min' in value && value.min !== null && value.min !== undefined;
+      const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
+
+      if (hasMin && hasMax) {
+        return `${value.min}-${value.max}`;
+      } else if (hasMin) {
+        return String(value.min);
+      } else if (hasMax) {
+        return String(value.max);
+      }
+    }
+
+    return null;
+  };
+
+  // Extract just the unit from a spec
+  const extractUnit = (value: any): string | null => {
+    if (!value) return null;
+
+    // ValueUnit or MinMaxUnit: { ..., unit: string }
+    if (typeof value === 'object' && 'unit' in value) {
+      return value.unit;
+    }
+
+    return null;
   };
 
   // Extract numeric value from a value object
@@ -196,8 +197,17 @@ export default function ProductList() {
       if ('value' in value && typeof value.value === 'number') return value.value;
       if ('nominal' in value && typeof value.nominal === 'number') return value.nominal;
       if ('rated' in value && typeof value.rated === 'number') return value.rated;
-      if ('min' in value && 'max' in value) {
+
+      // Handle min/max - check which values are present
+      const hasMin = 'min' in value && value.min !== null && value.min !== undefined;
+      const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
+
+      if (hasMin && hasMax) {
         return (Number(value.min) + Number(value.max)) / 2;
+      } else if (hasMin) {
+        return Number(value.min);
+      } else if (hasMax) {
+        return Number(value.max);
       }
     }
     return null;
@@ -205,11 +215,24 @@ export default function ProductList() {
 
   // Get color based on proximity to filter value
   const getProximityColor = (attribute: string, productValue: any): string => {
-    // Find if there's a filter for this attribute
-    const filter = filters.find(f => f.attribute === attribute);
+    // Find if there's a filter for this attribute (exact or nested property)
+    const filter = filters.find(f => f.attribute === attribute || f.attribute.startsWith(attribute + '.'));
     if (!filter || filter.operator === '!=') return '';
 
-    const numericProductValue = extractNumericValue(productValue);
+    // Determine the actual value to compare
+    let numericProductValue: number | null = null;
+
+    if (filter.attribute === attribute) {
+      // Direct attribute match
+      numericProductValue = extractNumericValue(productValue);
+    } else if (filter.attribute.startsWith(attribute + '.')) {
+      // Nested property (e.g., filtering on 'input_voltage.min' when attribute is 'input_voltage')
+      const nestedKey = filter.attribute.split('.').pop(); // Get 'min' or 'max'
+      if (nestedKey && productValue && typeof productValue === 'object' && nestedKey in productValue) {
+        numericProductValue = extractNumericValue(productValue[nestedKey]);
+      }
+    }
+
     const numericFilterValue = extractNumericValue(filter.value);
 
     if (numericProductValue === null || numericFilterValue === null) return '';
@@ -251,9 +274,13 @@ export default function ProductList() {
     return sorts.some(sort => sort.attribute === attribute);
   };
 
-  // Check if an attribute is currently being filtered
+  // Check if an attribute is currently being filtered (including nested properties)
   const isFilteredAttribute = (attribute: string): boolean => {
-    return filters.some(filter => filter.attribute === attribute && filter.value !== undefined);
+    return filters.some(filter => {
+      if (filter.value === undefined) return false;
+      // Check for exact match or if filter is on a nested property of this attribute
+      return filter.attribute === attribute || filter.attribute.startsWith(attribute + '.');
+    });
   };
 
   const handleProductClick = (product: Product, event: React.MouseEvent) => {
@@ -264,6 +291,69 @@ export default function ProductList() {
   const handleCloseModal = () => {
     setSelectedProduct(null);
     setClickPosition(null);
+  };
+
+  // Handle clicking a column header to sort
+  const handleColumnSort = (attribute: string) => {
+    const existingSortIndex = sorts.findIndex(s => s.attribute === attribute);
+
+    if (existingSortIndex !== -1) {
+      // Column is already sorted
+      const existingSort = sorts[existingSortIndex];
+      if (existingSort.direction === 'asc') {
+        // Change to descending
+        const newSorts = [...sorts];
+        newSorts[existingSortIndex] = { ...existingSort, direction: 'desc' };
+        setSorts(newSorts);
+      } else {
+        // Remove sort
+        setSorts(sorts.filter((_, i) => i !== existingSortIndex));
+      }
+    } else {
+      // Add new sort (ascending)
+      const attributes = getAttributesForType(productType || 'motor');
+      const attributeMetadata = attributes.find(attr => attr.key === attribute);
+      if (attributeMetadata) {
+        setSorts([...sorts, {
+          attribute: attribute,
+          direction: 'asc',
+          displayName: attributeMetadata.displayName
+        }]);
+      }
+    }
+  };
+
+  // Handle removing a column
+  const handleRemoveColumn = (attribute: string, isDefault: boolean) => {
+    // Remove from sorts if it's being sorted
+    setSorts(sorts.filter(s => s.attribute !== attribute));
+
+    // If it's an additional column, remove it from additionalColumns
+    if (!isDefault) {
+      setAdditionalColumns(additionalColumns.filter(col => col !== attribute));
+    }
+  };
+
+  // Handle adding a new column from the sort selector
+  const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
+    // Add to additional columns if not already there and not a default column
+    const defaultColumns = getDisplayedAttributes(productType || '');
+    if (!defaultColumns.includes(attribute.key) && !additionalColumns.includes(attribute.key)) {
+      setAdditionalColumns([...additionalColumns, attribute.key]);
+    }
+    setShowSortSelector(false);
+  };
+
+  // Handle removing a sort
+  const handleRemoveSort = (index: number) => {
+    setSorts(sorts.filter((_, i) => i !== index));
+  };
+
+  // Handle editing sort attribute
+  const handleEditSortAttribute = (index: number) => {
+    // For now, just remove the sort - user can add a new one
+    handleRemoveSort(index);
+    setShowSortSelector(true);
   };
 
   if (error) {
@@ -356,7 +446,6 @@ export default function ProductList() {
                   <button
                     className="btn-add-sort-small"
                     onClick={() => {
-                      setEditingSortIndex(null);
                       setShowSortSelector(true);
                     }}
                     title="Add another sort level (max 3)"
@@ -369,7 +458,6 @@ export default function ProductList() {
               <button
                 className="btn-sort-inline"
                 onClick={() => {
-                  setEditingSortIndex(null);
                   setShowSortSelector(true);
                 }}
                 title="Sort results by attribute"
@@ -386,17 +474,7 @@ export default function ProductList() {
               onClick={forceRefresh}
               disabled={loading}
               title="Force refresh data from server (clears cache)"
-              style={{
-                padding: '0.35rem 0.7rem',
-                fontSize: '0.8rem',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.5 : 1,
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                background: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-                marginRight: '0.8rem'
-              }}
+              style={{ marginRight: '0.8rem' }}
             >
               ↻ Refresh
             </button>
@@ -427,7 +505,9 @@ export default function ProductList() {
         {sortedProducts.length === 0 ? (
           <div className="empty-state-minimal">
             <p>
-              {products.length === 0
+              {productType === null
+                ? 'Select a product type to view products'
+                : products.length === 0
                 ? 'No products in database'
                 : 'No results match your filters'}
             </p>
@@ -435,152 +515,148 @@ export default function ProductList() {
         ) : (
           <>
             <div className="product-grid">
+            {/* Column headers */}
+            <div className="product-grid-headers">
+              <div className="product-grid-header-part">Part Number</div>
+              {/* Default columns */}
+              {getColumnHeaders().map((header) => {
+                const sortIndex = sorts.findIndex(s => s.attribute === header.key);
+                const isSorted = sortIndex !== -1;
+                const sortConfig = isSorted ? sorts[sortIndex] : null;
+
+                return (
+                  <div
+                    key={header.key}
+                    className="product-grid-header-item clickable"
+                    onClick={() => handleColumnSort(header.key)}
+                    title="Click to sort"
+                  >
+                    <div className="product-grid-header-label">
+                      {header.label}
+                      <span className="sort-indicator">
+                        {!isSorted && '⇅'}
+                        {isSorted && sortConfig?.direction === 'asc' && '↑'}
+                        {isSorted && sortConfig?.direction === 'desc' && '↓'}
+                        {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
+                      </span>
+                    </div>
+                    {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
+                  </div>
+                );
+              })}
+              {/* Additional columns */}
+              {additionalColumns.map((attrKey) => {
+                const attributes = getAttributesForType(productType || 'motor');
+                const attrMetadata = attributes.find(a => a.key === attrKey);
+                if (!attrMetadata) return null;
+
+                const firstProduct = sortedProducts[0];
+                const unit = firstProduct ? extractUnit((firstProduct as any)[attrKey]) : null;
+
+                const sortIndex = sorts.findIndex(s => s.attribute === attrKey);
+                const isSorted = sortIndex !== -1;
+                const sortConfig = isSorted ? sorts[sortIndex] : null;
+
+                return (
+                  <div
+                    key={`additional-${attrKey}`}
+                    className="product-grid-header-item clickable removable"
+                  >
+                    <button
+                      className="column-remove-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveColumn(attrKey, false);
+                      }}
+                      title="Remove column"
+                    >
+                      ×
+                    </button>
+                    <div
+                      className="product-grid-header-label"
+                      onClick={() => handleColumnSort(attrKey)}
+                      title="Click to sort"
+                    >
+                      {attrMetadata.displayName}
+                      <span className="sort-indicator">
+                        {!isSorted && '⇅'}
+                        {isSorted && sortConfig?.direction === 'asc' && '↑'}
+                        {isSorted && sortConfig?.direction === 'desc' && '↓'}
+                        {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
+                      </span>
+                    </div>
+                    {unit && <div className="product-grid-header-unit">({unit})</div>}
+                  </div>
+                );
+              })}
+              {/* Add column button */}
+              <button
+                className="add-column-btn"
+                onClick={() => setShowSortSelector(true)}
+                title="Add column"
+              >
+                + Add Column
+              </button>
+            </div>
+
               {paginatedProducts.map((product) => (
                 <div
                   key={product.product_id}
                   className="product-card-minimal"
                   onClick={(e) => handleProductClick(product, e)}
                 >
-                  <div className="product-card-header">
-                    <span className="product-part">{product.part_number || 'N/A'}</span>
-                    <span className="product-manufacturer">{product.manufacturer || 'Unknown'}</span>
+                  {/* Product info - first grid cell */}
+                  <div className="product-card-info">
+                    <div className="product-info-part">{product.part_number || 'N/A'}</div>
                   </div>
-                  <div className="product-card-specs">
-                    {product.product_type === 'motor' && (
-                      <>
-                        {'rated_power' in product && product.rated_power && (() => {
-                          const proximityColor = getProximityColor('rated_power', product.rated_power);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('rated_power') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('rated_power') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Power: {formatValue(product.rated_power)}
-                            </span>
-                          );
-                        })()}
-                        {'rated_voltage' in product && product.rated_voltage && (() => {
-                          const proximityColor = getProximityColor('rated_voltage', product.rated_voltage);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('rated_voltage') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('rated_voltage') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Voltage: {formatValue(product.rated_voltage)}
-                            </span>
-                          );
-                        })()}
-                        {'rated_current' in product && product.rated_current && (() => {
-                          const proximityColor = getProximityColor('rated_current', product.rated_current);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('rated_current') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('rated_current') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Current: {formatValue(product.rated_current)}
-                            </span>
-                          );
-                        })()}
-                      </>
-                    )}
-                    {product.product_type === 'drive' && (
-                      <>
-                        {'output_power' in product && product.output_power && (() => {
-                          const proximityColor = getProximityColor('output_power', product.output_power);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('output_power') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('output_power') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Power: {formatValue(product.output_power)}
-                            </span>
-                          );
-                        })()}
-                        {'input_voltage' in product && product.input_voltage && (() => {
-                          const proximityColor = getProximityColor('input_voltage', product.input_voltage);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('input_voltage') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('input_voltage') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Voltage: {formatValue(product.input_voltage)}
-                            </span>
-                          );
-                        })()}
-                        {'rated_current' in product && product.rated_current && (() => {
-                          const proximityColor = getProximityColor('rated_current', product.rated_current);
-                          const hasProximityColor = !!proximityColor;
-                          return (
-                            <span
-                              className={`spec-item ${
-                                !hasProximityColor && isFilteredAttribute('rated_current') ? 'spec-item-filtered' :
-                                !hasProximityColor && isSortedAttribute('rated_current') ? 'spec-item-sorted' : ''
-                              }`}
-                              style={{
-                                backgroundColor: proximityColor || undefined,
-                                color: proximityColor ? 'white' : undefined,
-                                fontWeight: proximityColor ? 700 : undefined
-                              }}
-                            >
-                              Current: {formatValue(product.rated_current)}
-                            </span>
-                          );
-                        })()}
-                      </>
-                    )}
-                  </div>
-                  {/* Show sorted values if sorting is active */}
-                  {sorts.length > 0 && (
-                    <div className="product-sort-values">
-                      {getSortValues(product).map((sortValue, idx) => (
-                        <div key={idx} className="product-sort-value">
-                          <span className="sort-value-order">{idx + 1}</span>
-                          <span className="sort-value-label">{sortValue.label}:</span>
-                          <span className="sort-value-content">{sortValue.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+
+                  {/* Spec values - each as a direct grid cell */}
+                  {getColumnHeaders().map((header) => {
+                    const attrKey = header.key;
+                    const productValue = (product as any)[attrKey];
+                    const numericValue = extractNumericOnly(productValue);
+                    const proximityColor = getProximityColor(attrKey, productValue);
+                    const hasProximityColor = !!proximityColor;
+                    
+                    return (
+                      <div
+                        key={`default-value-${attrKey}`}
+                        className={`spec-header-item ${
+                          !hasProximityColor && isFilteredAttribute(attrKey) ? 'spec-header-item-filtered' :
+                          !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
+                        }`}
+                        style={{
+                          backgroundColor: proximityColor || undefined,
+                          color: proximityColor ? 'white' : undefined
+                        }}
+                      >
+                        <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Show additional columns */}
+                  {additionalColumns.map((attrKey) => {
+                    const productValue = (product as any)[attrKey];
+                    const numericValue = extractNumericOnly(productValue);
+                    const proximityColor = getProximityColor(attrKey, productValue);
+                    const hasProximityColor = !!proximityColor;
+                    return (
+                      <div
+                        key={`additional-value-${attrKey}`}
+                        className={`spec-header-item ${
+                          !hasProximityColor && isFilteredAttribute(attrKey) ? 'spec-header-item-filtered' :
+                          !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
+                        }`}
+                        style={{
+                          backgroundColor: proximityColor || undefined,
+                          color: proximityColor ? 'white' : undefined
+                        }}
+                      >
+                        <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -617,13 +693,12 @@ export default function ProductList() {
         clickPosition={clickPosition}
       />
 
-      {/* Attribute Selector Modal for Sort */}
+      {/* Attribute Selector Modal for Adding Columns */}
       <AttributeSelector
         attributes={availableAttributes}
-        onSelect={handleSortSelect}
+        onSelect={handleAddColumn}
         onClose={() => {
           setShowSortSelector(false);
-          setEditingSortIndex(null);
         }}
         isOpen={showSortSelector}
       />

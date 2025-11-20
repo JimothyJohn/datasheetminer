@@ -27,6 +27,8 @@ from datasheetminer.db.dynamo import DynamoDBClient
 from datasheetminer.models.product import ProductBase
 from datasheetminer.utils import (
     get_document,
+    get_web_content,
+    is_pdf_url,
     validate_api_key,
     UUIDEncoder,
     get_product_info_from_json,
@@ -76,36 +78,41 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 def main() -> None:
     """
-    Datasheetminer CLI - Analyze PDF documents using Gemini AI.
+    Datasheetminer CLI - Analyze PDF documents and web pages using Gemini AI.
 
     AI-generated comment: This is the main CLI function that orchestrates the document
     analysis process. It handles argument parsing, validation, and coordinates the
     analysis workflow while providing user-friendly output and error handling.
+    The scraper now intelligently detects whether the URL is a PDF or webpage and
+    handles each appropriately.
 
     Examples:
-        # Basic usage with environment variable
+        # Analyze a PDF datasheet
         export GEMINI_API_KEY="your-api-key"
-        uv run datasheetminer --url "https://example.com/doc.pdf"
+        uv run datasheetminer --url "https://example.com/motor.pdf"
+
+        # Analyze a product webpage
+        uv run datasheetminer --url "https://example.com/product-specs"
 
         # Save output to file
-        uv run datasheetminer -u "https://example.com/spec.pdf" -o analysis.txt
-
-        # Use markdown output format
-        uv run datasheetminer -u "https://example.com/tech.pdf"
+        uv run datasheetminer -u "https://example.com/spec.pdf" -o analysis.json
     """
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description="Datasheetminer CLI - Analyze PDF documents using Gemini AI.",
+        description="Datasheetminer CLI - Analyze PDF documents and web pages using Gemini AI.",
         epilog="""
     Examples:
-        # Basic usage with environment variable
+        # Analyze a PDF datasheet
         export GEMINI_API_KEY="your-api-key"
-        datasheetminer --url "https://example.com/doc.pdf"
+        datasheetminer --url "https://example.com/motor.pdf"
+
+        # Analyze a product webpage (automatically detected)
+        datasheetminer --url "https://example.com/product-specs"
 
         # Save output to file
-        datasheetminer -u "https://example.com/spec.pdf" -o analysis.txt
+        datasheetminer -u "https://example.com/spec.pdf" -o analysis.json
 
-        # Use markdown output format
-        datasheetminer -u "https://example.com/tech.pdf"
+        Note: The tool automatically detects whether the URL is a PDF or webpage.
+        For PDFs, you can specify page ranges. For webpages, the entire page is analyzed.
     """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
@@ -151,6 +158,7 @@ def main() -> None:
         pages = info.get("pages")
         manufacturer_raw = info.get("manufacturer")
         product_name_raw = info.get("product_name")
+        product_family_raw = info.get("product_family")
         product_type_raw = args.type or info.get("product_type")
     except (FileNotFoundError, ValueError) as e:
         parser.error(str(e))
@@ -170,6 +178,7 @@ def main() -> None:
     # AI-generated comment: Type narrowing - after validation we know these are not None
     manufacturer: str = manufacturer_raw  # type: ignore[assignment]
     product_name: str = product_name_raw  # type: ignore[assignment]
+    product_family: str = product_family_raw  # type: ignore[assignment]
     url: str = url_raw  # type: ignore[assignment]
     product_type: str = product_type_raw  # type: ignore[assignment]
 
@@ -196,18 +205,52 @@ def main() -> None:
         )
         sys.exit(0)
 
+    # AI-generated comment: Create a context dictionary to provide known info to the LLM
+    context = {
+        "product_name": product_name,
+        "manufacturer": manufacturer,
+        "product_family": product_family,
+        "datasheet_url": url,
+    }
+
+    # AI-generated comment: Detect if URL points to a PDF or a webpage
+    # This allows the scraper to handle both types of content intelligently
+    is_pdf: bool = is_pdf_url(url)
+    content_type: str = "pdf" if is_pdf else "html"
+
     logger.info(f"Starting document analysis for: {url}")
-    logger.info(f"Pages: {pages}")
+    logger.info(f"Content type detected: {content_type}")
+    if is_pdf and pages:
+        logger.info(f"Pages: {pages}")
 
     try:
-        # AI-generated comment: Process the document analysis and handle the single response.
-        # The response is now a single object, not a stream.
-        doc_data: Optional[bytes] = get_document(url, pages)
-        if doc_data is None:
-            print("Could not retrieve document.", file=sys.stderr)
-            sys.exit(1)
+        # AI-generated comment: Fetch content based on detected type
+        # For PDFs: use get_document() to get bytes and optionally extract pages
+        # For webpages: use get_web_content() to get HTML as string
+        doc_data: Optional[bytes | str] = None
 
-        response: Any = generate_content(doc_data, validated_api_key, args.type)
+        if is_pdf:
+            # PDF content - get as bytes
+            doc_data = get_document(url, pages)
+            if doc_data is None:
+                print("Could not retrieve PDF document.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            # Webpage content - get as HTML string
+            if pages:
+                logger.warning(
+                    "Pages parameter is ignored for web content (only applies to PDFs)"
+                )
+
+            doc_data = get_web_content(url)
+            if doc_data is None:
+                print("Could not retrieve web content.", file=sys.stderr)
+                sys.exit(1)
+
+        # AI-generated comment: Generate content with appropriate content type and context
+        response: Any = generate_content(
+            doc_data, validated_api_key, args.type, context, content_type
+        )
 
         # AI-generated comment: Save the raw Gemini response to a file for debugging.
         # This helps diagnose parsing issues when the response is truncated or malformed.
@@ -223,7 +266,7 @@ def main() -> None:
         # This handles both automatic and manual parsing with fallback strategies
         try:
             parsed_models: List[Any] = parse_gemini_response(
-                response, SCHEMA_CHOICES[args.type], args.type
+                response, SCHEMA_CHOICES[args.type], args.type, context
             )
         except (ValueError, TypeError) as e:
             logger.error(f"Failed to parse Gemini response: {e}")
@@ -241,16 +284,16 @@ def main() -> None:
         # model instances. We can iterate through them and convert them to dictionaries
         # for JSON serialization.
         # AI-generated comment:
-        # Manually set the manufacturer, product_name, and datasheet_url on each
-        # parsed model. The LLM is only responsible for extracting the technical
-        # specifications, so we need to add the metadata from urls.json to
-        # ensure it's stored in DynamoDB. This is critical for the duplicate
-        # check to work correctly on subsequent runs.
-        for model in parsed_models:
-            model.manufacturer = manufacturer
-            model.product_name = product_name
-            model.product_type = product_type
-            model.datasheet_url = url
+        # The context is now merged inside parse_gemini_response.
+        # This loop is no longer needed.
+        # for model in parsed_models:
+        #     model.manufacturer = manufacturer
+        #     # AI-generated comment: product_name is now extracted by the LLM.
+        #     # We no longer overwrite it with the generic name from urls.json.
+        #     # model.product_name = product_name
+        #     model.product_family = product_family
+        #     model.product_type = product_type
+        #     model.datasheet_url = url
 
         parsed_data: List[Any] = [item.model_dump() for item in parsed_models]
 

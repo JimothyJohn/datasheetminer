@@ -279,7 +279,7 @@ class ApiClient {
    *
    * Performance: ~100-500ms depending on product count (DynamoDB query)
    */
-  async listProducts(type: ProductType = 'all', limit?: number): Promise<Product[]> {
+  async listProducts(type: Exclude<ProductType, null> = 'all', limit?: number): Promise<Product[]> {
     const params = new URLSearchParams();
     params.append('type', type);
     if (limit) {
@@ -390,7 +390,7 @@ class ApiClient {
    *
    * Warning: This operation is irreversible!
    */
-  async deleteProduct(id: string, type: ProductType): Promise<void> {
+  async deleteProduct(id: string, type: Exclude<ProductType, null>): Promise<void> {
     console.log(`[ApiClient] Deleting product: ${id} (type: ${type})`);
 
     await this.request(`/api/products/${id}?type=${type}`, {

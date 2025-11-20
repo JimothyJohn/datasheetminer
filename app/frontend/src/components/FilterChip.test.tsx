@@ -22,9 +22,11 @@ describe('FilterChip', () => {
     render(
       <FilterChip
         filter={mockFilter}
+        products={[]}
         suggestedValues={[]}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 
@@ -35,9 +37,11 @@ describe('FilterChip', () => {
     render(
       <FilterChip
         filter={mockFilter}
+        products={[]}
         suggestedValues={[]}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 
@@ -49,9 +53,11 @@ describe('FilterChip', () => {
     render(
       <FilterChip
         filter={mockFilter}
+        products={[]}
         suggestedValues={[]}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 
@@ -65,9 +71,11 @@ describe('FilterChip', () => {
     const { rerender } = render(
       <FilterChip
         filter={mockFilter}
+        products={[]}
         suggestedValues={[]}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 
@@ -79,9 +87,11 @@ describe('FilterChip', () => {
     rerender(
       <FilterChip
         filter={excludeFilter}
+        products={[]}
         suggestedValues={[]}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 
@@ -99,9 +109,11 @@ describe('FilterChip', () => {
     render(
       <FilterChip
         filter={newFilter}
+        products={[]}
         suggestedValues={['ACME', 'Beta Corp']}
         onUpdate={mockUpdate}
         onRemove={mockRemove}
+        onEditAttribute={vi.fn()}
       />
     );
 

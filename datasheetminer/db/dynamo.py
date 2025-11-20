@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar, Union
-
+import re
 from uuid import UUID
 
 import boto3  # type: ignore
@@ -65,6 +65,31 @@ class DynamoDBClient:
         else:
             return obj
 
+    def _parse_compact_units(self, obj: Any) -> Any:
+        """
+        Recursively parse compact "value;unit" strings into structured dicts.
+        Also handles "min-max;unit" strings.
+        """
+        if isinstance(obj, dict):
+            return {k: self._parse_compact_units(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._parse_compact_units(item) for item in obj]
+        elif isinstance(obj, str) and ";" in obj:
+            # This regex handles both "value;unit" and "min-max;unit"
+            match = re.match(r"^(-?[\d.]+(?:-[\d.]*)?);(.*)$", obj)
+            if match:
+                value_part, unit = match.groups()
+                if "-" in value_part:
+                    min_val_str, max_val_str = value_part.split("-", 1)
+                    return {
+                        "min": Decimal(min_val_str) if min_val_str else None,
+                        "max": Decimal(max_val_str) if max_val_str else None,
+                        "unit": unit,
+                    }
+                else:
+                    return {"value": Decimal(value_part), "unit": unit}
+        return obj
+
     def _serialize_item(self, model: ProductBase) -> Dict[str, Any]:
         """Convert Pydantic model to DynamoDB item format.
 
@@ -90,7 +115,10 @@ class DynamoDBClient:
         data["PK"] = f"PRODUCT#{model_type}"
         data["SK"] = f"PRODUCT#{product_id_str}"
 
-        # Convert all float values to Decimal for DynamoDB compatibility
+        # First, parse our custom compact string formats into dicts
+        data = self._parse_compact_units(data)
+
+        # Then, convert all float values to Decimal for DynamoDB compatibility
         data = self._convert_floats_to_decimal(data)
 
         return data

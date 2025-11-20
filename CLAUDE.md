@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Datasheetminer is a comprehensive solution for extracting and managing technical data from PDF datasheets using Google's Gemini AI.
+Datasheetminer is a comprehensive solution for extracting and managing technical data from PDF datasheets and product web pages using Google's Gemini AI.
 
 **Components:**
-1. **CLI Tool (Python)**: Extract technical data from PDFs using AI
+1. **CLI Tool (Python)**: Extract technical data from PDFs and web pages using AI
 2. **Web Application (TypeScript)**: View and manage product data via web interface
 3. **AWS Infrastructure (CDK)**: Deploy serverless backend to AWS
 
-The tool provides AI-powered PDF analysis capabilities with structured JSON output based on Pydantic schemas, along with a web interface for viewing and managing the extracted data.
+The tool provides AI-powered document analysis capabilities with structured JSON output based on Pydantic schemas, along with a web interface for viewing and managing the extracted data. It intelligently detects whether the input is a PDF or webpage and handles each appropriately.
 
 ## Architecture
 
@@ -18,7 +18,8 @@ The tool provides AI-powered PDF analysis capabilities with structured JSON outp
 ```
 datasheetminer/
 ├── datasheetminer/              # Python CLI source code
-│   ├── scraper.py               # CLI entry point
+│   ├── scraper.py               # CLI entry point for extraction
+│   ├── searcher.py              # Automated product URL discovery
 │   ├── llm.py                   # LLM interface (Gemini AI)
 │   ├── config.py                # Configuration management
 │   ├── models/                  # Pydantic data models
@@ -29,7 +30,8 @@ datasheetminer/
 │   └── db/                      # Database utilities
 │       ├── dynamo.py            # DynamoDB client
 │       ├── query.py             # Query utility
-│       └── pusher.py            # Data pusher utility
+│       ├── pusher.py            # Data pusher utility
+│       └── deleter.py           # Flexible deletion utility
 ├── app/                         # Web application (ISOLATED)
 │   ├── backend/                 # Express + TypeScript API
 │   │   ├── src/
@@ -71,11 +73,17 @@ datasheetminer/
 ### Component Responsibilities
 
 **Python CLI:**
-- **scraper.py**: CLI entry point with argument parsing, validation, and structured JSON output
-- **llm.py**: Gemini AI integration with structured output using Pydantic schemas
+- **scraper.py**: CLI entry point with automatic content type detection (PDF vs webpage), validation, and structured JSON output
+- **searcher.py**: Automated product discovery using free search APIs (DuckDuckGo, Brave) - generates urls.json for scraper.py
+- **llm.py**: Gemini AI integration with structured output using Pydantic schemas - supports both PDF and HTML content
 - **config.py**: Environment and configuration management
-- **models/**: Pydantic models for structured JSON output (motor, drive, common schemas)
-- **db/**: Database utilities for querying and pushing data to DynamoDB
+- **models/**: Pydantic models for structured JSON output (motor, drive, gearhead, robot_arm, common schemas)
+- **db/**: Database utilities for querying, pushing, and deleting data from DynamoDB
+  - **dynamo.py**: Core DynamoDB CRUD operations
+  - **query.py**: Query and inspect table contents
+  - **pusher.py**: Batch push JSON data to DynamoDB
+  - **deleter.py**: Flexible deletion with complex filtering (manufacturer, product_type, product_name, product_family)
+- **utils.py**: Content fetching utilities (PDFs and web pages), validation, and parsing helpers
 
 **Web Application (app/):**
 - **backend/**: Express.js REST API with TypeScript
@@ -133,32 +141,111 @@ uv sync                   # Install all dependencies
 ```
 
 ### Basic Usage
+
+The tool automatically detects whether the URL is a PDF or web page and handles each appropriately.
+
 ```bash
 # Set API key
 export GEMINI_API_KEY="your-api-key"
 
-# Analyze a motor datasheet
+# Analyze a motor datasheet (PDF - automatically detected)
 uv run datasheetminer/scraper.py \
   --type motor \
-  --url "https://example.com/motor-datasheet.pdf" \
-  --pages "1-5" \
+  --from-json urls.json \
+  --json-index 0 \
   --output motor_specs.json
 
-# Analyze a drive datasheet with specific pages
+# Analyze a product web page (HTML - automatically detected)
 uv run datasheetminer/scraper.py \
   --type drive \
-  --url "https://example.com/drive-spec.pdf" \
-  --pages "1,3,5-7" \
+  --from-json urls.json \
+  --json-index 1 \
   --output drive_specs.json
+
+# The tool uses the url.json file format:
+# {
+#   "motor": [
+#     {
+#       "url": "https://example.com/motor.pdf",
+#       "pages": "1-5",
+#       "manufacturer": "ACME",
+#       "product_name": "AC-2300"
+#     }
+#   ],
+#   "drive": [
+#     {
+#       "url": "https://example.com/product-page",
+#       "manufacturer": "TechCorp",
+#       "product_name": "VFD-500"
+#     }
+#   ]
+# }
 ```
 
 ### CLI Options
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--type` | Yes | Schema type: `motor` or `drive` |
-| `--url` | Yes | PDF URL (must be publicly accessible) |
-| `--pages` | Yes | Page ranges (e.g., "1,2,3" or "1-5" or "1,3-5,7") |
+| `--type` | Yes | Schema type: `motor`, `drive`, `gearhead`, `robot_arm`, etc. |
+| `--from-json` | Yes | Path to JSON file containing product information |
+| `--json-index` | Yes | Index of the product in the JSON file array |
 | `--output` | No | Output file path (default: output.json) |
+| `--x-api-key` | No | Gemini API key (can also use GEMINI_API_KEY env var) |
+
+**Note:**
+- For PDFs: Specify page ranges in the JSON file (e.g., "1,3-5,7")
+- For web pages: The entire page is analyzed automatically (pages parameter ignored)
+
+## Automated Discovery (NEW)
+
+The `searcher.py` tool automates the process of finding product specifications using free search APIs:
+
+### Quick Start
+
+```bash
+# Step 1: Search for product URLs
+python datasheetminer/searcher.py \
+  --type robot_arm \
+  --query "Universal Robots specifications" \
+  --output robot_urls.json
+
+# Step 2: Extract data from discovered URLs
+export GEMINI_API_KEY="your-api-key"
+python datasheetminer/scraper.py \
+  --type robot_arm \
+  --from-json robot_urls.json \
+  --json-index 0
+```
+
+### Features
+
+- **Free APIs**: Uses DuckDuckGo (no key) or Brave Search (free tier)
+- **Smart Filtering**: Identifies PDFs and specification pages automatically
+- **Metadata Extraction**: Extracts manufacturer and product names
+- **Direct Integration**: Output format feeds directly into scraper.py
+
+### Complete Workflow
+
+```bash
+# 1. Discover products
+python datasheetminer/searcher.py \
+  --type motor \
+  --query "servo motor datasheet" "stepper motor specifications" \
+  --output urls.json
+
+# 2. Review discovered URLs
+cat urls.json
+
+# 3. Process each URL automatically
+python datasheetminer/scraper.py \
+  --type motor \
+  --from-json urls.json \
+  --json-index 0 \
+  --output motor_data.json
+
+# 4. Data automatically pushed to DynamoDB!
+```
+
+See [SEARCHER.md](SEARCHER.md) for complete documentation.
 
 ## Commands
 
@@ -183,20 +270,99 @@ ruff check --fix .        # Auto-fix issues
 
 ### Running the CLI
 ```bash
-# Process a motor datasheet
+# Process a motor datasheet (PDF)
 uv run datasheetminer/scraper.py \
   --type motor \
-  --url "https://example.com/motor.pdf" \
-  --pages "1-5" \
+  --from-json urls.json \
+  --json-index 0 \
   --output motor_data.json
 
-# Process a drive datasheet
+# Process a product web page (HTML)
 uv run datasheetminer/scraper.py \
   --type drive \
-  --url "https://example.com/drive.pdf" \
-  --pages "1,3-5,7" \
+  --from-json urls.json \
+  --json-index 1 \
   --output drive_data.json
+
+# The tool automatically detects content type (PDF vs webpage)
+# based on URL and Content-Type header
 ```
+
+### Database Management
+
+The project includes utilities for managing data in DynamoDB:
+
+#### Query Data
+```bash
+# Show table summary
+uv run datasheetminer/db/query.py --summary
+
+# List all items (first 10)
+uv run datasheetminer/db/query.py --list
+
+# List motors with details
+uv run datasheetminer/db/query.py --list --type motor --limit 20 --details
+
+# Get specific item by ID
+uv run datasheetminer/db/query.py --get <product-id> --type motor
+```
+
+#### Push Data
+```bash
+# Push JSON data to DynamoDB
+uv run datasheetminer/db/pusher.py --file output.json
+
+# Push to custom table
+uv run datasheetminer/db/pusher.py --file output.json --table my-table
+```
+
+#### Delete Data (NEW)
+
+The deletion utility supports flexible filtering with any combination of:
+- `--manufacturer`: Filter by manufacturer name
+- `--product-type`: Filter by product type (motor, drive, gearhead, robot_arm)
+- `--product-name`: Filter by product name
+- `--product-family`: Filter by product family
+
+```bash
+# Dry run - see what would be deleted
+uv run datasheetminer/db/deleter.py --manufacturer "ABB" --dry-run
+
+# Delete all products from a manufacturer
+uv run datasheetminer/db/deleter.py --manufacturer "ABB" --confirm
+
+# Delete specific product type from manufacturer
+uv run datasheetminer/db/deleter.py \
+  --manufacturer "Siemens" \
+  --product-type motor \
+  --confirm
+
+# Delete by manufacturer + product family
+uv run datasheetminer/db/deleter.py \
+  --manufacturer "ABB" \
+  --product-family "ACS880" \
+  --confirm
+
+# Complex query - multiple filters
+uv run datasheetminer/db/deleter.py \
+  --manufacturer "Siemens" \
+  --product-type drive \
+  --product-family "SINAMICS" \
+  --confirm
+
+# Delete specific product
+uv run datasheetminer/db/deleter.py \
+  --manufacturer "Baldor" \
+  --product-name "M3615T" \
+  --confirm
+```
+
+Safety features:
+- Requires `--confirm` flag to actually delete (or `--dry-run` for testing)
+- Shows preview of items to be deleted with sample data
+- Requires typed confirmation ("DELETE")
+- At least one filter must be specified
+- Uses efficient queries when product_type is specified
 
 ## Development Standards
 
@@ -306,6 +472,9 @@ uv run datasheetminer/scraper.py \
 **Issue**: PDF not accessible
 - **Solution**: Ensure PDF URL is publicly accessible without authentication
 
+**Issue**: Web page content extraction fails
+- **Solution**: Ensure the webpage is publicly accessible and doesn't require JavaScript rendering. The tool fetches raw HTML content.
+
 **Issue**: Gemini API quota exceeded
 - **Solution**: Check quota at [Google AI Studio](https://aistudio.google.com/), upgrade if needed
 
@@ -318,10 +487,12 @@ uv run datasheetminer/scraper.py \
 ### Debugging Tips
 
 1. **Validate API key**: Ensure Gemini API key is valid and has quota at [Google AI Studio](https://aistudio.google.com/)
-2. **Check PDF URL**: Ensure URL is publicly accessible (no authentication required)
-3. **Validate page ranges**: Ensure page numbers exist in the PDF
-4. **Schema validation**: Check that the response matches the Pydantic schema for the specified type
-5. **Check output**: Review generated JSON file for completeness and accuracy
+2. **Check content URL**: Ensure URL is publicly accessible (no authentication required) for both PDFs and web pages
+3. **Content type detection**: The tool automatically detects PDF vs web page. Check logs for "Content type detected" message
+4. **Validate page ranges**: For PDFs, ensure page numbers exist in the PDF (pages parameter ignored for web pages)
+5. **Schema validation**: Check that the response matches the Pydantic schema for the specified type
+6. **Check output**: Review generated JSON file for completeness and accuracy
+7. **Web page content**: For web pages, raw HTML is sent to Gemini. If JavaScript is required to render content, consider using a headless browser solution
 
 
 ## Output Format
@@ -470,13 +641,14 @@ cd frontend && npm test
 
 ## Use Cases
 
-- **Product Comparison**: Extract specs from multiple datasheets for side-by-side comparison
-- **Database Population**: Automate extraction of technical data into databases
+- **Product Comparison**: Extract specs from multiple PDFs and web pages for side-by-side comparison
+- **Database Population**: Automate extraction of technical data from PDFs and manufacturer websites into databases
 - **Web Interface**: View and manage products via intuitive web application
-- **Documentation Generation**: Generate summaries and technical briefs from source PDFs
-- **Parts Selection**: Query datasheets to find suitable components for projects
-- **Engineering Automation**: Extract motor/drive specs for integration into engineering tools
-- **E-commerce Integration**: Populate product pages with specifications from manufacturer datasheets
+- **Documentation Generation**: Generate summaries and technical briefs from source PDFs and web pages
+- **Parts Selection**: Query both datasheets and online product pages to find suitable components for projects
+- **Engineering Automation**: Extract motor/drive specs from any source (PDF or web) for integration into engineering tools
+- **E-commerce Integration**: Populate product pages with specifications from manufacturer datasheets and product pages
+- **Multi-Source Data**: Combine data from PDF datasheets and online spec sheets into unified product records
 
 ## Support
 

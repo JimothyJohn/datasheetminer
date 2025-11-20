@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel
 
 
 # AI-generated comment:
@@ -24,31 +24,46 @@ class Datasheet(BaseModel):
     pages: Optional[List[int]] = None
 
 
-class ValueUnit(BaseModel):
-    """Represents a numeric value with a corresponding unit."""
-
-    value: Optional[float] = None
-    unit: Optional[str] = None
-
-    @field_validator("value")
-    def check_value_greater_than_zero(cls, v: Optional[float]) -> Optional[float]:
-        """Validate that the value is greater than zero."""
-        if v is not None and v <= 0:
-            return None
+def validate_value_unit_str(v: str) -> str:
+    if v is None:
         return v
+    parts = v.split(";")
+    if len(parts) != 2:
+        raise ValueError('must be in "value;unit" format')
+    try:
+        float(parts[0])
+    except (ValueError, TypeError):
+        raise ValueError("first part must be a number")
+    if not parts[1]:
+        raise ValueError("unit cannot be empty")
+    return v
 
 
-class MinMaxUnit(BaseModel):
-    """Represents a min/max numeric range with a corresponding unit."""
+ValueUnit = Annotated[Optional[str], AfterValidator(validate_value_unit_str)]
 
-    min: Optional[float] = None
-    max: Optional[float] = None
-    unit: Optional[str] = None
 
-    @model_validator(mode="after")
-    def check_max_ge_min(self) -> "MinMaxUnit":
-        """Validate that max is greater than or equal to min."""
-        if self.min is not None and self.max is not None and self.max < self.min:
-            self.min = None
-            self.max = None
-        return self
+def validate_min_max_unit_str(v: str) -> str:
+    if v is None:
+        return v
+    parts = v.split(";")
+    if len(parts) != 2:
+        raise ValueError('must be in "range;unit" format')
+
+    range_part = parts[0]
+    range_values = range_part.split("-")
+    if len(range_values) > 2 or (len(range_values) == 1 and not range_values[0]):
+        raise ValueError(f'Invalid range format: "{range_part}"')
+
+    for val_str in range_values:
+        if val_str:  # handles cases like "-200" or "100-"
+            try:
+                float(val_str)
+            except (ValueError, TypeError):
+                raise ValueError(f'Invalid number in range: "{val_str}"')
+
+    if not parts[1]:
+        raise ValueError("unit cannot be empty")
+    return v
+
+
+MinMaxUnit = Annotated[Optional[str], AfterValidator(validate_min_max_unit_str)]

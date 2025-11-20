@@ -37,7 +37,7 @@ import { Product, ProductType } from './models';
 export type FilterMode = 'include' | 'exclude' | 'neutral';
 
 /**
- * Comparison operators for numeric filtering
+ * Comparison operators for filtering
  *
  * Supported operations:
  * - '=': Equal to (exact match)
@@ -55,11 +55,12 @@ export type ComparisonOperator = '=' | '>' | '<' | '>=' | '<=' | '!=';
  * Valid filter value types
  *
  * - string: Text matching (case-insensitive, partial match)
+ * - string[]: Multiple string values (OR logic - matches any)
  * - number: Numeric comparison with operators
  * - boolean: True/false matching
  * - [number, number]: Range matching (min, max)
  */
-export type FilterValue = string | number | boolean | [number, number];
+export type FilterValue = string | string[] | number | boolean | [number, number];
 
 /**
  * A single filter criterion
@@ -116,7 +117,7 @@ export interface AttributeMetadata {
   key: string;                // Attribute key (matches Product interface)
   displayName: string;        // Human-readable name for UI
   type: 'string' | 'number' | 'boolean' | 'range' | 'array' | 'object';
-  applicableTypes: ('motor' | 'drive')[]; // Which product types have this attribute
+  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[]; // Which product types have this attribute
   nested?: boolean;           // True for ValueUnit and MinMaxUnit types
   unit?: string;              // Unit of measurement (e.g., "V", "W", "A", "rpm", "kg")
 }
@@ -160,6 +161,85 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
   { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['motor'] },
   { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg·cm²' },
   { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg' },
+];
+
+/**
+ * Get all filterable attributes for robot arms
+ *
+ * Returns robot arm-specific attributes with metadata for filtering/sorting.
+ * Each attribute includes display name, data type, and unit of measurement.
+ *
+ * Categories:
+ * - Identification: manufacturer, part_number, product_family
+ * - Performance: payload, reach, degrees_of_freedom, pose_repeatability, max_tcp_speed
+ * - Environmental: ip_rating, cleanroom_class, noise_level, mounting_position, operating_temp
+ * - Materials & Safety: materials, safety_certifications
+ * - Physical: weight
+ *
+ * @returns Array of robot arm attribute metadata objects
+ */
+export const getRobotArmAttributes = (): AttributeMetadata[] => [
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'product_family', displayName: 'Product Family', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'payload', displayName: 'Payload', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg' },
+  { key: 'reach', displayName: 'Reach', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm' },
+  { key: 'degrees_of_freedom', displayName: 'Degrees of Freedom', type: 'number', applicableTypes: ['robot_arm'] },
+  { key: 'pose_repeatability', displayName: 'Pose Repeatability', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm' },
+  { key: 'max_tcp_speed', displayName: 'Max TCP Speed', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'm/s' },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'cleanroom_class', displayName: 'Cleanroom Class', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'dB(A)' },
+  { key: 'mounting_position', displayName: 'Mounting Position', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['robot_arm'], nested: true, unit: '°C' },
+  { key: 'materials', displayName: 'Materials', type: 'array', applicableTypes: ['robot_arm'] },
+  { key: 'safety_certifications', displayName: 'Safety Certifications', type: 'array', applicableTypes: ['robot_arm'] },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg' },
+];
+
+/**
+ * Get all filterable attributes for gearheads
+ *
+ * Returns gearhead-specific attributes with metadata for filtering/sorting.
+ * Each attribute includes display name, data type, and unit of measurement.
+ *
+ * Categories:
+ * - Identification: manufacturer, part_number, frame_size
+ * - Performance: gear_ratio, gear_type, stages, nominal_input_speed, max_input_speed
+ * - Torque & Power: max_continuous_torque, max_peak_torque, efficiency
+ * - Mechanical: backlash, torsional_rigidity, rotor_inertia
+ * - Shafts & Loads: input_shaft_diameter, output_shaft_diameter, max_radial_load, max_axial_load
+ * - Environmental: ip_rating, operating_temp, noise_level, service_life
+ * - Maintenance: lubrication_type
+ * - Physical: weight
+ *
+ * @returns Array of gearhead attribute metadata objects
+ */
+export const getGearheadAttributes = (): AttributeMetadata[] => [
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['gearhead'] },
+  { key: 'gear_type', displayName: 'Gear Type', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'stages', displayName: 'Stages', type: 'number', applicableTypes: ['gearhead'] },
+  { key: 'nominal_input_speed', displayName: 'Nominal Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm' },
+  { key: 'max_input_speed', displayName: 'Max Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm' },
+  { key: 'max_continuous_torque', displayName: 'Max Continuous Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm' },
+  { key: 'max_peak_torque', displayName: 'Max Peak Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm' },
+  { key: 'backlash', displayName: 'Backlash', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'arcmin' },
+  { key: 'efficiency', displayName: 'Efficiency', type: 'number', applicableTypes: ['gearhead'], unit: '%' },
+  { key: 'torsional_rigidity', displayName: 'Torsional Rigidity', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm/arcmin' },
+  { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg·cm²' },
+  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'dBA' },
+  { key: 'frame_size', displayName: 'Frame Size', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'input_shaft_diameter', displayName: 'Input Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm' },
+  { key: 'output_shaft_diameter', displayName: 'Output Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm' },
+  { key: 'max_radial_load', displayName: 'Max Radial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N' },
+  { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N' },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['gearhead'], nested: true, unit: '°C' },
+  { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'hours' },
+  { key: 'lubrication_type', displayName: 'Lubrication Type', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg' },
 ];
 
 /**
@@ -210,54 +290,189 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
  * Get all attributes for a specific product type
  *
  * Smart attribute selection based on current product type:
+ * - null: Returns empty array (no product type selected)
  * - 'motor': Returns 20 motor-specific attributes
  * - 'drive': Returns 23 drive-specific attributes
- * - 'all': Returns intersection of motor + drive attributes (common attributes)
+ * - 'robot_arm': Returns robot arm-specific attributes
+ * - 'gearhead': Returns gearhead-specific attributes
+ * - 'all': Returns intersection of all product type attributes (common attributes)
  *
- * The 'all' mode finds attributes that exist in BOTH motors and drives:
- * - manufacturer, part_number, type, series
- * - rated_current, weight, ip_rating, encoder_feedback_support
+ * The 'all' mode finds attributes that exist across multiple product types:
+ * - manufacturer, part_number, weight, etc.
  *
  * This prevents showing irrelevant attributes when viewing mixed product types.
  *
- * Performance: O(n*m) where n=motor attrs, m=drive attrs (~20*23=460 comparisons)
+ * Performance: O(n*m) where n=attrs1, m=attrs2
  * Cached by components, so performance impact is minimal.
  *
- * @param productType - Product type filter ('motor', 'drive', or 'all')
+ * @param productType - Product type filter ('motor', 'drive', 'robot_arm', 'gearhead', 'all', or null)
  * @returns Array of applicable attribute metadata
  */
 export const getAttributesForType = (productType: ProductType): AttributeMetadata[] => {
+  // Handle null productType (no selection)
+  if (productType === null) return [];
+
   // Fast path: type-specific attributes
   if (productType === 'motor') return getMotorAttributes();
   if (productType === 'drive') return getDriveAttributes();
-
-  // For product types without defined attributes, return empty array (for now)
-  // TODO: Define attribute schemas for robot_arm and gearhead types
-  if (productType === 'robot_arm' || productType === 'gearhead') {
-    return [];
-  }
+  if (productType === 'robot_arm') return getRobotArmAttributes();
+  if (productType === 'gearhead') return getGearheadAttributes();
 
   // ===== COMPUTE COMMON ATTRIBUTES =====
-  // For 'all' type, find intersection of motor and drive attributes
+  // For 'all' type, find intersection across all product types
   const motorAttrs = getMotorAttributes();
   const driveAttrs = getDriveAttributes();
+  const robotArmAttrs = getRobotArmAttributes();
+  const gearheadAttrs = getGearheadAttributes();
   const commonKeys = new Set<string>();
   const commonAttrs: AttributeMetadata[] = [];
 
-  // Find attributes that exist in both motor and drive schemas
+  // Find attributes that exist in multiple product type schemas
+  // Start with motor attributes and check if they exist in other types
   motorAttrs.forEach(attr => {
-    const driveAttr = driveAttrs.find(d => d.key === attr.key);
-    if (driveAttr && !commonKeys.has(attr.key)) {
+    const inDrive = driveAttrs.some(d => d.key === attr.key);
+    const inRobotArm = robotArmAttrs.some(r => r.key === attr.key);
+    const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+
+    // If attribute exists in at least 2 product types, include it
+    const count = [inDrive, inRobotArm, inGearhead].filter(Boolean).length + 1; // +1 for motor
+    if (count >= 2 && !commonKeys.has(attr.key)) {
+      commonKeys.add(attr.key);
+      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[] = ['motor'];
+      if (inDrive) applicableTypes.push('drive');
+      if (inRobotArm) applicableTypes.push('robot_arm');
+      if (inGearhead) applicableTypes.push('gearhead');
+
+      commonAttrs.push({
+        ...attr,
+        applicableTypes
+      });
+    }
+  });
+
+  // Check drive attributes that weren't in motor
+  driveAttrs.forEach(attr => {
+    if (commonKeys.has(attr.key)) return;
+
+    const inRobotArm = robotArmAttrs.some(r => r.key === attr.key);
+    const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+
+    const count = [inRobotArm, inGearhead].filter(Boolean).length + 1; // +1 for drive
+    if (count >= 2) {
+      commonKeys.add(attr.key);
+      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[] = ['drive'];
+      if (inRobotArm) applicableTypes.push('robot_arm');
+      if (inGearhead) applicableTypes.push('gearhead');
+
+      commonAttrs.push({
+        ...attr,
+        applicableTypes
+      });
+    }
+  });
+
+  // Check robot_arm attributes that weren't in motor or drive
+  robotArmAttrs.forEach(attr => {
+    if (commonKeys.has(attr.key)) return;
+
+    const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+
+    if (inGearhead) {
       commonKeys.add(attr.key);
       commonAttrs.push({
         ...attr,
-        applicableTypes: ['motor', 'drive'] // Mark as applicable to both
+        applicableTypes: ['robot_arm', 'gearhead']
       });
     }
   });
 
   console.log(`[filters] Found ${commonAttrs.length} common attributes for 'all' type`);
   return commonAttrs;
+};
+
+/**
+ * Get available comparison operators for an attribute based on actual data values
+ *
+ * Analyzes the actual values found in products for the given attribute and
+ * determines which comparison operators make sense based on the datatype.
+ *
+ * Rules:
+ * - Numeric values (or extractable from objects): All operators (=, >, <, >=, <=, !=)
+ * - String values: Equality only (=, !=)
+ * - Boolean values: Equality only (=)
+ * - Array values: Equality/contains (=, !=)
+ * - Mixed types: Defaults to equality only (=, !=)
+ *
+ * @param products - Array of products to analyze
+ * @param attribute - Attribute key (supports dot notation)
+ * @returns Array of valid comparison operators for this attribute
+ */
+export const getAvailableOperators = (products: Product[], attribute: string): ComparisonOperator[] => {
+  // If no products, default to all operators
+  if (products.length === 0) {
+    return ['=', '>', '<', '>=', '<=', '!='];
+  }
+
+  // Extract all non-null values for this attribute
+  const values = products
+    .map(product => getNestedValue(product, attribute))
+    .filter(val => val !== null && val !== undefined);
+
+  // If no values found, default to equality operators
+  if (values.length === 0) {
+    return ['=', '!='];
+  }
+
+  // Analyze value types
+  let hasNumeric = false;
+  let hasString = false;
+  let hasBoolean = false;
+  let hasArray = false;
+  let hasObject = false;
+
+  for (const value of values) {
+    if (typeof value === 'number') {
+      hasNumeric = true;
+    } else if (typeof value === 'string') {
+      hasString = true;
+    } else if (typeof value === 'boolean') {
+      hasBoolean = true;
+    } else if (Array.isArray(value)) {
+      hasArray = true;
+    } else if (typeof value === 'object') {
+      // Check if we can extract numeric value from object (ValueUnit, MinMaxUnit)
+      const numVal = extractNumericValue(value);
+      if (numVal !== null) {
+        hasNumeric = true;
+      } else {
+        hasObject = true;
+      }
+    }
+  }
+
+  // Determine operators based on datatypes found
+  // If all values are numeric or can be converted to numeric, allow all operators
+  if (hasNumeric && !hasString && !hasBoolean && !hasArray && !hasObject) {
+    return ['=', '>', '<', '>=', '<=', '!='];
+  }
+
+  // If only strings, allow equality operators
+  if (hasString && !hasNumeric && !hasBoolean && !hasArray && !hasObject) {
+    return ['=', '!='];
+  }
+
+  // If only booleans, allow equality only
+  if (hasBoolean && !hasNumeric && !hasString && !hasArray && !hasObject) {
+    return ['='];
+  }
+
+  // If only arrays, allow equality/contains
+  if (hasArray && !hasNumeric && !hasString && !hasBoolean && !hasObject) {
+    return ['=', '!='];
+  }
+
+  // Mixed types or complex objects: default to equality operators
+  return ['=', '!='];
 };
 
 // ========== Filtering Functions ==========
@@ -571,6 +786,23 @@ const matchesFilter = (value: any, filter: FilterCriterion): boolean => {
   if (filter.value === undefined) {
     // Just checking if attribute exists (no value specified)
     return value !== undefined && value !== null;
+  }
+
+  // ===== MULTI-SELECT STRING MATCHING =====
+  // When filter has multiple values (string[]), match if product value matches ANY of them (OR logic)
+  if (Array.isArray(filter.value)) {
+    const filterValues = filter.value; // Extract to help TypeScript
+    // Handle case where product value is also an array
+    if (Array.isArray(value)) {
+      return value.some(v =>
+        filterValues.some((fv: any) =>
+          String(v).toLowerCase().includes(String(fv).toLowerCase())
+        )
+      );
+    }
+    // Product value is a single value, check if it matches any filter value
+    const valueStr = String(value).toLowerCase();
+    return filterValues.some((fv: any) => valueStr.includes(String(fv).toLowerCase()));
   }
 
   // ===== ARRAY MATCHING =====

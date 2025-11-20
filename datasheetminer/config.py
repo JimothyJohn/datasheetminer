@@ -11,7 +11,6 @@ from datasheetminer.models.product import ProductBase
 REGION: str = "us-east-1"
 
 GUARDRAILS: str = """
-IMPORTANT: Do NOT generate a product_id field. The program will automatically generate unique IDs.
 """
 
 MODEL: str = "gemini-2.5-flash"  # Explicitly define model for clarity

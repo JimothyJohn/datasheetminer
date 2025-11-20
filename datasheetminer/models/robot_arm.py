@@ -49,11 +49,11 @@ class ForceTorqueSensor(BaseModel):
 class ToolIO(BaseModel):
     """Defines the I/O ports available at the tool (end-effector) flange."""
 
-    digital_in: int = Field(2, description="Number of digital inputs")  #
-    digital_out: int = Field(2, description="Number of digital outputs")  #
-    analog_in: int = Field(2, description="Number of analog inputs")  #
+    digital_in: int = Field(None, description="Number of digital inputs")  #
+    digital_out: int = Field(None, description="Number of digital outputs")  #
+    analog_in: int = Field(None, description="Number of analog inputs")  #
     power_supply_voltage: Optional[ValueUnit] = Field(
-        ValueUnit(value=12, unit="V"),  #
+        None,  #
         description="Selectable power supply voltage (e.g., 12V or 24V)",
     )
     power_supply_current: Optional[ValueUnit] = Field(
@@ -79,7 +79,7 @@ class ControllerIO(BaseModel):
         4, description="Number of quadrature digital inputs"
     )  #
     power_supply: Optional[ValueUnit] = Field(
-        ValueUnit(value=2, unit="A"),
+        "2;A",
         description="I/O power supply current at 24V",  #
     )
 
@@ -95,7 +95,7 @@ class Controller(BaseModel):
         description="Cleanroom classification (ISO 14644-1)",  #
     )
     operating_temp: Optional[MinMaxUnit] = Field(
-        MinMaxUnit(min=0, max=50, unit="°C"),  #
+        "0-50;°C",  #
         description="Operating temperature range for the controller",
     )
     io_ports: Optional[ControllerIO] = Field(
@@ -107,7 +107,7 @@ class Controller(BaseModel):
         description="List of supported communication protocols",
     )
     power_source: Optional[ValueUnit] = Field(
-        ValueUnit(unit="VAC"),
+        ";VAC",
         description="Main power source requirements (e.g., 100-240VAC)",  #
     )
 
@@ -123,15 +123,15 @@ class TeachPendant(BaseModel):
         description="Screen resolution in pixels",  #
     )
     display_size: Optional[ValueUnit] = Field(
-        ValueUnit(value=12, unit="in"),
+        "12;in",
         description="Diagonal screen size",  #
     )
     weight: Optional[ValueUnit] = Field(
-        ValueUnit(value=1.6, unit="kg"),
+        "1.6;kg",
         description="Weight of the pendant",  #
     )
     cable_length: Optional[ValueUnit] = Field(
-        ValueUnit(value=4.5, unit="m"),
+        "4.5;m",
         description="Cable length",  #
     )
 
@@ -183,7 +183,7 @@ class RobotArm(ProductBase):
         description="Allowed mounting positions",  #
     )
     operating_temp: Optional[MinMaxUnit] = Field(
-        MinMaxUnit(min=0, max=50, unit="°C"),  #
+        "0-50;°C",  #
         description="Operating temperature range for the arm",
     )
     materials: Optional[List[str]] = Field(

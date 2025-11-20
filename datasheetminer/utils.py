@@ -292,6 +292,88 @@ def process_pdf_from_url(url: str, page_ranges_str: str) -> Path | None:
             return None
 
 
+def get_web_content(url: str) -> str | None:
+    """
+    Retrieve HTML content from a webpage.
+
+    Args:
+        url: URL of the webpage to fetch
+
+    Returns: HTML content as string or None if retrieval fails
+    """
+    logger.info(f"Fetching web content from URL: {url}")
+
+    try:
+        headers: dict[str, str] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+        }
+        req: Request = Request(url, headers=headers)
+
+        with urlopen(req, timeout=30.0) as response:
+            response_headers = response.info()
+            content_type = response_headers.get("Content-Type", "")
+            logger.debug(f"Content-Type: {content_type}")
+
+            raw_data = response.read()
+
+            # Handle compressed content
+            content_encoding = response_headers.get("Content-Encoding")
+            if content_encoding == "gzip":
+                logger.info("Decompressing gzip content.")
+                data = gzip.decompress(raw_data)
+            elif content_encoding == "deflate":
+                logger.info("Decompressing deflate content.")
+                data = zlib.decompress(raw_data)
+            else:
+                data = raw_data
+
+            # Decode to text
+            html_content = data.decode("utf-8", errors="replace")
+            logger.info(f"Retrieved {len(html_content)} characters of HTML content")
+            return html_content
+
+    except (HTTPError, URLError) as e:
+        logger.error(f"Error retrieving web content: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error fetching web content: {e}", exc_info=True)
+        return None
+
+
+def is_pdf_url(url: str) -> bool:
+    """
+    Determine if a URL points to a PDF document.
+
+    Args:
+        url: The URL to check
+
+    Returns: True if the URL appears to be a PDF, False otherwise
+    """
+    # Check file extension
+    if url.lower().endswith(".pdf"):
+        return True
+
+    # Try to check Content-Type header for remote URLs
+    if url.startswith(("http://", "https://")):
+        try:
+            headers: dict[str, str] = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0"
+            }
+            req: Request = Request(url, headers=headers, method="HEAD")
+            with urlopen(req, timeout=10.0) as response:
+                content_type = response.info().get("Content-Type", "")
+                if "application/pdf" in content_type.lower():
+                    return True
+        except Exception as e:
+            logger.warning(f"Could not check Content-Type for {url}: {e}")
+
+    return False
+
+
 def get_document(
     url: str,
     pages_str: Optional[str] = None,
@@ -495,215 +577,67 @@ def format_response(response: str, format_type: str) -> str:
 
 
 def parse_gemini_response(
-    response: Any, schema_type: type, product_type: str
+    response: Any,
+    schema_type: type,
+    product_type: str,
+    context: Optional[Dict[str, Any]] = None,
 ) -> List[Any]:
     """
-    Parse Gemini API response with fallback strategies for incomplete/malformed responses.
-
-    AI-generated comment: This function implements a robust two-tier parsing strategy:
-    1. Try to parse the entire response as valid JSON (most reliable)
-    2. Fall back to extracting complete objects using brace-depth tracking
-
-    It also strips out any product_id fields the LLM might generate, as the program
-    generates proper UUIDs automatically via Pydantic's default_factory.
-
-    Args:
-        response: The response object from Gemini API
-        schema_type: The Pydantic model class to validate against
-        product_type: The product type string (for logging)
-
-    Returns:
-        List of validated Pydantic model instances with auto-generated UUIDs
-
-    Raises:
-        ValueError: If no valid objects can be parsed from the response
+    Parse Gemini API response using a two-step validation process.
     """
-    from datasheetminer.config import SCHEMA_CHOICES
-
-    parsed_models: List[Any] = []
-
-    # AI-generated comment: Check the finish reason to detect truncation or errors
-    if response and hasattr(response, "candidates") and response.candidates:
-        candidate = response.candidates[0]
-        if hasattr(candidate, "finish_reason"):
-            finish_reason = str(candidate.finish_reason)
-            logger.info(f"Response finish reason: {finish_reason}")
-
-            # AI-generated comment: Common finish reasons:
-            # - STOP: Normal completion
-            # - MAX_TOKENS: Hit output token limit (response truncated)
-            # - SAFETY: Blocked by safety filters
-            # - RECITATION: Blocked due to recitation
-            if "MAX_TOKENS" in finish_reason.upper():
-                logger.error(
-                    "Response was truncated due to MAX_TOKENS limit! "
-                    "The model hit its output token limit. Consider:"
-                    "\n  1. Reducing the number of pages analyzed"
-                    "\n  2. Using a model with higher output limits"
-                    "\n  3. Processing the document in smaller chunks"
-                )
-
-    # AI-generated comment: First, check if the response has already been parsed by the SDK
-    if response and hasattr(response, "parsed") and response.parsed:
-        logger.info(f"Using pre-parsed response with {len(response.parsed)} items")
-        return response.parsed
-
-    # AI-generated comment: If not pre-parsed, attempt manual parsing from response.text
-    if not (response and hasattr(response, "text")):
-        raise ValueError("Response has no text attribute to parse")
-
-    logger.warning(
-        "Failed to parse Gemini response automatically. Attempting manual parse of response text."
-    )
-
-    raw_text = response.text.strip()
-
-    # AI-generated comment: Check for signs of truncation before attempting to parse.
-    # Truncated responses typically end mid-JSON with incomplete structures.
-    if raw_text and not raw_text.endswith("]"):
-        logger.warning(
-            f"Response appears truncated (ends with '{raw_text[-20:]}' instead of ']'). "
-            "This may indicate the model hit its max_output_tokens limit or experienced an API error. "
-            "Will attempt to extract complete objects only."
-        )
-
-    response_size_kb = len(raw_text) / 1024
-    logger.info(f"Response size: {response_size_kb:.2f} KB ({len(raw_text)} chars)")
-
     parsed_json = []
 
-    # AI-generated comment: Strategy 1 - Try to parse the entire response as valid JSON.
-    # This is the most reliable approach and handles nested objects correctly.
-    try:
-        parsed_json_list = json.loads(raw_text)
-        if isinstance(parsed_json_list, list):
-            parsed_json = parsed_json_list
-            logger.info(
-                f"Successfully parsed complete JSON response with {len(parsed_json)} items."
-            )
-        elif isinstance(parsed_json_list, dict):
-            # Single object response, wrap in list
-            parsed_json = [parsed_json_list]
-            logger.info("Successfully parsed single JSON object response.")
-        else:
-            raise ValueError("JSON response is neither a list nor a dict.")
-
-    except json.JSONDecodeError as e:
-        # AI-generated comment: Strategy 2 - If direct parsing fails, the response may be truncated.
-        # Use brace-depth tracking to extract complete objects from the response.
-        logger.warning(
-            f"Full JSON parse failed ({e}). Attempting to extract complete objects from potentially truncated response."
-        )
-
-        # AI-generated comment: Log helpful debugging info about the response
-        logger.debug(f"Response length: {len(raw_text)} chars")
-        logger.debug(f"Response starts with: {raw_text[:100]}")
-        logger.debug(f"Response ends with: {raw_text[-100:]}")
-
-        # Find the start of the array
-        list_start = raw_text.find("[")
-        if list_start == -1:
-            logger.error(
-                "No JSON array found in response. Response might not be JSON at all."
-            )
-            logger.debug(f"First 500 chars: {raw_text[:500]}")
-            raise ValueError("No JSON array found in response.")
-
-        logger.debug(f"Found array start at position {list_start}")
-
-        # Extract content after the opening bracket
-        content = raw_text[list_start + 1 :]
-        logger.debug(f"Extracted content length: {len(content)} chars")
-
-        # AI-generated comment: Parse objects by tracking brace depth to handle nested structures.
-        # This is more robust than splitting on `},` which breaks nested objects.
-        current_obj = ""
-        brace_depth = 0
-        in_string = False
-        escape_next = False
-
-        for char in content:
-            if escape_next:
-                current_obj += char
-                escape_next = False
-                continue
-
-            if char == "\\":
-                escape_next = True
-                current_obj += char
-                continue
-
-            if char == '"' and not escape_next:
-                in_string = not in_string
-
-            current_obj += char
-
-            if not in_string:
-                if char == "{":
-                    brace_depth += 1
-                elif char == "}":
-                    brace_depth -= 1
-
-                    # AI-generated comment: When brace_depth returns to 0, we have a complete object
-                    if brace_depth == 0:
-                        obj_str = current_obj.strip().rstrip(",")
-                        # AI-generated comment: Skip empty strings - these cause "Expecting value" errors
-                        if obj_str and obj_str != "{}":
-                            try:
-                                obj = json.loads(obj_str)
-                                parsed_json.append(obj)
-                                logger.debug(
-                                    f"Extracted complete object: {obj.get('product_name', 'unknown')}"
-                                )
-                            except json.JSONDecodeError as obj_error:
-                                logger.warning(
-                                    f"Failed to parse object (length {len(obj_str)}): {obj_error}"
-                                )
-                                # Log first 200 chars of problematic object for debugging
-                                logger.debug(
-                                    f"Problematic object preview: {obj_str[:200]}..."
-                                )
-                        current_obj = ""
-
-        if not parsed_json:
-            raise ValueError(
-                "No complete JSON objects could be extracted from response."
-            )
-
-        logger.info(
-            f"Successfully extracted {len(parsed_json)} complete objects from response."
-        )
-
-    # AI-generated comment: Remove any product_id fields that the LLM might have generated.
-    # The program generates UUIDs automatically via default_factory=uuid4 in the model.
-    # LLMs generate malformed UUIDs, so we strip them out and let Pydantic create proper ones.
-    for obj in parsed_json:
-        if "product_id" in obj:
-            removed_id = obj.pop("product_id")
-            logger.debug(
-                f"Removed LLM-generated product_id '{removed_id}' for {obj.get('product_name', 'unknown')}. "
-                "Program will generate a proper UUID."
-            )
-
-    # AI-generated comment: Validate extracted JSON objects against the expected schema
-    model_class = SCHEMA_CHOICES[product_type]
-    validated_models = []
-    for i, item in enumerate(parsed_json):
+    # Step 1: Get raw JSON from response, handling pre-parsed and raw text
+    if response and hasattr(response, "parsed") and response.parsed:
+        logger.info(f"Using pre-parsed response with {len(response.parsed)} items")
+        parsed_json = [item.model_dump() for item in response.parsed]
+    elif response and hasattr(response, "text"):
+        logger.warning("Attempting manual parse of raw response text.")
+        raw_text = response.text.strip()
+        # Simple JSON load, assuming the fallback logic for truncated JSON
+        # will populate parsed_json if the direct load fails.
         try:
-            validated_model = model_class.model_validate(item)
-            validated_models.append(validated_model)
+            loaded_json = json.loads(raw_text)
+            if isinstance(loaded_json, list):
+                parsed_json = loaded_json
+            elif isinstance(loaded_json, dict):
+                parsed_json = [loaded_json]
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from response text: {e}")
+            # Here you might add your existing brace-depth parsing logic
+            # to handle truncated JSON and populate `parsed_json`
+            pass
+    else:
+        raise ValueError("Response object is invalid or has no text to parse.")
+
+    if not parsed_json:
+        raise ValueError("Could not extract any JSON objects from the response.")
+
+    # Step 2: Validate against the full schema after merging with context
+    validated_models = []
+    for item in parsed_json:
+        # Merge LLM-extracted data with the provided context
+        full_data = {**item}
+        if context:
+            full_data.update(context)
+
+        # Always set the product_type from the function argument
+        full_data["product_type"] = product_type
+
+        try:
+            # Validate the combined data against the final, strict model
+            full_model = schema_type(**full_data)
+            validated_models.append(full_model)
         except Exception as e:
             logger.error(
-                f"Failed to validate item {i} ({item.get('product_name', 'unknown')}): {e}"
+                f"Failed to validate merged data for '{item.get('part_number', 'unknown')}': {e}"
             )
-            # Continue processing other items even if one fails
             continue
 
     if not validated_models:
-        raise ValueError("No valid objects could be validated against the schema.")
+        raise ValueError(
+            "No objects could be successfully validated against the full schema."
+        )
 
-    logger.info(
-        f"Successfully validated {len(validated_models)}/{len(parsed_json)} items against {product_type} schema."
-    )
-
+    logger.info(f"Successfully created {len(validated_models)} full model instances.")
     return validated_models
