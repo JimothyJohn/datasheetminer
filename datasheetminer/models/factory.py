@@ -14,7 +14,6 @@ EXCLUDED_FIELDS = [
     "product_type",
     "product_family",
     "manufacturer",
-    "datasheet_url",
     "PK",
     "SK",
 ]

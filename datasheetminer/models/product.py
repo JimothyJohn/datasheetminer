@@ -1,4 +1,3 @@
-# AI-generated comment:
 # This module defines a base Pydantic model for tangible products, encapsulating
 # common attributes that are shared across different types of hardware like drives,
 # motors, etc. By creating a common base model, we ensure consistency,
@@ -11,7 +10,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field
 
-from datasheetminer.models.common import ValueUnit
+
+from datasheetminer.models.common import ProductType, ValueUnit
 
 
 class Dimensions(BaseModel):
@@ -52,18 +52,19 @@ class ProductBase(BaseModel):
     product_id: UUID = Field(
         default_factory=uuid4, description="Unique identifier (auto-generated)"
     )
-    product_type: str = Field(
+    product_type: ProductType = Field(
         ..., description="Type of product (e.g., 'motor', 'drive')"
     )
     product_name: str = Field(..., description="Product name")
     product_family: Optional[str] = Field(
         None, description="Product family or sub-series"
     )
-    part_number: str = Field(..., description="Part number")
+    part_number: Optional[str] = Field(None, description="Part number")
     manufacturer: Optional[str] = Field(None, description="Manufacturer name")
-    datasheet_url: Optional[str] = Field(None, description="URL to the datasheet")
     release_year: Optional[int] = None
     dimensions: Optional[Dimensions] = None
     weight: Optional[ValueUnit] = None
     msrp: Optional[ValueUnit] = None
     warranty: Optional[ValueUnit] = None
+    datasheet_url: Optional[str] = Field(None, description="URL of the source datasheet")
+    pages: Optional[list[int]] = Field(None, description="Pages used for extraction")

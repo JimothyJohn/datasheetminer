@@ -18,13 +18,14 @@ import boto3  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
 
 from datasheetminer.config import REGION
+from datasheetminer.models.datasheet import Datasheet
 from datasheetminer.models.drive import Drive
 from datasheetminer.models.motor import Motor
 from datasheetminer.models.product import ProductBase
 
 
 # Type variable for Pydantic models
-T = TypeVar("T", bound=ProductBase)
+T = TypeVar("T", bound=Union[ProductBase, Datasheet])
 
 
 class DynamoDBClient:
@@ -75,26 +76,39 @@ class DynamoDBClient:
         elif isinstance(obj, list):
             return [self._parse_compact_units(item) for item in obj]
         elif isinstance(obj, str) and ";" in obj:
-            # This regex handles both "value;unit" and "min-max;unit"
-            match = re.match(r"^(-?[\d.]+(?:-[\d.]*)?);(.*)$", obj)
+            # AI-generated comment:
+            # Improved regex to handle negative numbers and ranges correctly.
+            # Captures:
+            # Group 1: Start value (min) or single value
+            # Group 2: Optional end value (max) (without the separator hyphen)
+            # Group 3: Unit
+            # Examples:
+            # "20;C" -> grp1="20", grp2=None, grp3="C"
+            # "20-40;C" -> grp1="20", grp2="40", grp3="C"
+            # "-20-40;C" -> grp1="-20", grp2="40", grp3="C"
+            # "-20--40;C" -> grp1="-20", grp2="-40", grp3="C"
+            match = re.match(r"^(-?[\d.]+)(?:-(-?[\d.]+))?;(.*)$", obj)
             if match:
-                value_part, unit = match.groups()
-                if "-" in value_part:
-                    min_val_str, max_val_str = value_part.split("-", 1)
-                    return {
-                        "min": Decimal(min_val_str) if min_val_str else None,
-                        "max": Decimal(max_val_str) if max_val_str else None,
-                        "unit": unit,
-                    }
-                else:
-                    return {"value": Decimal(value_part), "unit": unit}
+                val1, val2, unit = match.groups()
+                try:
+                    if val2 is not None:
+                        return {
+                            "min": Decimal(val1),
+                            "max": Decimal(val2),
+                            "unit": unit,
+                        }
+                    else:
+                        return {"value": Decimal(val1), "unit": unit}
+                except Exception:
+                    # If Decimal conversion fails (e.g. "2+"), return original string
+                    return obj
         return obj
 
-    def _serialize_item(self, model: ProductBase) -> Dict[str, Any]:
+    def _serialize_item(self, model: Union[ProductBase, Datasheet]) -> Dict[str, Any]:
         """Convert Pydantic model to DynamoDB item format.
 
         Args:
-            model: Product instance
+            model: Product or Datasheet instance
 
         Returns:
             Dictionary ready for DynamoDB insertion
@@ -105,15 +119,27 @@ class DynamoDBClient:
         # Convert UUID to string for DynamoDB
         if "product_id" in data and isinstance(data["product_id"], UUID):
             data["product_id"] = str(data["product_id"])
+        if "datasheet_id" in data and isinstance(data["datasheet_id"], UUID):
+            data["datasheet_id"] = str(data["datasheet_id"])
 
         # Add product type for querying
         data["product_type"] = model.product_type
 
         # Add PK and SK for single-table design
-        model_type: str = model.product_type.upper()
-        product_id_str: str = str(data.get("product_id", ""))
-        data["PK"] = f"PRODUCT#{model_type}"
-        data["SK"] = f"PRODUCT#{product_id_str}"
+        # Use computed fields if available (both ProductBase and Datasheet have them)
+        if hasattr(model, "PK"):
+            data["PK"] = model.PK
+        else:
+            # Fallback for older models or if computed field is missing
+            model_type: str = model.product_type.upper()
+            data["PK"] = f"PRODUCT#{model_type}"
+
+        if hasattr(model, "SK"):
+            data["SK"] = model.SK
+        else:
+            # Fallback
+            product_id_str: str = str(data.get("product_id", ""))
+            data["SK"] = f"PRODUCT#{product_id_str}"
 
         # First, parse our custom compact string formats into dicts
         data = self._parse_compact_units(data)
@@ -141,11 +167,11 @@ class DynamoDBClient:
             print(f"Error deserializing item: {e}")
             return None
 
-    def create(self, model: ProductBase) -> bool:
+    def create(self, model: Union[ProductBase, Datasheet]) -> bool:
         """Create a new item in DynamoDB.
 
         Args:
-            model: Product instance
+            model: Product or Datasheet instance
 
         Returns:
             True if successful, False otherwise
@@ -174,7 +200,7 @@ class DynamoDBClient:
             id_str = str(product_id) if isinstance(product_id, UUID) else product_id
 
             # Determine PK and SK based on the new schema
-            model_type = model_class.product_type.upper()
+            model_type = model_class.model_fields["product_type"].default.upper()
             pk = f"PRODUCT#{model_type}"
             sk = f"PRODUCT#{id_str}"
 
@@ -190,6 +216,135 @@ class DynamoDBClient:
         except Exception as e:
             print(f"Unexpected error reading item: {e}")
             return None
+
+    def datasheet_exists(
+        self,
+        url: str,
+    ) -> bool:
+        """Check if a datasheet with the given URL already exists.
+
+        Args:
+            url: The URL of the datasheet.
+
+        Returns:
+            True if datasheet exists, False otherwise.
+        """
+        try:
+            # Since we don't know the product_type easily without parsing, and PK depends on it,
+            # we might need to scan or query GSI if available.
+            # However, if we assume we are checking before creating, we might have product_type.
+            # But the user request implies checking by URL or similar.
+            # For now, let's assume we scan or use a GSI if we had one.
+            # Without GSI, we have to Scan, which is inefficient but acceptable for now as per plan.
+            
+            response = self.table.scan(
+                FilterExpression="#url = :url",
+                ExpressionAttributeNames={"#url": "url"},
+                ExpressionAttributeValues={":url": url},
+                Limit=1
+            )
+            return bool(response.get("Items"))
+        except ClientError as e:
+            print(f"Error checking if datasheet exists: {e.response['Error']['Message']}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error checking if datasheet exists: {e}")
+            return False
+
+    def get_datasheets_by_product_name(self, product_name: str) -> List[Datasheet]:
+        """Get datasheets for a specific product name.
+
+        Args:
+            product_name: The name of the product.
+
+        Returns:
+            List of Datasheet objects.
+        """
+        try:
+            response = self.table.scan(
+                FilterExpression="product_name = :name AND begins_with(PK, :pk_prefix)",
+                ExpressionAttributeValues={
+                    ":name": product_name,
+                    ":pk_prefix": "DATASHEET#"
+                }
+            )
+            items = response.get("Items", [])
+            
+            results = []
+            for item in items:
+                ds = self._deserialize_item(item, Datasheet)
+                if ds:
+                    results.append(ds)
+            return results
+        except Exception as e:
+            print(f"Error getting datasheets by name: {e}")
+            return []
+
+    def get_datasheets_by_family(self, family: str) -> List[Datasheet]:
+        """Get datasheets for a specific product family.
+
+        Args:
+            family: The product family.
+
+        Returns:
+            List of Datasheet objects.
+        """
+        try:
+            response = self.table.scan(
+                FilterExpression="product_family = :family AND begins_with(PK, :pk_prefix)",
+                ExpressionAttributeValues={
+                    ":family": family,
+                    ":pk_prefix": "DATASHEET#"
+                }
+            )
+            items = response.get("Items", [])
+            
+            results = []
+            for item in items:
+                ds = self._deserialize_item(item, Datasheet)
+                if ds:
+                    results.append(ds)
+            return results
+        except Exception as e:
+            print(f"Error getting datasheets by family: {e}")
+            return []
+
+    def get_all_datasheets(self) -> List[Datasheet]:
+        """Get all datasheets from the database.
+
+        Returns:
+            List of all Datasheet objects.
+        """
+        try:
+            # Scan for all items where PK starts with "DATASHEET#"
+            response = self.table.scan(
+                FilterExpression="begins_with(PK, :pk_prefix)",
+                ExpressionAttributeValues={
+                    ":pk_prefix": "DATASHEET#"
+                }
+            )
+            items = response.get("Items", [])
+            
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self.table.scan(
+                    FilterExpression="begins_with(PK, :pk_prefix)",
+                    ExpressionAttributeValues={
+                        ":pk_prefix": "DATASHEET#"
+                    },
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+                items.extend(response.get("Items", []))
+            
+            results = []
+            for item in items:
+                ds = self._deserialize_item(item, Datasheet)
+                if ds:
+                    results.append(ds)
+            return results
+        except Exception as e:
+            print(f"Error getting all datasheets: {e}")
+            return []
 
     def product_exists(
         self,
@@ -306,7 +461,7 @@ class DynamoDBClient:
             )
 
             # Determine PK and SK for deletion
-            model_type: str = model_class.product_type.upper()
+            model_type: str = model_class.model_fields["product_type"].default.upper()
             pk: str = f"PRODUCT#{model_type}"
             sk: str = f"PRODUCT#{id_str}"
 
@@ -426,11 +581,11 @@ class DynamoDBClient:
             print(f"Unexpected error listing all items: {e}")
             return []
 
-    def batch_create(self, models: Sequence[ProductBase]) -> int:
+    def batch_create(self, models: Sequence[Union[ProductBase, Datasheet]]) -> int:
         """Create multiple items in DynamoDB using batch write.
 
         Args:
-            models: List of Product instances
+            models: List of Product or Datasheet instances
 
         Returns:
             Number of successfully created items
@@ -445,7 +600,7 @@ class DynamoDBClient:
             batch_size: int = 25
 
             for i in range(0, len(models), batch_size):
-                batch: Sequence[ProductBase] = models[i : i + batch_size]
+                batch: Sequence[Union[ProductBase, Datasheet]] = models[i : i + batch_size]
 
                 with self.table.batch_writer() as writer:
                     for model in batch:
@@ -525,21 +680,6 @@ class DynamoDBClient:
             # No items to delete
             if item_count == 0:
                 print("Table is already empty")
-                return 0
-
-            # Prompt for user confirmation
-            print("\n" + "=" * 80)
-            print("⚠️  WARNING: YOU ARE ABOUT TO DELETE ALL DATA FROM THE TABLE!")
-            print("=" * 80)
-            print(f"Table name: {self.table_name}")
-            print(f"Items to delete: {item_count}")
-            print("\nThis operation CANNOT be undone!")
-            print("\nType 'DELETE ALL' (without quotes) to confirm:")
-
-            user_input: str = input("> ").strip()
-
-            if user_input != "DELETE ALL":
-                print("\nDeletion cancelled - confirmation text did not match")
                 return 0
 
             # Perform deletion in batches
@@ -719,28 +859,6 @@ class DynamoDBClient:
                     "duplicates_deleted": 0,
                 }
 
-            # Prompt for user confirmation
-            print("\n" + "=" * 80)
-            print("⚠️  WARNING: YOU ARE ABOUT TO DELETE DUPLICATE ITEMS!")
-            print("=" * 80)
-            print(f"Table name: {self.table_name}")
-            print(f"Duplicate items to delete: {duplicates_found}")
-            print(f"Keep strategy: {keep}")
-            print("\nThis operation CANNOT be undone!")
-            print("\nType 'DELETE DUPLICATES' (without quotes) to confirm:")
-
-            user_input: str = input("> ").strip()
-
-            if user_input != "DELETE DUPLICATES":
-                print("\nDeletion cancelled - confirmation text did not match")
-                return {
-                    "total_items": total_items,
-                    "unique_part_numbers": unique_part_numbers,
-                    "duplicate_groups": duplicate_group_count,
-                    "duplicates_found": duplicates_found,
-                    "duplicates_deleted": 0,
-                }
-
             # Determine which items to delete
             items_to_delete: List[Dict[str, Any]] = []
 
@@ -810,3 +928,218 @@ class DynamoDBClient:
                 "duplicates_found": 0,
                 "duplicates_deleted": 0,
             }
+
+    def delete_by_product_type(
+        self, product_type: str, confirm: bool = False, dry_run: bool = False
+    ) -> int:
+        """Delete all products of a specific type from DynamoDB.
+
+        Args:
+            product_type: The type of product to delete (e.g., 'motor', 'drive')
+            confirm: Must be True to proceed with deletion
+            dry_run: If True, only count items without deleting
+
+        Returns:
+            Number of items deleted (or counted if dry_run=True)
+        """
+        if not confirm and not dry_run:
+            print("ERROR: delete_by_product_type() requires confirm=True parameter")
+            print(f"This operation will delete ALL {product_type} products!")
+            print("Use dry_run=True to see item count without deleting")
+            return 0
+
+        try:
+            pk_value = f"PRODUCT#{product_type.upper()}"
+            print(f"Querying table '{self.table_name}' for product_type='{product_type}'...")
+            print(f"Partition key: {pk_value}")
+
+            items: List[Dict[str, Any]] = []
+            query_kwargs: Dict[str, Any] = {
+                "KeyConditionExpression": "PK = :pk",
+                "ExpressionAttributeValues": {":pk": pk_value},
+                "ProjectionExpression": "PK, SK, manufacturer, product_name, part_number",
+            }
+
+            while True:
+                response = self.table.query(**query_kwargs)
+                items.extend(response.get("Items", []))
+
+                if "LastEvaluatedKey" not in response:
+                    break
+                query_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+
+            item_count = len(items)
+            print(f"Found {item_count} items with product_type='{product_type}'")
+
+            if item_count == 0:
+                print(f"No {product_type} products found - nothing to delete")
+                return 0
+
+            # Show sample
+            print("\nSample of items to be deleted:")
+            for item in items[:10]:
+                manufacturer = item.get("manufacturer", "N/A")
+                product_name = item.get("product_name", "N/A")
+                part_number = item.get("part_number", "N/A")
+                print(f"  - {manufacturer} {product_name} ({part_number})")
+            if item_count > 10:
+                print(f"  ... and {item_count - 10} more")
+
+            if dry_run:
+                print("\nDRY RUN - No items were deleted")
+                return item_count
+
+            # Delete
+            print(f"\nDeleting {item_count} items...")
+            deleted_count = 0
+            batch_size = 25
+
+            for i in range(0, len(items), batch_size):
+                batch = items[i : i + batch_size]
+
+                with self.table.batch_writer() as writer:
+                    for item in batch:
+                        try:
+                            writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+                            deleted_count += 1
+                        except Exception as e:
+                            print(f"Error deleting item {item.get('SK', 'unknown')}: {e}")
+                            continue
+
+                if deleted_count % 50 == 0:
+                    print(f"  Deleted {deleted_count}/{item_count} items...")
+
+            print(f"\n✓ Successfully deleted {deleted_count} items")
+            return deleted_count
+
+        except ClientError as e:
+            print(f"Error querying/deleting items: {e.response['Error']['Message']}")
+            return 0
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return 0
+
+    def delete_by_product_family(
+        self,
+        product_family: str,
+        product_type: Optional[str] = None,
+        confirm: bool = False,
+        dry_run: bool = False,
+    ) -> int:
+        """Delete all products of a specific family from DynamoDB.
+
+        Args:
+            product_family: The product family to delete.
+            product_type: Optional product type to optimize the search.
+            confirm: Must be True to proceed with deletion
+            dry_run: If True, only count items without deleting.
+
+        Returns:
+            Number of items deleted (or counted).
+        """
+        if not confirm and not dry_run:
+            print("ERROR: delete_by_product_family() requires confirm=True parameter")
+            print(f"This operation will delete ALL products in family '{product_family}'!")
+            print("Use dry_run=True to see item count without deleting")
+            return 0
+
+        print(f"Searching for products with family='{product_family}'...")
+
+        items: List[Dict[str, Any]] = []
+
+        try:
+            if product_type:
+                # Optimize by querying the partition key if product_type is known
+                pk_value = f"PRODUCT#{product_type.upper()}"
+                print(
+                    f"Optimization: Querying by product_type='{product_type}' (PK={pk_value})"
+                )
+
+                query_kwargs = {
+                    "KeyConditionExpression": "PK = :pk",
+                    "FilterExpression": "product_family = :family",
+                    "ExpressionAttributeValues": {
+                        ":pk": pk_value,
+                        ":family": product_family,
+                    },
+                    "ProjectionExpression": "PK, SK, manufacturer, product_name, part_number, product_family",
+                }
+
+                while True:
+                    response = self.table.query(**query_kwargs)
+                    items.extend(response.get("Items", []))
+
+                    if "LastEvaluatedKey" not in response:
+                        break
+                    query_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+
+            else:
+                # Full table scan if product_type is not provided
+                print(
+                    "Warning: No product_type provided. Performing full table scan (slower)..."
+                )
+
+                scan_kwargs = {
+                    "FilterExpression": "product_family = :family",
+                    "ExpressionAttributeValues": {":family": product_family},
+                    "ProjectionExpression": "PK, SK, manufacturer, product_name, part_number, product_family",
+                }
+
+                while True:
+                    response = self.table.scan(**scan_kwargs)
+                    items.extend(response.get("Items", []))
+
+                    if "LastEvaluatedKey" not in response:
+                        break
+                    scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+
+            item_count = len(items)
+            print(f"Found {item_count} items with product_family='{product_family}'")
+
+            if item_count == 0:
+                print(f"No products found for family '{product_family}' - nothing to delete")
+                return 0
+
+            # Show sample
+            print("\nSample of items to be deleted:")
+            for item in items[:10]:
+                manufacturer = item.get("manufacturer", "N/A")
+                product_name = item.get("product_name", "N/A")
+                part_number = item.get("part_number", "N/A")
+                print(f"  - {manufacturer} {product_name} ({part_number})")
+            if item_count > 10:
+                print(f"  ... and {item_count - 10} more")
+
+            if dry_run:
+                print("\nDRY RUN - No items were deleted")
+                return item_count
+
+            # Delete
+            print(f"\nDeleting {item_count} items...")
+            deleted_count = 0
+            batch_size = 25
+
+            for i in range(0, len(items), batch_size):
+                batch = items[i : i + batch_size]
+
+                with self.table.batch_writer() as writer:
+                    for item in batch:
+                        try:
+                            writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+                            deleted_count += 1
+                        except Exception as e:
+                            print(f"Error deleting item {item.get('SK', 'unknown')}: {e}")
+                            continue
+
+                if deleted_count % 50 == 0:
+                    print(f"  Deleted {deleted_count}/{item_count} items...")
+
+            print(f"\n✓ Successfully deleted {deleted_count} items")
+            return deleted_count
+
+        except ClientError as e:
+            print(f"Error querying/deleting items: {e.response['Error']['Message']}")
+            return 0
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return 0

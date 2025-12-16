@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from typing import Any, List, Optional, Set, Dict
+from typing import Any, List, Optional, Set, Dict, Union
 import json
 import argparse
 import re
@@ -376,22 +376,22 @@ def is_pdf_url(url: str) -> bool:
 
 def get_document(
     url: str,
-    pages_str: Optional[str] = None,
+    pages: Optional[Union[str, List[int]]] = None,
 ) -> bytes | None:
     """
     Retrieve PDF document for analysis.
 
     Args:
         url: Local file path or URL of the PDF document to analyze
-        pages_str: Optional string specifying pages to extract (e.g., '1,3-5,7')
+        pages: Optional string (e.g., '1,3-5,7') or list of page numbers to extract
 
     Returns: PDF document bytes or None if retrieval fails
     """
     # AI-generated comment:
     # Add logging to track the document retrieval process.
     logger.info(f"Retrieving document from URL: {url}")
-    if pages_str:
-        logger.info(f"Extracting pages: {pages_str}")
+    if pages:
+        logger.info(f"Extracting pages: {pages}")
 
     doc_data: Optional[bytes] = None
     input_pdf_path: Optional[Path] = None
@@ -440,14 +440,19 @@ def get_document(
                 input_pdf_path.write_bytes(data)
                 logger.info(f"Wrote {len(data)} bytes to {input_pdf_path}")
 
-        if pages_str and input_pdf_path:
-            pages: List[int] = parse_page_ranges(pages_str)
+        if pages and input_pdf_path:
+            pages_to_extract: List[int]
+            if isinstance(pages, str):
+                pages_to_extract = parse_page_ranges(pages)
+            else:
+                pages_to_extract = pages
+
             with tempfile.NamedTemporaryFile(
                 suffix=".pdf", delete=False
             ) as temp_output_pdf:
                 output_pdf_path: Path = Path(temp_output_pdf.name)
 
-            extract_pdf_pages(input_pdf_path, output_pdf_path, pages)
+            extract_pdf_pages(input_pdf_path, output_pdf_path, pages_to_extract)
             doc_data = output_pdf_path.read_bytes()
             output_pdf_path.unlink()  # Clean up the extracted pages PDF
         elif input_pdf_path:
@@ -593,7 +598,7 @@ def parse_gemini_response(
         parsed_json = [item.model_dump() for item in response.parsed]
     elif response and hasattr(response, "text"):
         logger.warning("Attempting manual parse of raw response text.")
-        raw_text = response.text.strip()
+        raw_text = response.text.strip() if response.text else ""
         # Simple JSON load, assuming the fallback logic for truncated JSON
         # will populate parsed_json if the direct load fails.
         try:

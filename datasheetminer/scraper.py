@@ -120,7 +120,7 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--type",
-        required=True,
+        required=False,
         help="The type of schema to use for analysis (motor, drive, gearhead, robot_arm, etc)",
     )
 
@@ -138,49 +138,33 @@ def main() -> None:
     parser.add_argument(
         "--from-json",
         type=str,
-        required=True,
         help="Path to a JSON file with product info.",
     )
     parser.add_argument(
         "--json-index",
         type=int,
-        required=True,
-        help="Index of the product in the JSON file.",
+        default=0,
+        help="Index of the item in the JSON file to process (default: 0)",
     )
 
+    parser.add_argument(
+        "--scrape-from-db",
+        action="store_true",
+        help="Fetch datasheet info from DynamoDB using product name and family.",
+    )
+    parser.add_argument(
+        "--scrape-all",
+        action="store_true",
+        help="Iterate through ALL datasheets in the DB and scrape them if not already processed.",
+    )
+    parser.add_argument("--url", help="Datasheet URL (required if not using --from-json, --scrape-from-db, or --scrape-all)")
+    parser.add_argument("--pages", help="Comma-separated list of pages (e.g. '1,2,3')")
+    parser.add_argument("--product-name", help="Product name")
+    parser.add_argument("--manufacturer", help="Manufacturer")
+    parser.add_argument("--product-family", help="Product family")
+
     args: argparse.Namespace = parser.parse_args()
-
-    try:
-        info = get_product_info_from_json(
-            args.from_json, f"{args.type}", args.json_index
-        )
-        url_raw = info.get("url")
-        pages = info.get("pages")
-        manufacturer_raw = info.get("manufacturer")
-        product_name_raw = info.get("product_name")
-        product_family_raw = info.get("product_family")
-        product_type_raw = args.type or info.get("product_type")
-    except (FileNotFoundError, ValueError) as e:
-        parser.error(str(e))
-
-    # After potentially loading from JSON, check for required args
-    required_info = ["url", "manufacturer", "product_name"]
-    missing_info = [
-        arg for arg in required_info if info is None or info.get(arg) is None
-    ]
-    if missing_info:
-        parser.error(f"Missing required info in JSON: {', '.join(missing_info)}")
-
-    # AI-generated comment: Validate product_type is provided (required via argparse)
-    if not product_type_raw:
-        parser.error("Product type is required")
-
-    # AI-generated comment: Type narrowing - after validation we know these are not None
-    manufacturer: str = manufacturer_raw  # type: ignore[assignment]
-    product_name: str = product_name_raw  # type: ignore[assignment]
-    product_family: str = product_family_raw  # type: ignore[assignment]
-    url: str = url_raw  # type: ignore[assignment]
-    product_type: str = product_type_raw  # type: ignore[assignment]
+    client: DynamoDBClient = DynamoDBClient()
 
     # Manually handle API key validation
     api_key: Optional[str] = args.x_api_key or os.environ.get("GEMINI_API_KEY")
@@ -189,32 +173,256 @@ def main() -> None:
     except argparse.ArgumentTypeError as e:
         parser.error(str(e))
 
-    # AI-generated comment:
-    # Before proceeding with the analysis, check if a product with the same
-    # product_type, manufacturer, and product_name already exists in the database
-    # to avoid redundant scraping. Including manufacturer provides enhanced precision
-    # to handle cases where different manufacturers might have identically named products.
-    # This is an important optimization that saves both time and resources (API calls, compute time, etc.).
-    client: DynamoDBClient = DynamoDBClient()
-    model_class: Type[ProductBase] = SCHEMA_CHOICES[args.type]
+
+
+    # Handle Scrape All Mode
+    if args.scrape_all:
+        logger.info("Starting bulk scrape of all datasheets...")
+        all_datasheets = client.get_all_datasheets()
+        logger.info(f"Found {len(all_datasheets)} datasheets in DB.")
+        
+        success_count = 0
+        skip_count = 0
+        fail_count = 0
+        
+        for ds in all_datasheets:
+            logger.info(f"Processing datasheet: {ds.product_name} ({ds.datasheet_id})")
+            try:
+                result = process_datasheet(
+                    client=client,
+                    api_key=validated_api_key,
+                    product_type=ds.product_type,
+                    manufacturer=ds.manufacturer or "Unknown", # Should not happen if schema enforced
+                    product_name=ds.product_name,
+                    product_family=ds.product_family or "",
+                    url=ds.url,
+                    pages=ds.pages,
+                    output_path=None # Don't write individual files for bulk scrape
+                )
+                if result == "skipped":
+                    skip_count += 1
+                elif result == "success":
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except Exception as e:
+                logger.error(f"Error processing datasheet {ds.datasheet_id}: {e}")
+                fail_count += 1
+                
+        logger.info(f"Bulk scrape completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}")
+        sys.exit(0)
+
+    # Determine source of information for single scrape
+    url_raw: Optional[str] = None
+    pages: Optional[List[int]] = None
+    manufacturer_raw: Optional[str] = None
+    product_name_raw: Optional[str] = None
+    product_family_raw: Optional[str] = None
+    product_type_raw: Optional[str] = args.type
+
+    if args.from_json:
+        try:
+            info = get_product_info_from_json(
+                args.from_json, f"{args.type}", args.json_index
+            )
+            url_raw = info.get("url")
+            pages = info.get("pages")
+            manufacturer_raw = info.get("manufacturer")
+            product_name_raw = info.get("product_name")
+            product_family_raw = info.get("product_family")
+            if not product_type_raw:
+                product_type_raw = info.get("product_type")
+        except (FileNotFoundError, ValueError) as e:
+            parser.error(str(e))
+
+    elif args.scrape_from_db:
+        # Query DB for datasheet
+        datasheets = []
+        
+        if args.product_name:
+            # Try finding by product name first
+            datasheets = client.get_datasheets_by_product_name(args.product_name)
+        elif args.product_family:
+            # Try finding by family
+            datasheets = client.get_datasheets_by_family(args.product_family)
+        elif args.manufacturer:
+            # Fallback to getting all and filtering
+            all_ds = client.get_all_datasheets()
+            datasheets = [ds for ds in all_ds if ds.manufacturer == args.manufacturer]
+        else:
+            # If only type is provided (or nothing else specific), fetch all
+            datasheets = client.get_all_datasheets()
+
+        # Filter results based on other provided criteria
+        filtered_datasheets = []
+        for ds in datasheets:
+            match = True
+            # Filter by type (required arg)
+            if args.type and ds.product_type != args.type:
+                match = False
+                
+            if args.product_name and ds.product_name != args.product_name:
+                match = False
+            if args.product_family and ds.product_family != args.product_family:
+                match = False
+            if args.manufacturer and ds.manufacturer != args.manufacturer:
+                match = False
+            
+            if match:
+                filtered_datasheets.append(ds)
+        
+        if not filtered_datasheets:
+            criteria = []
+            if args.type: criteria.append(f"type='{args.type}'")
+            if args.product_name: criteria.append(f"name='{args.product_name}'")
+            if args.product_family: criteria.append(f"family='{args.product_family}'")
+            if args.manufacturer: criteria.append(f"manufacturer='{args.manufacturer}'")
+            
+            logger.error(f"No datasheet found in DB matching criteria: {', '.join(criteria)}")
+            sys.exit(1)
+            
+        # Process all matching datasheets
+        logger.info(f"Found {len(filtered_datasheets)} matching datasheets in DB.")
+        
+        success_count = 0
+        skip_count = 0
+        fail_count = 0
+        
+        for ds in filtered_datasheets:
+            logger.info(f"Processing datasheet: {ds.product_name} ({ds.datasheet_id})")
+            try:
+                result = process_datasheet(
+                    client=client,
+                    api_key=validated_api_key,
+                    product_type=ds.product_type,
+                    manufacturer=ds.manufacturer or "Unknown",
+                    product_name=ds.product_name,
+                    product_family=ds.product_family or "",
+                    url=ds.url,
+                    pages=ds.pages,
+                    output_path=None # Don't write individual files for bulk scrape
+                )
+                if result == "skipped":
+                    skip_count += 1
+                elif result == "success":
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except Exception as e:
+                logger.error(f"Error processing datasheet {ds.datasheet_id}: {e}")
+                fail_count += 1
+                
+        logger.info(f"Scrape from DB completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}")
+        sys.exit(0)
+
+    else:
+        # Manual CLI args
+        url_raw = args.url
+        if args.pages:
+            try:
+                pages = [int(p.strip()) for p in args.pages.split(",")]
+            except ValueError:
+                parser.error("Pages must be a comma-separated list of integers")
+        
+        manufacturer_raw = args.manufacturer
+        product_name_raw = args.product_name
+        product_family_raw = args.product_family
+
+    # Validation
+    if not url_raw:
+        parser.error("URL is required (via --url, --from-json, or --scrape-from-db)")
+    
+    # If not scraping from DB, type is required
+    if not args.scrape_from_db and not args.scrape_all and not product_type_raw:
+         parser.error("Product type is required (via -t/--type) when not scraping from DB.")
+
+    if not manufacturer_raw:
+        parser.error("Manufacturer is required")
+    if not product_name_raw:
+        parser.error("Product name is required")
+    if not product_type_raw:
+        # If we are here, it means we are scraping from DB but the datasheet entry didn't have a type?
+        # Or we are iterating and some entries might be missing type.
+        # But wait, if we are scraping from DB, we get type from the DB entry.
+        # If we are doing manual URL, we enforced it above.
+        # So this check is mostly for safety.
+        parser.error("Product type is required")
+
+    # Type narrowing
+    manufacturer_str: str = manufacturer_raw
+    product_name_str: str = product_name_raw
+    product_family_str: str = product_family_raw or ""
+    url_str: str = url_raw
+    product_type_str: str = product_type_raw
+
+    try:
+        process_datasheet(
+            client=client,
+            api_key=validated_api_key,
+            product_type=product_type_str,
+            manufacturer=manufacturer_str,
+            product_name=product_name_str,
+            product_family=product_family_str,
+            url=url_str,
+            pages=pages,
+            output_path=args.output
+        )
+    except Exception as e:
+        logger.error(f"Error during document analysis: {e}")
+        sys.exit(1)
+
+
+def process_datasheet(
+    client: DynamoDBClient,
+    api_key: str,
+    product_type: str,
+    manufacturer: str,
+    product_name: str,
+    product_family: str,
+    url: str,
+    pages: Optional[List[int]],
+    output_path: Optional[Path] = None
+) -> str:
+    """
+    Process a single datasheet: check existence, scrape, parse, and save to DB.
+    Returns: "success", "skipped", or "failed"
+    """
+    
+    # Check if product already exists
+    model_class: Type[ProductBase] = SCHEMA_CHOICES[product_type]
+    from datasheetminer.models.datasheet import Datasheet
+
+    # Ensure Datasheet entry exists (for management UI)
+    # DISABLED: User requested to prevent scraper from adding datasheets
+    # if not client.datasheet_exists(url):
+    #     logger.info(f"Creating missing Datasheet entry for: {url}")
+    #     ds = Datasheet(
+    #         url=url,
+    #         pages=pages,
+    #         product_type=product_type,
+    #         product_name=product_name,
+    #         product_family=product_family,
+    #         manufacturer=manufacturer,
+    #     )
+    #     client.create(ds)
 
     if client.product_exists(product_type, manufacturer, product_name, model_class):
         logger.warning(
             f"⚠️  Product '{product_name}' by manufacturer '{manufacturer}' with product_type '{product_type}' "
             f"already exists in the database. Skipping scraping to avoid duplicates."
         )
-        sys.exit(0)
+        return "skipped"
 
-    # AI-generated comment: Create a context dictionary to provide known info to the LLM
+    # Context for LLM
     context = {
         "product_name": product_name,
         "manufacturer": manufacturer,
         "product_family": product_family,
         "datasheet_url": url,
+        "pages": pages,
     }
 
-    # AI-generated comment: Detect if URL points to a PDF or a webpage
-    # This allows the scraper to handle both types of content intelligently
+    # Detect content type
     is_pdf: bool = is_pdf_url(url)
     content_type: str = "pdf" if is_pdf else "html"
 
@@ -224,120 +432,139 @@ def main() -> None:
         logger.info(f"Pages: {pages}")
 
     try:
-        # AI-generated comment: Fetch content based on detected type
-        # For PDFs: use get_document() to get bytes and optionally extract pages
-        # For webpages: use get_web_content() to get HTML as string
         doc_data: Optional[bytes | str] = None
 
         if is_pdf:
-            # PDF content - get as bytes
             doc_data = get_document(url, pages)
             if doc_data is None:
-                print("Could not retrieve PDF document.", file=sys.stderr)
-                sys.exit(1)
+                logger.error("Could not retrieve PDF document.")
+                return "failed"
         else:
-            # Webpage content - get as HTML string
             if pages:
-                logger.warning(
-                    "Pages parameter is ignored for web content (only applies to PDFs)"
-                )
-
+                logger.warning("Pages parameter is ignored for web content")
             doc_data = get_web_content(url)
             if doc_data is None:
-                print("Could not retrieve web content.", file=sys.stderr)
-                sys.exit(1)
+                logger.error("Could not retrieve web content.")
+                return "failed"
 
-        # AI-generated comment: Generate content with appropriate content type and context
+        # Generate content
         response: Any = generate_content(
-            doc_data, validated_api_key, args.type, context, content_type
+            doc_data, api_key, product_type, context, content_type
         )
 
-        # AI-generated comment: Save the raw Gemini response to a file for debugging.
-        # This helps diagnose parsing issues when the response is truncated or malformed.
+        # Debug output
         if response and hasattr(response, "text"):
             debug_output_path = Path("gemini_response_debug.txt")
             try:
                 debug_output_path.write_text(response.text, encoding="utf-8")
-                logger.info(f"Raw Gemini response saved to: {debug_output_path}")
             except Exception as e:
                 logger.warning(f"Could not save debug response: {e}")
 
-        # AI-generated comment: Use the centralized parsing utility from utils.py
-        # This handles both automatic and manual parsing with fallback strategies
+        # Parse response
         try:
             parsed_models: List[Any] = parse_gemini_response(
-                response, SCHEMA_CHOICES[args.type], args.type, context
+                response, SCHEMA_CHOICES[product_type], product_type, context
             )
         except (ValueError, TypeError) as e:
             logger.error(f"Failed to parse Gemini response: {e}")
-            parsed_models = []
+            return "failed"
 
         if not parsed_models:
             logger.error("No valid response received from Gemini AI.")
-            logger.debug(f"Raw Gemini response: {response}")
-            if response and hasattr(response, "text"):
-                logger.error(f"Gemini response text: {response.text}")
-            print("No response received from Gemini AI", file=sys.stderr)
-            sys.exit(1)
+            return "failed"
 
-        # AI-generated comment: The response.parsed attribute now contains a list of Pydantic
-        # model instances. We can iterate through them and convert them to dictionaries
-        # for JSON serialization.
-        # AI-generated comment:
-        # The context is now merged inside parse_gemini_response.
-        # This loop is no longer needed.
-        # for model in parsed_models:
-        #     model.manufacturer = manufacturer
-        #     # AI-generated comment: product_name is now extracted by the LLM.
-        #     # We no longer overwrite it with the generic name from urls.json.
-        #     # model.product_name = product_name
-        #     model.product_family = product_family
-        #     model.product_type = product_type
-        #     model.datasheet_url = url
+        # Inject source metadata and deterministic IDs
+        import uuid
+        import re
+        
+        # Use a fixed namespace for product IDs to ensure reproducibility across runs
+        PRODUCT_NAMESPACE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
 
-        parsed_data: List[Any] = [item.model_dump() for item in parsed_models]
+        def normalize_string(s: Optional[str]) -> str:
+            """Normalize string for ID generation: lowercase, alphanumeric only."""
+            if not s:
+                return ""
+            # Remove non-alphanumeric characters (keep alphanumeric)
+            # This handles "Nidec Corp." vs "Nidec-Corp" vs "Nidec"
+            # We keep spaces for readability in the source string but strip them for ID
+            # Actually, removing ALL special chars including spaces makes it most robust against formatting 
+            # e.g. "Model A" vs "Model-A"
+            s = s.lower().strip()
+            return re.sub(r'[^a-z0-9]', '', s)
 
-        # Output the response
-        if args.output:
+        valid_models = []
+        
+        for model in parsed_models:
+            model.datasheet_url = url
+            model.pages = pages
+            
+            # Robust Deterministic ID Generation
+            norm_manufacturer = normalize_string(model.manufacturer) or normalize_string(manufacturer)
+            norm_part_number = normalize_string(model.part_number)
+            norm_name = normalize_string(model.product_name)
+            
+            id_string = ""
+            
+            if norm_manufacturer and norm_part_number:
+                # Primary Strategy: Manufacturer + Part Number
+                id_string = f"{norm_manufacturer}:{norm_part_number}"
+                logger.debug(f"ID Strategy: Manuf+PartNum ({id_string})")
+            elif norm_manufacturer and norm_name:
+                # Fallback Strategy: Manufacturer + Product Name
+                # Used when part number is missing but we have a distinct product name
+                id_string = f"{norm_manufacturer}:{norm_name}"
+                logger.warning(f"⚠️  Missing part number for '{model.product_name}'. Using Manuf+Name for ID.")
+            else:
+                # Last resort: Hash the URL + Index (if multiple items from one URL)
+                # This prevents "random" IDs but ties identity to the source URL
+                # which is better than random but not ideal for deduplication across different URLs.
+                # However, for now, we'll skip to be safe as per user request to avoid duplicates.
+                logger.error(
+                    f"❌ Could not generate robust ID for product '{model.product_name}'. "
+                    "Missing Manufacturer AND (Part Number OR distinct Product Name). Skipping to avoid duplicates."
+                )
+                continue
+                
+            model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_string)
+            logger.info(f"Generated ID {model.product_id} from key '{id_string}'")
+            
+            # Check if this specific ID already exists in DB
+            from datasheetminer.models.product import ProductBase
+            existing_item = client.read(model.product_id, ProductBase)
+            if existing_item:
+                logger.info(f"ℹ️  Product with ID {model.product_id} already exists. Skipping.")
+                continue
+            
+            valid_models.append(model)
+
+        parsed_data: List[Any] = [item.model_dump() for item in valid_models]
+
+        # Output to file if requested
+        if output_path:
             try:
-                # AI-generated comment: Serialize the parsed data to a formatted JSON string.
                 formatted_response: str = json.dumps(
                     parsed_data, indent=2, cls=UUIDEncoder
                 )
-
-                # Save to file
-                args.output.write_text(formatted_response, encoding="utf-8")
-                print(f"Response saved to: {args.output}", file=sys.stderr)
-                success_count: int = client.batch_create(parsed_models)
-                print(
-                    f"Successfully pushed {success_count} items to DynamoDB",
-                    file=sys.stderr,
-                )
-                failure_count: int = len(parsed_data) - success_count
-                logger.info(
-                    f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"
-                )
-
+                output_path.write_text(formatted_response, encoding="utf-8")
+                print(f"Response saved to: {output_path}", file=sys.stderr)
             except Exception as e:
-                # AI-generated comment: Handle cases where serialization fails.
                 print(f"Error saving response: {e}", file=sys.stderr)
-                # Fallback to saving the raw text if available
-                if hasattr(response, "text"):
-                    args.output.write_text(response.text, encoding="utf-8")
-                    print("Saved raw response instead.", file=sys.stderr)
-        else:
-            # Print to stdout
-            # AI-generated comment: For stdout, we'll also print the formatted JSON.
-            # The format_response function is no longer needed for JSON output.
-            formatted_response = json.dumps(parsed_data, indent=2, cls=UUIDEncoder)
-            print(formatted_response)
 
-        logger.info("Document analysis completed successfully")
+        # Save to DB
+        success_count: int = client.batch_create(parsed_models)
+        failure_count: int = len(parsed_data) - success_count
+        logger.info(
+            f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"
+        )
+        
+        if success_count > 0:
+            return "success"
+        else:
+            return "failed"
 
     except Exception as e:
         logger.error(f"Error during document analysis: {e}")
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return "failed"
 
 
 if __name__ == "__main__":

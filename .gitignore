@@ -269,5 +269,5 @@ schema/
 tests/
 datasheets/
 *.changelog/
-urls.json
+*.json
 outputs/

@@ -1,0 +1,1 @@
+from .manufacturer import Manufacturer

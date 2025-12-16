@@ -15,7 +15,6 @@ GUARDRAILS: str = """
 
 MODEL: str = "gemini-2.5-flash"  # Explicitly define model for clarity
 
-
 def _discover_schema_models() -> Dict[str, Type[ProductBase]]:
     """
     Automatically discover all Pydantic model schemas in the models directory.
@@ -70,7 +69,7 @@ def _discover_schema_models() -> Dict[str, Type[ProductBase]]:
                 ):
                     # Use the module name as the key (e.g., "motor", "robot_arm")
                     schema_choices[module_name] = obj
-                    print(f"Discovered schema: {module_name} -> {obj.__name__}")
+                    # print(f"Discovered schema: {module_name} -> {obj.__name__}")
                     break  # Only take the first/main model from each module
 
         except (ImportError, AttributeError) as e:

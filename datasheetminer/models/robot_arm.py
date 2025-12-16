@@ -106,7 +106,7 @@ class Controller(BaseModel):
         ["Modbus TCP", "PROFINET", "Ethernet/IP"],  #
         description="List of supported communication protocols",
     )
-    power_source: Optional[ValueUnit] = Field(
+    power_source: Optional[MinMaxUnit] = Field(
         ";VAC",
         description="Main power source requirements (e.g., 100-240VAC)",  #
     )
