@@ -494,6 +494,45 @@ body {
   font-size: 0.75rem;
 }
 
+/* Action Buttons */
+.action-btn {
+  padding: 0.2rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+}
+
+.action-btn:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.action-btn.edit {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.action-btn.edit:hover {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.action-btn.delete {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.action-btn.delete:hover {
+  background-color: var(--danger);
+  color: white;
+}
+
 /* Filter Chip Styles */
 .filter-chip {
   display: inline-flex;
@@ -2034,6 +2073,12 @@ button.secondary:hover {
   width: var(--product-part-width);
   padding: 0.3rem 0.8rem;
   background: var(--bg-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.product-grid-header-part:hover {
+  background: var(--bg-tertiary);
 }
 
 .product-card-minimal {

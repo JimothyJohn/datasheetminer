@@ -25,7 +25,7 @@
  * @module apiClient
  */
 
-import { Product, ProductType, ProductSummary } from '../types/models';
+import { Product, ProductSummary, ProductType, DatasheetEntry } from '../types/models';
 
 /**
  * API base URL from environment variable or default to local backend
@@ -281,12 +281,15 @@ class ApiClient {
    */
   async listProducts(type: Exclude<ProductType, null> = 'all', limit?: number): Promise<Product[]> {
     const params = new URLSearchParams();
-    params.append('type', type);
+    if (type !== 'datasheet') {
+      params.append('type', type);
+    }
     if (limit) {
       params.append('limit', limit.toString());
     }
 
-    const response = await this.request<Product[]>(`/api/products?${params}`);
+    const endpoint = type === 'datasheet' ? '/api/datasheets' : `/api/products?${params}`;
+    const response = await this.request<Product[]>(endpoint);
 
     if (!response.data) {
       throw new Error('No products data received');
@@ -374,6 +377,24 @@ class ApiClient {
   }
 
   /**
+   * Update a datasheet
+   */
+  async updateDatasheet(id: string, updates: Partial<DatasheetEntry>): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/datasheets/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update datasheet');
+    }
+  }
+
+  /**
    * Delete a product
    *
    * Permanently deletes a product from the database.
@@ -390,10 +411,18 @@ class ApiClient {
    *
    * Warning: This operation is irreversible!
    */
-  async deleteProduct(id: string, type: Exclude<ProductType, null>): Promise<void> {
-    console.log(`[ApiClient] Deleting product: ${id} (type: ${type})`);
+  async deleteProduct(id: string, type: Exclude<ProductType, null>, componentType?: string): Promise<void> {
+    console.log(`[ApiClient] Deleting product: ${id} (type: ${type}, componentType: ${componentType})`);
 
-    await this.request(`/api/products/${id}?type=${type}`, {
+    // If deleting a datasheet, we need to pass the actual component type (e.g. 'motor')
+    // so the backend can construct the correct PK (DATASHEET#MOTOR)
+    const typeParam = type === 'datasheet' && componentType ? componentType : type;
+
+    const endpoint = type === 'datasheet' 
+      ? `/api/datasheets/${id}?type=${typeParam}` 
+      : `/api/products/${id}?type=${typeParam}`;
+
+    await this.request(endpoint, {
       method: 'DELETE',
     });
   }

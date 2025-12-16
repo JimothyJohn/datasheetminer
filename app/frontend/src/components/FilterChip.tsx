@@ -16,6 +16,7 @@ interface FilterChipProps {
   onEditAttribute: () => void;
   suggestedValues?: Array<string | number>;
   attributeMetadata?: AttributeMetadata;
+  allProducts?: Product[];
 }
 
 /**
@@ -65,7 +66,8 @@ export default function FilterChip({
   onRemove,
   onEditAttribute,
   suggestedValues = [],
-  attributeMetadata
+  attributeMetadata,
+  allProducts
 }: FilterChipProps) {
   const [editValue, setEditValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -89,22 +91,30 @@ export default function FilterChip({
     [products, filter.attribute]
   );
 
-  // Calculate max value for slider (for ValueUnit and MinMaxUnit fields)
-  const maxValueInfo = useMemo(() => {
+  // Calculate min/max value for slider (for ValueUnit and MinMaxUnit fields)
+  const rangeInfo = useMemo(() => {
     // Only calculate for 'object' and 'range' types
     if (attributeType !== 'object' && attributeType !== 'range') {
       return null;
     }
 
-    let maxValue = 0;
+    let maxValue = -Infinity;
+    let minValue = Infinity;
     let unit: string | null = null;
+    let foundValues = false;
 
-    products.forEach(product => {
+    // Use allProducts if available to ensure slider range is stable across filters
+    const productsToUse = allProducts || products;
+
+    productsToUse.forEach(product => {
       const value = getNestedValue(product, filter.attribute);
       if (value !== undefined && value !== null) {
         const numValue = extractNumericValue(value);
-        if (numValue !== null && numValue > maxValue) {
-          maxValue = numValue;
+        if (numValue !== null) {
+          foundValues = true;
+          if (numValue > maxValue) maxValue = numValue;
+          if (numValue < minValue) minValue = numValue;
+          
           // Get unit from this value
           if (!unit) {
             unit = getUnitString(value);
@@ -113,22 +123,28 @@ export default function FilterChip({
       }
     });
 
-    // If we found values, return max with some headroom
-    if (maxValue > 0) {
+    // If we found values, return min/max with some headroom
+    if (foundValues) {
+      const range = maxValue - minValue;
+      // Add 5% padding to range, but don't go below 0 if original min was >= 0
+      const padding = range * 0.05;
+      
       return {
-        max: Math.ceil(maxValue * 1.1), // Add 10% headroom
+        max: Math.ceil(maxValue + padding),
+        min: minValue >= 0 ? Math.max(0, Math.floor(minValue - padding)) : Math.floor(minValue - padding),
         unit: unit || attributeMetadata?.unit || ''
       };
     }
 
     return null;
-  }, [products, filter.attribute, attributeType, attributeMetadata]);
+    return null;
+  }, [products, allProducts, filter.attribute, attributeType, attributeMetadata]);
 
   // Determine if we should show a slider (must be stable)
   const showSlider = useMemo(() => {
     // Show slider for 'object' and 'range' types that have numeric values
-    return (attributeType === 'object' || attributeType === 'range') && maxValueInfo !== null;
-  }, [attributeType, maxValueInfo]);
+    return (attributeType === 'object' || attributeType === 'range') && rangeInfo !== null;
+  }, [attributeType, rangeInfo]);
 
   // Determine if this is a multi-select string field
   // String fields have only '=' and '!=' operators (or just '=')
@@ -137,8 +153,9 @@ export default function FilterChip({
            availableOperators.every(op => op === '=' || op === '!=');
   }, [availableOperators]);
 
-  // Only show operator button if there are multiple operators available AND not multi-select AND not showing slider
-  const showOperatorButton = availableOperators.length > 1 && !isMultiSelectField && !showSlider;
+  // Only show operator button if there are multiple operators available AND not multi-select
+  // We allow operator button even for sliders now
+  const showOperatorButton = availableOperators.length > 1 && !isMultiSelectField;
 
   // Get current selected values (as array) - filter out booleans and tuples
   const selectedValues = useMemo(() => {
@@ -176,7 +193,7 @@ export default function FilterChip({
     onUpdate({
       ...filter,
       value: localSliderValue,
-      operator: filter.operator || '>=' // Default to >= for slider (minimum value)
+      operator: filter.operator || '>=' // Use current operator or default to >=
     });
   };
 
@@ -312,8 +329,8 @@ export default function FilterChip({
         </button>
       </div>
 
-      {/* Show selected values for multi-select fields */}
-      {isMultiSelectField && selectedValues.length > 0 && (
+      {/* Show selected values for multi-select fields (hide if slider is shown to avoid redundancy/glitch) */}
+      {isMultiSelectField && selectedValues.length > 0 && !showSlider && (
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -371,22 +388,17 @@ export default function FilterChip({
           </button>
         )}
 
-        {/* Show operator label for sliders (non-interactive) */}
-        {showSlider && (
-          <span className="filter-operator-label" title="Minimum value filter">
-            ≥
-          </span>
-        )}
+
 
         {/* Render slider for numeric ValueUnit/MinMaxUnit fields */}
-        {showSlider && maxValueInfo ? (
+        {showSlider && rangeInfo ? (
           <div className="filter-slider-wrapper">
             <input
               type="range"
               className="filter-slider"
-              min={0}
-              max={maxValueInfo.max}
-              step={maxValueInfo.max > 1000 ? 10 : maxValueInfo.max > 100 ? 1 : 0.1}
+              min={rangeInfo.min}
+              max={rangeInfo.max}
+              step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
               value={localSliderValue}
               onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
               onMouseUp={handleSliderCommit}
@@ -395,7 +407,7 @@ export default function FilterChip({
               onClick={(e) => e.stopPropagation()}
             />
             <div className="filter-slider-value">
-              {localSliderValue.toFixed(1)} {maxValueInfo.unit}
+              {localSliderValue.toFixed(1)} {rangeInfo.unit}
             </div>
           </div>
         ) : (

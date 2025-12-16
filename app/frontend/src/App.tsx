@@ -30,26 +30,17 @@ import NetworkStatus from './components/NetworkStatus';
 import './App.css';
 
 // ========== Eager Imports ==========
-// Import Dashboard immediately since it's shown on initial load
-import Dashboard from './components/Dashboard';
+import ProductList from './components/ProductList';
 
 // ========== Lazy Imports (Code Splitting) ==========
-/**
- * Lazy load ProductList component
- *
- * Benefits:
- * - ProductList is the largest component (~360 lines + dependencies)
- * - Only loads when user navigates to /products route
- * - Reduces initial bundle size and improves Time to Interactive (TTI)
- * - Webpack/Vite automatically creates separate chunk for this component
- *
- * Bundle Impact:
- * - Main bundle: ~150KB → ~100KB (33% reduction)
- * - ProductList chunk: ~50KB (loads on-demand)
- */
-const ProductList = lazy(() => {
-  console.log('[App] Lazy loading ProductList component...');
-  return import('./components/ProductList');
+const ProductManagement = lazy(() => {
+  console.log('[App] Lazy loading ProductManagement component...');
+  return import('./components/ProductManagement');
+});
+
+const DatasheetsPage = lazy(() => {
+  console.log('[App] Lazy loading DatasheetsPage component...');
+  return import('./components/DatasheetsPage');
 });
 
 /**
@@ -94,8 +85,9 @@ function App() {
             <div className="header-left">
               <h1>Product Search</h1>
               <nav className="nav-inline">
-                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dashboard</NavLink>
-                <NavLink to="/products" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Products</NavLink>
+                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Products</NavLink>
+                <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
+                <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
               </nav>
             </div>
             <ThemeToggle />
@@ -104,13 +96,16 @@ function App() {
           {/* ===== ROUTES WITH SUSPENSE ===== */}
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
-              {/* Dashboard: Eager loaded (shown on landing) */}
-              <Route path="/" element={<Dashboard />} />
+              {/* ProductList: Eager loaded (default view) */}
+              <Route path="/" element={<ProductList />} />
 
-              {/* ProductList: Lazy loaded (code split) */}
-              <Route path="/products" element={<ProductList />} />
+              {/* Datasheets Page: Lazy loaded */}
+              <Route path="/datasheets" element={<DatasheetsPage />} />
 
-              {/* Catch-all: Redirect to dashboard */}
+              {/* ProductManagement: Lazy loaded (code split) */}
+              <Route path="/management" element={<ProductManagement />} />
+
+              {/* Catch-all: Redirect to products */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

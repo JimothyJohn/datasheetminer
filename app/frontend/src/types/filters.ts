@@ -117,7 +117,7 @@ export interface AttributeMetadata {
   key: string;                // Attribute key (matches Product interface)
   displayName: string;        // Human-readable name for UI
   type: 'string' | 'number' | 'boolean' | 'range' | 'array' | 'object';
-  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[]; // Which product types have this attribute
+  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet')[]; // Which product types have this attribute
   nested?: boolean;           // True for ValueUnit and MinMaxUnit types
   unit?: string;              // Unit of measurement (e.g., "V", "W", "A", "rpm", "kg")
 }
@@ -243,6 +243,25 @@ export const getGearheadAttributes = (): AttributeMetadata[] => [
 ];
 
 /**
+ * Get all filterable attributes for datasheets
+ *
+ * Returns datasheet-specific attributes with metadata for filtering/sorting.
+ *
+ * Categories:
+ * - Identification: manufacturer, product_name, product_family, product_type
+ * - Content: url, pages
+ *
+ * @returns Array of datasheet attribute metadata objects
+ */
+export const getDatasheetAttributes = (): AttributeMetadata[] => [
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['datasheet'] },
+  { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['datasheet'] },
+  { key: 'product_name', displayName: 'Product Name', type: 'string', applicableTypes: ['datasheet'] },
+  { key: 'product_family', displayName: 'Product Family', type: 'string', applicableTypes: ['datasheet'] },
+  { key: 'component_type', displayName: 'Product Type', type: 'string', applicableTypes: ['datasheet'] },
+];
+
+/**
  * Get all filterable attributes for drives
  *
  * Returns 23 drive-specific attributes with metadata for filtering/sorting.
@@ -305,7 +324,7 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
  * Performance: O(n*m) where n=attrs1, m=attrs2
  * Cached by components, so performance impact is minimal.
  *
- * @param productType - Product type filter ('motor', 'drive', 'robot_arm', 'gearhead', 'all', or null)
+ * @param productType - Product type filter ('motor', 'drive', 'robot_arm', 'gearhead', 'datasheet', 'all', or null)
  * @returns Array of applicable attribute metadata
  */
 export const getAttributesForType = (productType: ProductType): AttributeMetadata[] => {
@@ -317,6 +336,7 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
   if (productType === 'drive') return getDriveAttributes();
   if (productType === 'robot_arm') return getRobotArmAttributes();
   if (productType === 'gearhead') return getGearheadAttributes();
+  if (productType === 'datasheet') return getDatasheetAttributes();
 
   // ===== COMPUTE COMMON ATTRIBUTES =====
   // For 'all' type, find intersection across all product types
@@ -324,6 +344,7 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
   const driveAttrs = getDriveAttributes();
   const robotArmAttrs = getRobotArmAttributes();
   const gearheadAttrs = getGearheadAttributes();
+  const datasheetAttrs = getDatasheetAttributes();
   const commonKeys = new Set<string>();
   const commonAttrs: AttributeMetadata[] = [];
 
@@ -333,15 +354,17 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
     const inDrive = driveAttrs.some(d => d.key === attr.key);
     const inRobotArm = robotArmAttrs.some(r => r.key === attr.key);
     const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+    const inDatasheet = datasheetAttrs.some(d => d.key === attr.key);
 
     // If attribute exists in at least 2 product types, include it
-    const count = [inDrive, inRobotArm, inGearhead].filter(Boolean).length + 1; // +1 for motor
+    const count = [inDrive, inRobotArm, inGearhead, inDatasheet].filter(Boolean).length + 1; // +1 for motor
     if (count >= 2 && !commonKeys.has(attr.key)) {
       commonKeys.add(attr.key);
-      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[] = ['motor'];
+      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet')[] = ['motor'];
       if (inDrive) applicableTypes.push('drive');
       if (inRobotArm) applicableTypes.push('robot_arm');
       if (inGearhead) applicableTypes.push('gearhead');
+      if (inDatasheet) applicableTypes.push('datasheet');
 
       commonAttrs.push({
         ...attr,
@@ -356,13 +379,15 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
 
     const inRobotArm = robotArmAttrs.some(r => r.key === attr.key);
     const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+    const inDatasheet = datasheetAttrs.some(d => d.key === attr.key);
 
-    const count = [inRobotArm, inGearhead].filter(Boolean).length + 1; // +1 for drive
+    const count = [inRobotArm, inGearhead, inDatasheet].filter(Boolean).length + 1; // +1 for drive
     if (count >= 2) {
       commonKeys.add(attr.key);
-      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead')[] = ['drive'];
+      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet')[] = ['drive'];
       if (inRobotArm) applicableTypes.push('robot_arm');
       if (inGearhead) applicableTypes.push('gearhead');
+      if (inDatasheet) applicableTypes.push('datasheet');
 
       commonAttrs.push({
         ...attr,
@@ -376,12 +401,17 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
     if (commonKeys.has(attr.key)) return;
 
     const inGearhead = gearheadAttrs.some(g => g.key === attr.key);
+    const inDatasheet = datasheetAttrs.some(d => d.key === attr.key);
 
-    if (inGearhead) {
+    if (inGearhead || inDatasheet) {
       commonKeys.add(attr.key);
+      const applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet')[] = ['robot_arm'];
+      if (inGearhead) applicableTypes.push('gearhead');
+      if (inDatasheet) applicableTypes.push('datasheet');
+      
       commonAttrs.push({
         ...attr,
-        applicableTypes: ['robot_arm', 'gearhead']
+        applicableTypes
       });
     }
   });

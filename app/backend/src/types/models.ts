@@ -1,6 +1,5 @@
 /**
- * TypeScript types matching the Pydantic models from the Python backend.
- * These types mirror the structure in datasheetminer/models/
+ * TypeScript types for the application data models.
  */
 
 export interface ValueUnit {
@@ -15,8 +14,18 @@ export interface MinMaxUnit {
 }
 
 export interface Datasheet {
+  datasheet_id?: string;
   url: string;
   pages?: number[];
+  product_type: string;
+  product_name: string;
+  product_family?: string;
+  category?: string;
+  manufacturer?: string;
+  release_year?: number;
+  warranty?: ValueUnit;
+  PK?: string;
+  SK?: string;
 }
 
 export interface Dimensions {
@@ -31,11 +40,15 @@ export interface Dimensions {
 export interface ProductBase {
   product_id: string;
   product_type: string;
+  product_family?: string;
+  component_type?: string;
   manufacturer?: string;
+  product_name?: string;
   part_number?: string;
-  datasheet_url?: Datasheet;
   dimensions?: Dimensions;
   weight?: ValueUnit;
+  datasheet_url?: string;
+  pages?: number[];
   PK: string;
   SK: string;
 }
@@ -114,9 +127,5 @@ export interface Drive extends ProductBase {
 /**
  * Union type for all products
  */
-export type Product = Motor | Drive;
-
-/**
- * Product type discriminator
- */
-export type ProductType = 'motor' | 'drive' | 'all';
+export type Product = Motor | Drive | Datasheet;
+export type ProductType = 'motor' | 'drive' | 'datasheet' | 'all';

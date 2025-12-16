@@ -16,9 +16,9 @@ A modern TypeScript-based web application for viewing and managing product datas
 ## Architecture
 
 ### Backend (Express + TypeScript)
-- REST API mirroring Python utilities (query.py, pusher.py)
+- REST API for data management
 - DynamoDB service for CRUD operations
-- TypeScript types matching Pydantic models
+- TypeScript types mirror application data models
 - Environment-based configuration
 - Request validation and error handling
 

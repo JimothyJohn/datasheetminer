@@ -2,23 +2,21 @@
  * Product Types Configuration
  *
  * This file defines all valid product types that the system supports.
- * It should be kept in sync with the Python schemas in datasheetminer/models/
  *
  * To add a new product type:
- * 1. Create a new Pydantic model in datasheetminer/models/your_type.py
- * 2. Add the type to this array
- * 3. The system will automatically discover and display it
+ * 1. Add the type to this array
+ * 2. Update the data models and UI components as needed
  */
 
 /**
  * All valid product types in the system
- * These correspond to Pydantic model files in datasheetminer/models/
  */
 export const VALID_PRODUCT_TYPES = [
   'motor',
   'drive',
   'gearhead',
   'robot_arm',
+  'datasheet',
 ] as const;
 
 /**

@@ -13,7 +13,7 @@ export interface MinMaxUnit {
   unit: string;
 }
 
-export interface Datasheet {
+export interface DatasheetLink {
   url: string;
   pages?: number[];
 }
@@ -30,7 +30,7 @@ export interface ProductBase {
   product_name?: string;
   manufacturer?: string;
   part_number?: string;
-  datasheet_url?: Datasheet;
+  datasheet_url?: DatasheetLink;
   dimensions?: Dimensions;
   weight?: ValueUnit;
   PK: string;
@@ -74,12 +74,12 @@ export interface Drive extends ProductBase {
   type?: DriveType;
   series?: string;
   input_voltage?: MinMaxUnit;
-  input_voltage_frequency?: ValueUnit[];
+  input_voltage_frequency?: (ValueUnit | MinMaxUnit)[];
   input_voltage_phases?: number[];
   rated_current?: ValueUnit;
   peak_current?: ValueUnit;
   output_power?: ValueUnit;
-  switching_frequency?: ValueUnit[];
+  switching_frequency?: (ValueUnit | MinMaxUnit)[];
   fieldbus?: string[];
   control_modes?: string[];
   encoder_feedback_support?: string[];
@@ -138,8 +138,16 @@ export interface Gearhead extends ProductBase {
   lubrication_type?: string;
 }
 
-export type Product = Motor | Drive | RobotArm | Gearhead;
-export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'all' | null;
+export interface DatasheetEntry extends ProductBase {
+  product_type: 'datasheet';
+  component_type?: string; // The actual type of the component (e.g. 'motor', 'drive')
+  product_family?: string;
+  url: string;
+  pages?: number[];
+}
+
+export type Product = Motor | Drive | RobotArm | Gearhead | DatasheetEntry;
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet' | 'all' | null;
 
 /**
  * Product summary with dynamic counts per type

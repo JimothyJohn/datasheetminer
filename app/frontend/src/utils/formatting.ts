@@ -85,6 +85,13 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
         const commonUnit = value[0].unit;
         return `${formattedValues} ${commonUnit}`;
       }
+      
+      // Check if array contains objects with min/max/unit pattern
+      if ('min' in value[0] && 'max' in value[0] && 'unit' in value[0]) {
+         const formattedValues = value.map(item => `${item.min}-${item.max}`).join(', ');
+         const commonUnit = value[0].unit;
+         return `${formattedValues} ${commonUnit}`;
+      }
     }
 
     // Otherwise, recursively format each element

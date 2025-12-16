@@ -6,6 +6,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import config from './config';
 import productsRouter from './routes/products';
+import datasheetsRouter from './routes/datasheets';
 
 const app: Application = express();
 
@@ -31,6 +32,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // API routes
 app.use('/api/products', productsRouter);
+app.use('/api/datasheets', datasheetsRouter);
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
@@ -40,6 +42,7 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       health: '/health',
       products: '/api/products',
+      datasheets: '/api/datasheets',
       summary: '/api/products/summary',
     },
   });

@@ -12,17 +12,17 @@ import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
 
 export default function ProductList() {
-  const { products, categories, loading, error, loadProducts, loadCategories, forceRefresh } = useApp();
+  const { products, categories, loading, error, loadProducts, loadCategories } = useApp();
   const [productType, setProductType] = useState<ProductType>(null);
   const [filters, setFilters] = useState<FilterCriterion[]>([]);
   const [sorts, setSorts] = useState<SortConfig[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showSortSelector, setShowSortSelector] = useState(false);
-  const [draggedSortIndex, setDraggedSortIndex] = useState<number | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
+  const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -71,34 +71,7 @@ export default function ProductList() {
   }, [productType]);
 
 
-  // Handle toggling sort direction
-  const handleToggleSortDirection = (index: number) => {
-    setSorts(prev => prev.map((sort, i) =>
-      i === index ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : sort
-    ));
-  };
 
-  // Drag and drop handlers
-  const handleDragStart = (index: number) => {
-    setDraggedSortIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedSortIndex === null || draggedSortIndex === index) return;
-
-    const newSorts = [...sorts];
-    const draggedItem = newSorts[draggedSortIndex];
-    newSorts.splice(draggedSortIndex, 1);
-    newSorts.splice(index, 0, draggedItem);
-
-    setSorts(newSorts);
-    setDraggedSortIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedSortIndex(null);
-  };
 
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
@@ -240,10 +213,10 @@ export default function ProductList() {
     // For equality filters, check if values match
     if (filter.operator === '=') {
       const percentDiff = Math.abs((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
-      if (percentDiff === 0) return 'hsl(140, 65%, 45%)'; // Perfect match - bright green
-      if (percentDiff < 5) return 'hsl(140, 55%, 50%)';
-      if (percentDiff < 10) return 'hsl(100, 50%, 45%)';
-      if (percentDiff < 20) return 'hsl(60, 50%, 45%)';
+      if (percentDiff === 0) return 'hsla(140, 40%, 50%, 0.25)'; // Perfect match - subtle green
+      if (percentDiff < 5) return 'hsla(140, 30%, 50%, 0.2)';
+      if (percentDiff < 10) return 'hsla(100, 30%, 50%, 0.2)';
+      if (percentDiff < 20) return 'hsla(60, 30%, 50%, 0.2)';
       return '';
     }
 
@@ -251,18 +224,18 @@ export default function ProductList() {
     if (filter.operator === '>') {
       if (numericProductValue > numericFilterValue) {
         const percentOver = ((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
-        if (percentOver > 50) return 'hsl(140, 65%, 45%)';
-        if (percentOver > 25) return 'hsl(140, 55%, 50%)';
-        return 'hsl(100, 50%, 45%)';
+        if (percentOver > 50) return 'hsla(140, 40%, 50%, 0.25)';
+        if (percentOver > 25) return 'hsla(140, 30%, 50%, 0.2)';
+        return 'hsla(100, 30%, 50%, 0.2)';
       }
     }
 
     if (filter.operator === '<') {
       if (numericProductValue < numericFilterValue) {
         const percentUnder = ((numericFilterValue - numericProductValue) / numericFilterValue) * 100;
-        if (percentUnder > 50) return 'hsl(140, 65%, 45%)';
-        if (percentUnder > 25) return 'hsl(140, 55%, 50%)';
-        return 'hsl(100, 50%, 45%)';
+        if (percentUnder > 50) return 'hsla(140, 40%, 50%, 0.25)';
+        if (percentUnder > 25) return 'hsla(140, 30%, 50%, 0.2)';
+        return 'hsla(100, 30%, 50%, 0.2)';
       }
     }
 
@@ -344,17 +317,7 @@ export default function ProductList() {
     setShowSortSelector(false);
   };
 
-  // Handle removing a sort
-  const handleRemoveSort = (index: number) => {
-    setSorts(sorts.filter((_, i) => i !== index));
-  };
 
-  // Handle editing sort attribute
-  const handleEditSortAttribute = (index: number) => {
-    // For now, just remove the sort - user can add a new one
-    handleRemoveSort(index);
-    setShowSortSelector(true);
-  };
 
   if (error) {
     return (
@@ -384,6 +347,7 @@ export default function ProductList() {
           onFiltersChange={setFilters}
           onSortChange={() => {}}
           onProductTypeChange={handleProductTypeChange}
+          allProducts={products}
         />
       </aside>
 
@@ -392,92 +356,7 @@ export default function ProductList() {
         <div className="results-header">
           {/* Sort controls */}
           <div className="results-header-left">
-            {sorts.length > 0 ? (
-              <div className="sort-control-active">
-                <span className="sort-label-inline">Sorted by:</span>
-                <div className="sort-chips-container">
-                  {sorts.map((sort, index) => (
-                    <div
-                      key={`${sort.attribute}-${index}`}
-                      className={`sort-chip-draggable ${draggedSortIndex === index ? 'dragging' : ''}`}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      title="Drag to reorder"
-                    >
-                      <span className="sort-order-number">{index + 1}</span>
-                      <span
-                        className="sort-attribute-inline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditSortAttribute(index);
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        title="Click to change attribute"
-                      >
-                        {sort.displayName}
-                      </span>
-                      <button
-                        className="sort-direction-btn-inline"
-                        data-direction={sort.direction}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleSortDirection(index);
-                        }}
-                        title={`Currently ${sort.direction === 'asc' ? 'ascending' : 'descending'} - click to reverse`}
-                      >
-                        {sort.direction === 'asc' ? '↑' : '↓'}
-                      </button>
-                      <button
-                        className="sort-remove-btn-inline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveSort(index);
-                        }}
-                        title="Remove this sort"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {sorts.length < 3 && (
-                  <button
-                    className="btn-add-sort-small"
-                    onClick={() => {
-                      setShowSortSelector(true);
-                    }}
-                    title="Add another sort level (max 3)"
-                  >
-                    + Add
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                className="btn-sort-inline"
-                onClick={() => {
-                  setShowSortSelector(true);
-                }}
-                title="Sort results by attribute"
-              >
-                ⇅ Sort Results
-              </button>
-            )}
-          </div>
-
-          <div className="results-header-right">
-            {/* Refresh button */}
-            <button
-              className="btn-refresh"
-              onClick={forceRefresh}
-              disabled={loading}
-              title="Force refresh data from server (clears cache)"
-              style={{ marginRight: '0.8rem' }}
-            >
-              ↻ Refresh
-            </button>
+            {/* Sort controls removed as requested */}
             {/* Pagination controls */}
             <div className="pagination-controls">
               <label className="pagination-label">Show:</label>
@@ -488,12 +367,15 @@ export default function ProductList() {
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
-                <option value={50}>50</option>
               </select>
             </div>
-            <span className="results-count">
+            <span className="results-count" style={{ marginLeft: '1rem' }}>
               {sortedProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedProducts.length)}`} of {sortedProducts.length}
             </span>
+          </div>
+
+          <div className="results-header-right">
+            {/* Refresh button removed as requested */}
             {loading && products.length > 0 && (
               <span style={{ marginLeft: '0.8rem', opacity: 0.6, fontSize: '0.8rem' }}>
                 Refreshing...
@@ -502,11 +384,11 @@ export default function ProductList() {
           </div>
         </div>
 
-        {sortedProducts.length === 0 ? (
+        {productType === null || sortedProducts.length === 0 ? (
           <div className="empty-state-minimal">
             <p>
               {productType === null
-                ? 'Select a product type to view products'
+                ? 'Please select a product type to begin searching'
                 : products.length === 0
                 ? 'No products in database'
                 : 'No results match your filters'}
@@ -517,7 +399,20 @@ export default function ProductList() {
             <div className="product-grid">
             {/* Column headers */}
             <div className="product-grid-headers">
-              <div className="product-grid-header-part">Part Number</div>
+              <div 
+                className="product-grid-header-part clickable"
+                onClick={() => handleColumnSort('part_number')}
+                title="Click to sort by Part Number"
+              >
+                Part Number
+                <span className="sort-indicator">
+                  {sorts.find(s => s.attribute === 'part_number')?.direction === 'asc' && '↑'}
+                  {sorts.find(s => s.attribute === 'part_number')?.direction === 'desc' && '↓'}
+                  {sorts.some(s => s.attribute === 'part_number') && sorts.length > 1 && 
+                    <span className="sort-order">{sorts.findIndex(s => s.attribute === 'part_number') + 1}</span>
+                  }
+                </span>
+              </div>
               {/* Default columns */}
               {getColumnHeaders().map((header) => {
                 const sortIndex = sorts.findIndex(s => s.attribute === header.key);
@@ -534,7 +429,6 @@ export default function ProductList() {
                     <div className="product-grid-header-label">
                       {header.label}
                       <span className="sort-indicator">
-                        {!isSorted && '⇅'}
                         {isSorted && sortConfig?.direction === 'asc' && '↑'}
                         {isSorted && sortConfig?.direction === 'desc' && '↓'}
                         {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
@@ -579,7 +473,6 @@ export default function ProductList() {
                     >
                       {attrMetadata.displayName}
                       <span className="sort-indicator">
-                        {!isSorted && '⇅'}
                         {isSorted && sortConfig?.direction === 'asc' && '↑'}
                         {isSorted && sortConfig?.direction === 'desc' && '↓'}
                         {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
@@ -591,6 +484,7 @@ export default function ProductList() {
               })}
               {/* Add column button */}
               <button
+                ref={(el) => setAddColumnBtnRef(el)}
                 className="add-column-btn"
                 onClick={() => setShowSortSelector(true)}
                 title="Add column"
@@ -626,8 +520,7 @@ export default function ProductList() {
                           !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
                         }`}
                         style={{
-                          backgroundColor: proximityColor || undefined,
-                          color: proximityColor ? 'white' : undefined
+                          backgroundColor: proximityColor || undefined
                         }}
                       >
                         <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
@@ -649,8 +542,7 @@ export default function ProductList() {
                           !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
                         }`}
                         style={{
-                          backgroundColor: proximityColor || undefined,
-                          color: proximityColor ? 'white' : undefined
+                          backgroundColor: proximityColor || undefined
                         }}
                       >
                         <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
@@ -701,6 +593,7 @@ export default function ProductList() {
           setShowSortSelector(false);
         }}
         isOpen={showSortSelector}
+        anchorElement={addColumnBtnRef}
       />
     </div>
   );

@@ -3,12 +3,13 @@
  */
 
 import { useState, useMemo } from 'react';
-import { FilterCriterion, SortConfig, getAttributesForType, getAvailableOperators } from '../types/filters';
+import { FilterCriterion, SortConfig, getAttributesForType, getAvailableOperators, applyFilters } from '../types/filters';
 import { ProductType, Product } from '../types/models';
 import { extractUniqueValues } from '../utils/filterValues';
 import { useApp } from '../context/AppContext';
 import AttributeSelector from './AttributeSelector';
 import FilterChip from './FilterChip';
+import DistributionChart from './DistributionChart';
 
 interface FilterBarProps {
   productType: ProductType;
@@ -18,6 +19,7 @@ interface FilterBarProps {
   onFiltersChange: (filters: FilterCriterion[]) => void;
   onSortChange: (sort: SortConfig | null) => void;
   onProductTypeChange: (type: ProductType) => void;
+  allProducts: Product[];
 }
 
 export default function FilterBar({
@@ -27,7 +29,8 @@ export default function FilterBar({
   products,
   onFiltersChange,
   onSortChange,
-  onProductTypeChange
+  onProductTypeChange,
+  allProducts
 }: FilterBarProps) {
   const [showAttributeSelector, setShowAttributeSelector] = useState(false);
   const [editingFilterIndex, setEditingFilterIndex] = useState<number | null>(null);
@@ -141,6 +144,7 @@ export default function FilterBar({
             className="btn-clear"
             onClick={handleClearFilters}
             title="Clear all filters and sorts"
+            style={{ color: '#ef4444' }}
           >
             Clear All Filters
           </button>
@@ -155,6 +159,32 @@ export default function FilterBar({
             attr => attr.key === filter.attribute
           );
 
+          // Calculate context products for this filter (apply all OTHER filters)
+          // This ensures the slider range reflects the current search context (faceted navigation)
+          // but doesn't disappear when the current filter excludes everything.
+          const otherFilters = filters.filter((_, i) => i !== index);
+          // We need to import applyFilters if it's not already imported or available in scope
+          // It is imported at the top of the file.
+          // However, applyFilters is expensive, so we should be careful.
+          // But for this feature it's necessary.
+          // Note: applyFilters is imported from '../types/filters'
+          
+          // Optimization: If no other filters, context is allProducts
+          const contextProducts = otherFilters.length === 0 
+            ? allProducts 
+            : (() => {
+                // We need to use the applyFilters function imported from '../types/filters'
+                // But we can't call it inside the render loop easily without performance impact if many filters.
+                // For now, we'll do it directly.
+                // Actually, let's use a useMemo for the whole list if possible, but it depends on index.
+                // Since we are inside map, we can't use hooks.
+                // We will rely on the fact that applyFilters is reasonably fast (client-side).
+                
+                // We need to import applyFilters. It's not imported in the original file content I saw?
+                // Let me check the imports in FilterBar.tsx again.
+                return applyFilters(allProducts, otherFilters);
+              })();
+
           return (
             <FilterChip
               key={`${filter.attribute}-${index}`}
@@ -166,13 +196,14 @@ export default function FilterBar({
               onUpdate={(updated) => handleUpdateFilter(index, updated)}
               onRemove={() => handleRemoveFilter(index)}
               onEditAttribute={() => handleEditFilterAttribute(index)}
+              allProducts={contextProducts}
             />
           );
         })}
       </div>
 
       {/* Add filter button - at the bottom */}
-      <div className="filter-add-container">
+      <div className="filter-add-container" style={{ marginTop: filters.length === 0 ? '0.5rem' : undefined }}>
         <button
           className="btn-add-filter"
           onClick={() => {
@@ -183,7 +214,6 @@ export default function FilterBar({
         >
           + Add Filter
         </button>
-        <span className="hint-text">Press Ctrl+K to add filter</span>
       </div>
 
       {/* Attribute Selector Modal for Filters */}
@@ -196,6 +226,16 @@ export default function FilterBar({
         }}
         isOpen={showAttributeSelector}
       />
+
+      {/* Distribution Charts for Active Filters */}
+      {products.length > 0 && filters.map((filter) => (
+        <DistributionChart 
+          key={`chart-${filter.attribute}`}
+          products={products}
+          attribute={filter.attribute}
+          title={filter.displayName}
+        />
+      ))}
     </div>
   );
 }

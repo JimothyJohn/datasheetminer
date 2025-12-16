@@ -56,7 +56,8 @@ interface AppContextType extends AppState {
 
   // CRUD operations with optimistic updates for better UX
   addProduct: (product: Partial<Product>) => Promise<void>;      // Create new product
-  deleteProduct: (id: string, type: Exclude<ProductType, null>) => Promise<void>; // Delete existing product
+  updateProduct: (id: string, updates: Partial<Product>, type: ProductType) => Promise<void>; // Update existing product
+  deleteProduct: (id: string, type: Exclude<ProductType, null>, componentType?: string) => Promise<void>; // Delete existing product
 
   // Direct state setters (used sparingly, prefer methods above)
   setProducts: (products: Product[]) => void;
@@ -383,6 +384,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [summary, currentProductType, loadProducts, loadSummary]);
 
   /**
+   * Update a product with optimistic UI update
+   */
+  const updateProduct = useCallback(async (id: string, updates: Partial<Product>, type: ProductType) => {
+    console.log(`[AppContext] updateProduct called for ID: ${id}`, updates);
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // ===== OPTIMISTIC UPDATE: Update UI immediately =====
+      setProducts(prev => prev.map(p => 
+        p.product_id === id ? { ...p, ...updates } as Product : p
+      ));
+
+      // ===== API CALL =====
+      console.log('[AppContext] Calling API to update product...');
+      if (type === 'datasheet') {
+        await apiClient.updateDatasheet(id, updates as any);
+      } else {
+        // Implement generic product update if needed in future
+        console.warn('Generic product update not implemented yet');
+      }
+      console.log('[AppContext] Product updated successfully');
+
+      // ===== REFRESH DATA =====
+      // We can keep the cache but update it with the new data to avoid a full reload
+      if (type) {
+        setProductCache(prev => {
+          const newCache = new Map(prev);
+          const cachedProducts = newCache.get(type) || [];
+          const updatedProducts = cachedProducts.map(p => 
+            p.product_id === id ? { ...p, ...updates } as Product : p
+          );
+          newCache.set(type, updatedProducts);
+          return newCache;
+        });
+      }
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update product';
+      console.error('[AppContext] Failed to update product:', err);
+      setError(errorMsg);
+
+      // ===== REVERT OPTIMISTIC UPDATES =====
+      console.warn('[AppContext] Reverting optimistic updates due to error');
+      setProductCache(new Map()); // Clear cache
+      await loadProducts(currentProductType); // Reload original data
+    } finally {
+      setLoading(false);
+    }
+  }, [currentProductType, loadProducts]);
+
+  /**
    * Delete a product with optimistic UI update
    *
    * Optimistic Update Pattern:
@@ -399,8 +453,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
    *
    * Note: Cache is always cleared to prevent showing stale deleted products
    */
-  const deleteProduct = useCallback(async (id: string, type: Exclude<ProductType, null>) => {
-    console.log(`[AppContext] deleteProduct called for ID: ${id}, type: ${type}`);
+  const deleteProduct = useCallback(async (id: string, type: Exclude<ProductType, null>, componentType?: string) => {
+    console.log(`[AppContext] deleteProduct called for ID: ${id}, type: ${type}, componentType: ${componentType}`);
 
     try {
       setLoading(true);
@@ -425,6 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const newSummary: ProductSummary = { ...summary, total: summary.total - 1 };
 
         // Decrement count for this product type (e.g., motors, drives, robot_arms)
+        // For datasheets, we might want to decrement the specific component type count if we track it
         const typePluralKey = `${deletedProduct.product_type}s`; // motor -> motors, drive -> drives
         if (typePluralKey in newSummary) {
           newSummary[typePluralKey] = Math.max(0, (newSummary[typePluralKey] as number || 0) - 1);
@@ -436,7 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // ===== API CALL =====
       console.log('[AppContext] Calling API to delete product...');
-      await apiClient.deleteProduct(id, type);
+      await apiClient.deleteProduct(id, type, componentType);
       console.log('[AppContext] Product deleted successfully');
 
       // ===== CLEAR CACHE =====
@@ -520,6 +575,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // CRUD operations
     addProduct,     // Create new product (optimistic)
+    updateProduct,  // Update product (optimistic)
     deleteProduct,  // Delete product (optimistic)
 
     // Direct state setters (use sparingly)
