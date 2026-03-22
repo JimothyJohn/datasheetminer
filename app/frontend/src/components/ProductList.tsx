@@ -33,7 +33,7 @@ export default function ProductList() {
     if (categories.length === 0) {
       loadCategories();
     }
-  }, [productType]);
+  }, [productType, loadProducts, loadCategories]);
 
   // Add keyboard shortcut for opening filter (Ctrl+K)
   useEffect(() => {
@@ -209,6 +209,7 @@ export default function ProductList() {
     const numericFilterValue = extractNumericValue(filter.value);
 
     if (numericProductValue === null || numericFilterValue === null) return '';
+    if (numericFilterValue === 0) return '';
 
     // For equality filters, check if values match
     if (filter.operator === '=') {

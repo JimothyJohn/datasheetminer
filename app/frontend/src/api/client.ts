@@ -377,21 +377,26 @@ class ApiClient {
   }
 
   /**
+   * Create a new datasheet entry
+   *
+   * Backend Endpoint: POST /api/datasheets
+   */
+  async createDatasheet(datasheet: Partial<DatasheetEntry>): Promise<void> {
+    console.log('[ApiClient] Creating datasheet:', (datasheet as any).product_name || 'unnamed');
+    await this.request('/api/datasheets', {
+      method: 'POST',
+      body: JSON.stringify(datasheet),
+    });
+  }
+
+  /**
    * Update a datasheet
    */
   async updateDatasheet(id: string, updates: Partial<DatasheetEntry>): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/datasheets/${id}`, {
+    await this.request(`/api/datasheets/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(updates),
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update datasheet');
-    }
   }
 
   /**

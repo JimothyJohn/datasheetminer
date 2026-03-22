@@ -17,8 +17,8 @@
  * @module AppContext
  */
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Product, ProductSummary, ProductType } from '../types/models';
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { DatasheetEntry, Product, ProductSummary, ProductType } from '../types/models';
 import { apiClient } from '../api/client';
 
 /**
@@ -56,6 +56,7 @@ interface AppContextType extends AppState {
 
   // CRUD operations with optimistic updates for better UX
   addProduct: (product: Partial<Product>) => Promise<void>;      // Create new product
+  createDatasheet: (datasheet: Partial<DatasheetEntry>) => Promise<void>; // Create new datasheet
   updateProduct: (id: string, updates: Partial<Product>, type: ProductType) => Promise<void>; // Update existing product
   deleteProduct: (id: string, type: Exclude<ProductType, null>, componentType?: string) => Promise<void>; // Delete existing product
 
@@ -101,6 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * Used to determine which cache to invalidate on mutations
    */
   const [currentProductType, setCurrentProductType] = useState<ProductType>(null);
+  const currentProductTypeRef = useRef<ProductType>(null);
 
   // ========== Data Loading Methods ==========
 
@@ -139,11 +141,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Immediately show cached data (instant UI response)
       setProducts(cached);
       setCurrentProductType(type);
+      currentProductTypeRef.current = type;
 
       // ===== BACKGROUND REFRESH =====
       // Fetch fresh data without blocking the UI or showing loading states
       console.log(`[AppContext] Starting background refresh for ${type}`);
       apiClient.listProducts(type).then(data => {
+        // Guard: discard if user switched types before this resolved
+        if (currentProductTypeRef.current !== type) {
+          console.log(`[AppContext] Background refresh discarded (type changed to ${currentProductTypeRef.current})`);
+          return;
+        }
         // Only update if data actually changed (prevents unnecessary re-renders)
         if (JSON.stringify(data) !== JSON.stringify(cached)) {
           console.log(`[AppContext] Background refresh found ${data.length} products (changed from cache)`);
@@ -176,6 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Store fetched data for future instant retrieval
       setProductCache(prev => new Map(prev).set(type, data));
       setCurrentProductType(type);
+      currentProductTypeRef.current = type;
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load products';
@@ -384,6 +393,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [summary, currentProductType, loadProducts, loadSummary]);
 
   /**
+   * Create a new datasheet via the datasheets endpoint
+   */
+  const createDatasheet = useCallback(async (datasheet: Partial<DatasheetEntry>) => {
+    console.log('[AppContext] createDatasheet called:', datasheet);
+    try {
+      setLoading(true);
+      setError(null);
+      await apiClient.createDatasheet(datasheet);
+      console.log('[AppContext] Datasheet created successfully');
+      setProductCache(new Map());
+      await loadProducts(currentProductType);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create datasheet';
+      console.error('[AppContext] Failed to create datasheet:', err);
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentProductType, loadProducts]);
+
+  /**
    * Update a product with optimistic UI update
    */
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>, type: ProductType) => {
@@ -575,6 +605,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // CRUD operations
     addProduct,     // Create new product (optimistic)
+    createDatasheet, // Create new datasheet
     updateProduct,  // Update product (optimistic)
     deleteProduct,  // Delete product (optimistic)
 

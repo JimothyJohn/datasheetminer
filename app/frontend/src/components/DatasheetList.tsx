@@ -17,7 +17,7 @@ export default function DatasheetList() {
 
   useEffect(() => {
     loadProducts('datasheet');
-  }, []);
+  }, [loadProducts]);
 
   const datasheetProducts = useMemo(() => {
     return products.filter((p): p is DatasheetEntry => p.product_type === 'datasheet');

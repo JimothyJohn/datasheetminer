@@ -69,7 +69,12 @@ export default function FilterChip({
   attributeMetadata,
   allProducts
 }: FilterChipProps) {
-  const [editValue, setEditValue] = useState('');
+  const [editValue, setEditValue] = useState(() => {
+    if (filter.value !== undefined && !Array.isArray(filter.value)) {
+      return String(filter.value);
+    }
+    return '';
+  });
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState(suggestedValues);
   const [localSliderValue, setLocalSliderValue] = useState<number>(0);
@@ -136,7 +141,6 @@ export default function FilterChip({
       };
     }
 
-    return null;
     return null;
   }, [products, allProducts, filter.attribute, attributeType, attributeMetadata]);
 

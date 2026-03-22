@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import DatasheetList from './DatasheetList';
 
 export default function DatasheetsPage() {
-  const { addProduct, categories } = useApp();
+  const { createDatasheet, categories } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -46,7 +46,7 @@ export default function DatasheetsPage() {
         pages: pagesArray.length > 0 ? pagesArray : undefined,
       };
 
-      await addProduct(payload as any); // Type assertion needed until backend fully supports
+      await createDatasheet(payload as any);
 
       setStatus({ type: 'success', message: 'Datasheet submitted successfully!' });
       setFormData({
