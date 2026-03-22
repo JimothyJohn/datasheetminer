@@ -2,6 +2,7 @@
  * Main Express application entry point
  */
 
+import path from 'path';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import config from './config';
@@ -33,6 +34,16 @@ app.get('/health', (_req: Request, res: Response) => {
 // API routes
 app.use('/api/products', productsRouter);
 app.use('/api/datasheets', datasheetsRouter);
+
+// Serve frontend static files in production (Docker container)
+if (process.env.NODE_ENV === 'production') {
+  const publicDir = path.join(__dirname, '..', '..', 'public');
+  app.use(express.static(publicDir));
+  app.get('*', (_req: Request, res: Response, next: NextFunction) => {
+    if (_req.path.startsWith('/api/') || _req.path === '/health') return next();
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {

@@ -31,7 +31,7 @@ import { Product, ProductSummary, ProductType, DatasheetEntry } from '../types/m
  * API base URL from environment variable or default to local backend
  * In production: Set VITE_API_URL to your deployed backend URL
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 /**
  * Default request timeout in milliseconds
