@@ -21,8 +21,10 @@ datasheetminer = "datasheetminer.scraper:main"
 [dependency-groups]
 dev = [
     "awslambdaric>=3.1.1",
+    "moto[dynamodb]>=5.1.22",
     "mypy>=1.18.2",
     "pytest>=8.4.1",
+    "pytest-mock>=3.15.1",
     "python-dotenv>=1.2.1",
     "ruff>=0.12.7",
 ]

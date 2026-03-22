@@ -266,8 +266,14 @@ $RECYCLE.BIN/
 *.vscode/
 *.devcontainer/
 schema/
-tests/
 datasheets/
 *.changelog/
 *.json
 outputs/
+
+# Track test suites
+!tests/
+!tests/**
+!app/backend/tests/
+!app/backend/tests/**
+!app/frontend/src/**/*.test.*
