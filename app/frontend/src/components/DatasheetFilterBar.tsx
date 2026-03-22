@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { FilterCriterion, getDatasheetAttributes, AttributeMetadata } from '../types/filters';
 import { DatasheetEntry, Product } from '../types/models';
 import AttributeSelector from './AttributeSelector';

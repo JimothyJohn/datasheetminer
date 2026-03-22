@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react';
 import { Product } from '../types/models';
 import { formatPropertyLabel } from '../utils/formatting';
+import { sanitizeUrl } from '../utils/sanitize';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -187,7 +188,7 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
             <h2>{product.manufacturer || 'Unknown Manufacturer'}</h2>
             {product.datasheet_url && typeof product.datasheet_url === 'object' && 'url' in product.datasheet_url ? (
               <a
-                href={(product.datasheet_url as any).url}
+                href={sanitizeUrl((product.datasheet_url as any).url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="product-detail-part product-detail-part-link"

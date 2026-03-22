@@ -4,6 +4,7 @@ import { DatasheetEntry } from '../types/models';
 import { FilterCriterion } from '../types/filters';
 import DatasheetFilterBar from './DatasheetFilterBar';
 import DatasheetEditModal from './DatasheetEditModal';
+import { sanitizeUrl } from '../utils/sanitize';
 
 export default function DatasheetList() {
   const { products, loadProducts, loading, error, deleteProduct } = useApp();
@@ -198,7 +199,7 @@ export default function DatasheetList() {
                 >
                   <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}>
                     <a 
-                      href={datasheet.url} 
+                      href={sanitizeUrl(datasheet.url)}
                       target="_blank" 
                       rel="noopener noreferrer"
                       style={{ fontWeight: 500, color: 'var(--accent-primary)', textDecoration: 'none' }}
