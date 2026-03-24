@@ -11,9 +11,18 @@ from datasheetminer.models.product import ProductBase
 REGION: str = "us-east-1"
 
 GUARDRAILS: str = """
+IMPORTANT EXTRACTION RULES:
+- Extract EVERY specification that appears in the document for each product variant.
+- If a value exists in the document, you MUST include it. Do NOT leave a field null when the data is present.
+- Only leave a field null when the specification is genuinely absent from the document.
+- For fields with units, always include the unit exactly as shown (e.g., "2.5;A", "3000;rpm", "0.47;Nm").
+- If a spec is listed in a table, extract the exact numeric value and unit from the table cell.
+- Pay close attention to footnotes, headers, and sub-tables that may contain additional specs.
+- Each row or variant in a selection table is a separate product — extract them all.
 """
 
 MODEL: str = "gemini-2.5-flash"  # Explicitly define model for clarity
+
 
 def _discover_schema_models() -> Dict[str, Type[ProductBase]]:
     """

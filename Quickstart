@@ -1,143 +1,20 @@
 #!/usr/bin/env bash
+# Thin wrapper — delegates to the Python CLI.
+# Requires Python 3.11+.
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$ROOT_DIR/app"
-LOG_DIR="$ROOT_DIR/.logs"
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-fail() { echo -e "${RED}ERROR: $*${NC}" >&2; exit 1; }
-info() { echo -e "${GREEN}==> $*${NC}"; }
-warn() { echo -e "${YELLOW}    $*${NC}"; }
-
-usage() {
-  echo "Usage: ./Quickstart [-l|--local] [-c|--cloud] [-h|--help]"
-  echo ""
-  echo "  -l, --local   Start dev servers with hot reload (default)"
-  echo "  -c, --cloud   Build Docker image and push to ECR"
-  echo "  -h, --help    Show this help message"
-}
-
-MODE="local"
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -l|--local) MODE="local"; shift ;;
-    -c|--cloud) MODE="cloud"; shift ;;
-    -h|--help)  usage; exit 0 ;;
-    *) fail "Unknown option: $1. Use -h for help." ;;
-  esac
-done
-
-require_cmd() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    fail "Missing dependency: $1. Install it and re-run."
-  fi
-}
-
-# ── Dependency checks ──────────────────────────────────────────────
-
-info "Checking dependencies"
-
-require_cmd node
-require_cmd npm
-require_cmd python3
-require_cmd uv
-
-NODE_VERSION="$(node -v | sed 's/v//')"
-NODE_MAJOR="${NODE_VERSION%%.*}"
-if [[ "$NODE_MAJOR" -lt 18 ]]; then
-  fail "Node.js >= 18 required (found $NODE_VERSION)"
+PY="$(command -v python3 2>/dev/null || true)"
+if [[ -z "$PY" ]]; then
+  echo "ERROR: python3 not found." >&2
+  exit 1
 fi
 
-PY_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-PY_MAJOR="${PY_VERSION%%.*}"
-PY_MINOR="${PY_VERSION#*.}"
-if [[ "$PY_MAJOR" -lt 3 || ("$PY_MAJOR" -eq 3 && "$PY_MINOR" -lt 11) ]]; then
-  fail "Python >= 3.11 required (found $PY_VERSION)"
+MAJOR_MINOR="$("$PY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+MAJOR="${MAJOR_MINOR%%.*}"
+MINOR="${MAJOR_MINOR#*.}"
+if [[ "$MAJOR" -lt 3 || ("$MAJOR" -eq 3 && "$MINOR" -lt 11) ]]; then
+  echo "ERROR: Python >= 3.11 required (found $MAJOR_MINOR)" >&2
+  exit 1
 fi
 
-echo "  node $NODE_VERSION  python $PY_VERSION  uv $(uv --version | awk '{print $2}')"
-
-# ── Environment files ──────────────────────────────────────────────
-
-info "Checking environment files"
-
-if [[ ! -f "$ROOT_DIR/.env" ]]; then
-  cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
-  warn "Created .env from .env.example — edit it with your API keys"
-fi
-
-if [[ ! -f "$APP_DIR/.env" ]]; then
-  cp "$APP_DIR/.env.example" "$APP_DIR/.env"
-  warn "Created app/.env from app/.env.example — edit it with your AWS config"
-fi
-
-# ── Cloud mode: build and push Docker image ───────────────────
-
-if [[ "$MODE" == "cloud" ]]; then
-  require_cmd docker
-  require_cmd aws
-  info "Building and deploying Docker image"
-  exec "$APP_DIR/deploy.sh"
-fi
-
-# ── Python dependencies ────────────────────────────────────────────
-
-info "Installing Python dependencies"
-(cd "$ROOT_DIR" && uv sync --quiet)
-
-# ── Node.js dependencies ──────────────────────────────────────────
-
-info "Installing Node.js dependencies"
-(cd "$APP_DIR" && npm install --silent)
-
-# ── Log directory ──────────────────────────────────────────────────
-
-mkdir -p "$LOG_DIR"
-
-# ── Start services ─────────────────────────────────────────────────
-
-info "Starting backend (port ${PORT:-3001}) and frontend (port 3000)"
-
-cleanup() {
-  info "Shutting down..."
-  kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-  wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-(cd "$APP_DIR/backend" && npm run dev) \
-  > "$LOG_DIR/backend.log" 2>&1 &
-BACKEND_PID=$!
-
-(cd "$APP_DIR/frontend" && npm run dev) \
-  > "$LOG_DIR/frontend.log" 2>&1 &
-FRONTEND_PID=$!
-
-# Wait for backend to be ready
-for i in $(seq 1 30); do
-  if curl -sf "http://localhost:${PORT:-3001}/health" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-
-if ! curl -sf "http://localhost:${PORT:-3001}/health" >/dev/null 2>&1; then
-  warn "Backend may not be ready yet — check .logs/backend.log"
-fi
-
-echo ""
-info "DatasheetMiner is running"
-echo "  Frontend:  http://localhost:3000"
-echo "  Backend:   http://localhost:${PORT:-3001}"
-echo "  Logs:      $LOG_DIR/"
-echo ""
-echo "  Press Ctrl+C to stop"
-echo ""
-
-wait
+exec "$PY" "$(dirname "$0")/cli/quickstart.py" "$@"

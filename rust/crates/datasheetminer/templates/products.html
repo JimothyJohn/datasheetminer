@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-split">
+  <aside class="sidebar">
+    <div class="card">
+      <h3>Product Type</h3>
+      <ul class="cat-list">
+        <li>
+          <a href="/products?type=all" class="cat-item{% if product_type == "all" %} active{% endif %}"
+             hx-get="/products?type=all" hx-target="#product-area" hx-push-url="true">
+            <span>All</span><span class="count">{{ total_all }}</span>
+          </a>
+        </li>
+        {% for cat in categories %}
+        <li>
+          <a href="/products?type={{ cat.type_name }}" class="cat-item{% if product_type == cat.type_name %} active{% endif %}"
+             hx-get="/products?type={{ cat.type_name }}" hx-target="#product-area" hx-push-url="true">
+            <span>{{ cat.display_name }}</span><span class="count">{{ cat.count }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Summary</h3>
+      <div class="stat-card">
+        <div class="label">Total Products</div>
+        <div class="value">{{ total_all }}</div>
+      </div>
+    </div>
+  </aside>
+  <div id="product-area">
+    {% include "product_table.html" %}
+  </div>
+</div>
+<div id="detail-panel"></div>
+{% endblock %}

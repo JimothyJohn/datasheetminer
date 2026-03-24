@@ -507,6 +507,50 @@ export class DynamoDBService {
   }
 
   /**
+   * Update a product by ID and type
+   */
+  async updateProduct(id: string, productType: string, updates: Partial<Product>): Promise<boolean> {
+    try {
+      const pk = `PRODUCT#${productType.toUpperCase()}`;
+      const sk = `PRODUCT#${id}`;
+
+      const result = await this.client.send(
+        new GetItemCommand({
+          TableName: this.tableName,
+          Key: marshall({ PK: pk, SK: sk }),
+        })
+      );
+
+      if (!result.Item) {
+        return false;
+      }
+
+      const existingItem = unmarshall(result.Item) as Product;
+
+      const updatedItem = {
+        ...existingItem,
+        ...updates,
+        product_id: id,
+        product_type: existingItem.product_type,
+        PK: pk,
+        SK: sk,
+      };
+
+      await this.client.send(
+        new PutItemCommand({
+          TableName: this.tableName,
+          Item: marshall(updatedItem, { removeUndefinedValues: true }),
+        })
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      return false;
+    }
+  }
+
+  /**
    * Update a datasheet
    */
   async updateDatasheet(id: string, productType: string, updates: Partial<Datasheet>): Promise<boolean> {

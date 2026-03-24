@@ -21,14 +21,8 @@ Extract technical specifications from product datasheets using AI.
 ### Option 1: CLI (Local)
 
 ```bash
-# Install dependencies
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync
-
 # Set API keys using .env.example
-
-# Run web app
-cd app && npm run dev
+./Quickstart
 ```
 
 ## Use Cases

@@ -277,3 +277,4 @@ outputs/
 !app/backend/tests/
 !app/backend/tests/**
 !app/frontend/src/**/*.test.*
+.logs/

@@ -1,0 +1,30 @@
+name: Staging Integration Tests
+
+# Manual-only — staging tests create/mutate data. Never auto-run against production.
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "API base URL to test against"
+        required: true
+        default: "http://localhost:3001"
+
+jobs:
+  staging-tests:
+    name: Staging Contract Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --quiet
+
+      - name: Run staging contract tests
+        env:
+          API_BASE_URL: ${{ github.event.inputs.api_url }}
+        run: uv run pytest tests/staging/ -v

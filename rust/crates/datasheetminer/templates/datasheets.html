@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="margin-bottom: 1rem;">
+  <h2>Add Datasheet</h2>
+  <form hx-post="/datasheets" hx-target="#ds-result" hx-swap="innerHTML" class="ds-form">
+    <div>
+      <label for="product_name">Product Name</label>
+      <input type="text" name="product_name" id="product_name" required>
+    </div>
+    <div>
+      <label for="manufacturer">Manufacturer</label>
+      <input type="text" name="manufacturer" id="manufacturer">
+    </div>
+    <div>
+      <label for="product_type">Type</label>
+      <select name="product_type" id="product_type">
+        <option value="motor">Motor</option>
+        <option value="drive">Drive</option>
+        <option value="gearhead">Gearhead</option>
+        <option value="robot_arm">Robot Arm</option>
+      </select>
+    </div>
+    <div>
+      <label for="product_family">Product Family</label>
+      <input type="text" name="product_family" id="product_family">
+    </div>
+    <div class="full-width">
+      <label for="url">Datasheet URL</label>
+      <input type="url" name="url" id="url" required>
+    </div>
+    <div>
+      <label for="pages">Pages (e.g. 1,3-5)</label>
+      <input type="text" name="pages" id="pages">
+    </div>
+    <div>
+      <button type="submit" class="btn btn-primary">Add Datasheet</button>
+    </div>
+  </form>
+  <div id="ds-result"></div>
+</div>
+
+<div class="card">
+  <h2>Datasheets</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Type</th>
+          <th>Family</th>
+          <th>Manufacturer</th>
+          <th>URL</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="ds-rows">
+        {% include "datasheet_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

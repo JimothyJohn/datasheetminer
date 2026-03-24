@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>datasheetminer</title>
+  <style>
+:root, :root[data-theme="dark"] {
+  --bg-primary: #1a1e1b; --bg-secondary: #242a25; --bg-tertiary: #313833;
+  --text-primary: #e2e7e3; --text-secondary: #b8c3ba; --text-tertiary: #8a9a8c;
+  --border-color: #3a4239; --border-light: #2e352f;
+  --accent: #7a9e7e; --accent-hover: #6b8e6f; --accent-text: #1a1e1b;
+  --card-bg: #242a25; --card-border: #3a4239;
+  --header-bg: #1a1e1b; --header-text: #e2e7e3;
+  --shadow: rgba(0,0,0,0.25); --hover-bg: #313833; --selected-bg: #3a4239;
+  --success: #7a9e7e; --danger: #b88a7e;
+}
+:root[data-theme="light"] {
+  --bg-primary: #f2f4f1; --bg-secondary: #e7ebe5; --bg-tertiary: #d8ddd5;
+  --text-primary: #2d3a2e; --text-secondary: #5a6b5c; --text-tertiary: #8a9a8c;
+  --border-color: #c5cfc7; --border-light: #d8ddd5;
+  --accent: #6b8e6f; --accent-hover: #567a5a; --accent-text: #f2f4f1;
+  --card-bg: #f7f9f6; --card-border: #d8ddd5;
+  --header-bg: #3a4a3d; --header-text: #f2f4f1;
+  --shadow: rgba(45,58,46,0.1); --hover-bg: #e7ebe5; --selected-bg: #d8ddd5;
+  --success: #6b8e6f; --danger: #b07a6f;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Courier New', monospace; background: var(--bg-primary); color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.header { background: var(--header-bg); color: var(--header-text); padding: 0.6rem 1.5rem; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color); }
+.header-content { display: flex; align-items: center; gap: 1.5rem; width: 100%; }
+.logo { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+.header nav { display: flex; gap: 0.4rem; }
+.nav-btn { display: inline-block; padding: 0.35rem 0.7rem; color: var(--accent-text); background: var(--accent); border: none; border-radius: 4px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-decoration: none; font-family: inherit; }
+.nav-btn:hover, .nav-btn.active { background: var(--accent-hover); text-decoration: none; }
+.header-right { margin-left: auto; }
+.theme-toggle { background: var(--accent); border: none; border-radius: 4px; padding: 0.35rem 0.5rem; color: var(--accent-text); cursor: pointer; font-size: 1.1rem; font-family: inherit; }
+main { padding: 1rem 1.5rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+.page-split { display: grid; grid-template-columns: 220px 1fr; gap: 1rem; }
+.sidebar { display: flex; flex-direction: column; gap: 0.75rem; }
+.card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.75rem; }
+.card h2, .card h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.6rem; text-align: center; border-top: 3px solid var(--accent); }
+.stat-card .label { font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; }
+.stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+select, input[type="text"], input[type="url"], input[type="number"] { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.4rem 0.6rem; font-family: inherit; font-size: 0.85rem; width: 100%; }
+label { display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.btn { display: inline-flex; align-items: center; padding: 0.4rem 0.8rem; border: none; border-radius: 4px; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+thead th { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid var(--border-color); color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; cursor: pointer; }
+thead th:hover { color: var(--accent); }
+thead th .sort-icon { margin-left: 0.3rem; font-size: 0.7rem; }
+tbody tr { border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background: var(--hover-bg); }
+tbody td { padding: 0.45rem 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.table-wrap { overflow-x: auto; }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; font-size: 0.8rem; color: var(--text-secondary); }
+.pagination .pages { display: flex; gap: 0.3rem; }
+.page-btn { padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+.page-btn.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.cat-list { list-style: none; }
+.cat-item { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; transition: background 0.15s; color: var(--text-primary); }
+.cat-item:hover { background: var(--hover-bg); text-decoration: none; }
+.cat-item.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.cat-item .count { color: var(--text-tertiary); font-size: 0.8rem; }
+.cat-item.active .count { color: var(--accent-text); }
+.detail-panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 1rem; margin-top: 0.75rem; }
+.detail-panel h2 { font-size: 1rem; color: var(--accent); margin-bottom: 0.75rem; }
+.detail-panel .close-btn { float: right; background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 1.2rem; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; }
+.detail-item { padding: 0.4rem; border-bottom: 1px solid var(--border-light); }
+.detail-item .key { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); }
+.detail-item .val { color: var(--text-primary); font-weight: 600; }
+.empty-state { text-align: center; padding: 3rem; color: var(--text-tertiary); }
+.empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.ds-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ds-form .full-width { grid-column: 1 / -1; }
+.result-msg { padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem; }
+.result-msg.success { background: rgba(107,142,111,0.15); border: 1px solid var(--success); color: var(--success); }
+.result-msg.error { background: rgba(184,138,126,0.15); border: 1px solid var(--danger); color: var(--danger); }
+.mgmt-section { margin-bottom: 1.5rem; }
+@media (max-width: 768px) { .page-split { grid-template-columns: 1fr; } .ds-form { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <span class="logo">datasheetminer</span>
+      <nav>
+        <a href="/" class="nav-btn{% if active == "products" %} active{% endif %}">Products</a>
+        <a href="/datasheets" class="nav-btn{% if active == "datasheets" %} active{% endif %}">Datasheets</a>
+        <a href="/management" class="nav-btn{% if active == "management" %} active{% endif %}">Management</a>
+      </nav>
+      <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9684;</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    function toggleTheme() {
+      var h = document.documentElement, c = h.getAttribute('data-theme');
+      var n = c === 'light' ? 'dark' : 'light';
+      h.setAttribute('data-theme', n); localStorage.setItem('theme', n);
+    }
+    (function(){ var s = localStorage.getItem('theme'); if(s) document.documentElement.setAttribute('data-theme', s); })();
+  </script>
+  <script src="/static/htmx.min.js" defer></script>
+</body>
+</html>

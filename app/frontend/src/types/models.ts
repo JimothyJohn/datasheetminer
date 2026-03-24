@@ -28,7 +28,7 @@ export interface ProductBase {
   product_id: string;
   product_type: string;
   product_name?: string;
-  manufacturer?: string;
+  manufacturer: string;
   part_number?: string;
   datasheet_url?: DatasheetLink;
   dimensions?: Dimensions;

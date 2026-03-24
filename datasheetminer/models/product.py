@@ -60,11 +60,13 @@ class ProductBase(BaseModel):
         None, description="Product family or sub-series"
     )
     part_number: Optional[str] = Field(None, description="Part number")
-    manufacturer: Optional[str] = Field(None, description="Manufacturer name")
+    manufacturer: str = Field(..., description="Manufacturer name")
     release_year: Optional[int] = None
     dimensions: Optional[Dimensions] = None
     weight: Optional[ValueUnit] = None
     msrp: Optional[ValueUnit] = None
     warranty: Optional[ValueUnit] = None
-    datasheet_url: Optional[str] = Field(None, description="URL of the source datasheet")
+    datasheet_url: Optional[str] = Field(
+        None, description="URL of the source datasheet"
+    )
     pages: Optional[list[int]] = Field(None, description="Pages used for extraction")

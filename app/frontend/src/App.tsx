@@ -27,21 +27,25 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import { AppProvider } from './context/AppContext';
 import ThemeToggle from './components/ThemeToggle';
 import NetworkStatus from './components/NetworkStatus';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
+
+// ========== App Mode ==========
+// public = read-only cloud deployment, admin = local toolset with full access
+const APP_MODE = import.meta.env.VITE_APP_MODE || 'admin';
+const isAdmin = APP_MODE === 'admin';
 
 // ========== Eager Imports ==========
 import ProductList from './components/ProductList';
 
-// ========== Lazy Imports (Code Splitting) ==========
-const ProductManagement = lazy(() => {
-  console.log('[App] Lazy loading ProductManagement component...');
-  return import('./components/ProductManagement');
-});
+// ========== Lazy Imports (admin-only, tree-shaken in public builds) ==========
+const ProductManagement = isAdmin
+  ? lazy(() => import('./components/ProductManagement'))
+  : null;
 
-const DatasheetsPage = lazy(() => {
-  console.log('[App] Lazy loading DatasheetsPage component...');
-  return import('./components/DatasheetsPage');
-});
+const DatasheetsPage = isAdmin
+  ? lazy(() => import('./components/DatasheetsPage'))
+  : null;
 
 /**
  * Loading Fallback Component
@@ -86,29 +90,29 @@ function App() {
               <h1>Product Search</h1>
               <nav className="nav-inline">
                 <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Products</NavLink>
-                <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
-                <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
+                {isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
+                {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
               </nav>
             </div>
             <ThemeToggle />
           </header>
 
-          {/* ===== ROUTES WITH SUSPENSE ===== */}
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              {/* ProductList: Eager loaded (default view) */}
-              <Route path="/" element={<ProductList />} />
+          {/* ===== ROUTES WITH SUSPENSE + ERROR BOUNDARY ===== */}
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                {/* ProductList: Eager loaded (default view, always available) */}
+                <Route path="/" element={<ProductList />} />
 
-              {/* Datasheets Page: Lazy loaded */}
-              <Route path="/datasheets" element={<DatasheetsPage />} />
+                {/* Admin-only routes (hidden in public mode) */}
+                {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}
+                {ProductManagement && <Route path="/management" element={<ProductManagement />} />}
 
-              {/* ProductManagement: Lazy loaded (code split) */}
-              <Route path="/management" element={<ProductManagement />} />
-
-              {/* Catch-all: Redirect to products */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+                {/* Catch-all: Redirect to products */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </BrowserRouter>
     </AppProvider>

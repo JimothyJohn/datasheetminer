@@ -7,7 +7,12 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+const stage = process.env.STAGE || 'dev';
+const appMode = (process.env.APP_MODE || 'admin') as 'public' | 'admin';
+
 export const config = {
+  stage,
+  appMode,
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   aws: {
@@ -15,7 +20,7 @@ export const config = {
     accountId: process.env.AWS_ACCOUNT_ID,
   },
   dynamodb: {
-    tableName: process.env.DYNAMODB_TABLE_NAME || 'products',
+    tableName: process.env.DYNAMODB_TABLE_NAME || `products-${stage}`,
   },
   cors: {
     origin: process.env.CORS_ORIGIN || '*',

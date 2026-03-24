@@ -13,6 +13,7 @@ class Datasheet(BaseModel):
     Represents a datasheet document and its associated metadata.
     Separated from the Product model to allow independent existence and linking.
     """
+
     model_config = {"populate_by_name": True}
 
     @computed_field
@@ -28,14 +29,20 @@ class Datasheet(BaseModel):
     )
     url: str = Field(..., description="URL to the datasheet")
     pages: Optional[List[int]] = Field(None, description="Relevant page numbers")
-    
+
     # Shared product metadata
-    product_type: str = Field(..., description="Type of product (e.g., 'motor', 'drive')")
+    product_type: str = Field(
+        ..., description="Type of product (e.g., 'motor', 'drive')"
+    )
     product_name: str = Field(..., description="Product name")
-    product_family: Optional[str] = Field(None, description="Product family or sub-series")
-    manufacturer: Optional[str] = Field(None, description="Manufacturer name")
-    category: Optional[str] = Field(None, description="Category or type of the datasheet product")
-    
+    product_family: Optional[str] = Field(
+        None, description="Product family or sub-series"
+    )
+    manufacturer: str = Field(..., description="Manufacturer name")
+    category: Optional[str] = Field(
+        None, description="Category or type of the datasheet product"
+    )
+
     # Additional metadata
     release_year: Optional[int] = None
     warranty: Optional[ValueUnit] = None

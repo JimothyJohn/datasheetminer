@@ -140,6 +140,7 @@ class TestSerializeItem:
             url="https://example.com/ds.pdf",
             product_type="motor",
             product_name="TestMotor",
+            manufacturer="Acme",
         )
         data = client._serialize_item(ds)
         assert data["PK"] == "DATASHEET#MOTOR"

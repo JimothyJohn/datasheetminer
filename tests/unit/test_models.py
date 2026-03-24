@@ -22,63 +22,67 @@ from datasheetminer.models.robot_arm import (
 )
 
 DETERMINISTIC_UUID = UUID("12345678-1234-1234-1234-123456789012")
+MFG = "TestMfg"
 
 
 @pytest.mark.unit
 class TestValueUnit:
     def test_valid_value_unit_string(self):
-        motor = Motor(product_name="Test", rated_speed="3000;rpm")
+        motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="3000;rpm")
         assert motor.rated_speed == "3000;rpm"
 
     def test_dict_input_conversion(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_speed={"value": "3000", "unit": "rpm"},
         )
         assert motor.rated_speed == "3000;rpm"
 
     def test_space_separated_input(self):
-        motor = Motor(product_name="Test", rated_speed="3000 rpm")
+        motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="3000 rpm")
         assert motor.rated_speed == "3000;rpm"
 
     def test_strip_special_chars(self):
         # BeforeValidator strips +~>< from value part in semicolon format
-        motor = Motor(product_name="Test", rated_speed="+3000;rpm")
+        motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="+3000;rpm")
         assert motor.rated_speed == "3000;rpm"
 
     def test_strip_special_chars_dict(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_speed={"value": "~3000", "unit": "rpm"},
         )
         assert motor.rated_speed == "3000;rpm"
 
     def test_strip_special_chars_space_separated(self):
-        motor = Motor(product_name="Test", rated_speed=">3000 rpm")
+        motor = Motor(product_name="Test", manufacturer=MFG, rated_speed=">3000 rpm")
         assert motor.rated_speed == "3000;rpm"
 
     def test_missing_value_part_raises(self):
         with pytest.raises(ValidationError, match="value part cannot be empty"):
-            Motor(product_name="Test", rated_speed=";rpm")
+            Motor(product_name="Test", manufacturer=MFG, rated_speed=";rpm")
 
     def test_missing_unit_part_raises(self):
         with pytest.raises(ValidationError, match="unit cannot be empty"):
-            Motor(product_name="Test", rated_speed="3000;")
+            Motor(product_name="Test", manufacturer=MFG, rated_speed="3000;")
 
     def test_none_passthrough(self):
-        motor = Motor(product_name="Test")
+        motor = Motor(product_name="Test", manufacturer=MFG)
         assert motor.rated_speed is None
 
 
 @pytest.mark.unit
 class TestMinMaxUnit:
     def test_valid_range_string(self):
-        motor = Motor(product_name="Test", rated_voltage="200-240;V")
+        motor = Motor(product_name="Test", manufacturer=MFG, rated_voltage="200-240;V")
         assert motor.rated_voltage == "200-240;V"
 
     def test_dict_input_min_max(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_voltage={"min": "200", "max": "240", "unit": "V"},
         )
         assert motor.rated_voltage == "200-240;V"
@@ -86,6 +90,7 @@ class TestMinMaxUnit:
     def test_dict_input_min_only(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_voltage={"min": "200", "unit": "V"},
         )
         assert motor.rated_voltage == "200;V"
@@ -93,21 +98,24 @@ class TestMinMaxUnit:
     def test_dict_input_max_only(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_voltage={"max": "240", "unit": "V"},
         )
         assert motor.rated_voltage == "240;V"
 
     def test_to_separator_replaced(self):
-        motor = Motor(product_name="Test", rated_voltage="200 to 240;V")
+        motor = Motor(
+            product_name="Test", manufacturer=MFG, rated_voltage="200 to 240;V"
+        )
         assert motor.rated_voltage == "200-240;V"
 
     def test_empty_range_rejected(self):
         with pytest.raises(ValidationError, match="range part cannot be empty"):
-            Motor(product_name="Test", rated_voltage=";V")
+            Motor(product_name="Test", manufacturer=MFG, rated_voltage=";V")
 
     def test_empty_unit_rejected(self):
         with pytest.raises(ValidationError, match="unit cannot be empty"):
-            Motor(product_name="Test", rated_voltage="200-240;")
+            Motor(product_name="Test", manufacturer=MFG, rated_voltage="200-240;")
 
 
 @pytest.mark.unit
@@ -130,26 +138,28 @@ class TestDimensions:
 @pytest.mark.unit
 class TestProductBase:
     def test_auto_uuid_generation(self):
-        motor = Motor(product_name="Test")
+        motor = Motor(product_name="Test", manufacturer=MFG)
         assert motor.product_id is not None
         assert isinstance(motor.product_id, UUID)
 
     def test_computed_pk(self):
-        motor = Motor(product_name="Test")
+        motor = Motor(product_name="Test", manufacturer=MFG)
         assert motor.PK == "PRODUCT#MOTOR"
 
     def test_computed_sk(self):
-        motor = Motor(product_name="Test", product_id=DETERMINISTIC_UUID)
+        motor = Motor(
+            product_name="Test", manufacturer=MFG, product_id=DETERMINISTIC_UUID
+        )
         assert motor.SK == f"PRODUCT#{DETERMINISTIC_UUID}"
 
     def test_required_fields(self):
-        # product_name is required (product_type has a default on subclasses)
+        # product_name and manufacturer are required
         with pytest.raises(ValidationError):
             Motor()
 
     def test_optional_fields_default_none(self):
-        motor = Motor(product_name="Test")
-        assert motor.manufacturer is None
+        motor = Motor(product_name="Test", manufacturer=MFG)
+        assert motor.manufacturer == MFG
         assert motor.part_number is None
         assert motor.product_family is None
         assert motor.release_year is None
@@ -164,7 +174,7 @@ class TestProductBase:
 @pytest.mark.unit
 class TestMotor:
     def test_motor_creation_minimal(self):
-        motor = Motor(product_type="motor", product_name="Test")
+        motor = Motor(product_type="motor", product_name="Test", manufacturer=MFG)
         assert motor.product_type == "motor"
         assert motor.product_name == "Test"
 
@@ -197,16 +207,17 @@ class TestMotor:
         assert motor.PK == "PRODUCT#MOTOR"
 
     def test_motor_product_type_literal(self):
-        motor = Motor(product_name="Test", product_type="motor")
+        motor = Motor(product_name="Test", manufacturer=MFG, product_type="motor")
         assert motor.product_type == "motor"
 
     def test_motor_invalid_type_literal(self):
         with pytest.raises(ValidationError):
-            Motor(product_name="Test", product_type="drive")
+            Motor(product_name="Test", manufacturer=MFG, product_type="drive")
 
     def test_motor_value_unit_fields(self):
         motor = Motor(
             product_name="Test",
+            manufacturer=MFG,
             rated_speed="3000;rpm",
             rated_torque="2.5;Nm",
             rated_power="400;W",
@@ -221,6 +232,7 @@ class TestDrive:
     def test_drive_creation(self):
         drive = Drive(
             product_name="ASD-B3",
+            manufacturer=MFG,
             fieldbus=["EtherCAT", "CANopen"],
         )
         assert drive.product_type == "drive"
@@ -229,6 +241,7 @@ class TestDrive:
     def test_drive_list_fields(self):
         drive = Drive(
             product_name="ASD-B3",
+            manufacturer=MFG,
             input_voltage_frequency=["50-60;Hz", "50;Hz"],
             switching_frequency=["8;kHz", "16;kHz"],
         )
@@ -236,12 +249,12 @@ class TestDrive:
         assert drive.switching_frequency == ["8;kHz", "16;kHz"]
 
     def test_drive_type_literal(self):
-        drive = Drive(product_name="Test", product_type="drive")
+        drive = Drive(product_name="Test", manufacturer=MFG, product_type="drive")
         assert drive.product_type == "drive"
 
     def test_drive_invalid_type_literal(self):
         with pytest.raises(ValidationError):
-            Drive(product_name="Test", product_type="motor")
+            Drive(product_name="Test", manufacturer=MFG, product_type="motor")
 
 
 @pytest.mark.unit
@@ -249,6 +262,7 @@ class TestGearhead:
     def test_gearhead_creation(self):
         gh = Gearhead(
             product_name="PHL-060",
+            manufacturer=MFG,
             product_type="gearhead",
             gear_ratio=10.0,
             stages=1,
@@ -260,6 +274,7 @@ class TestGearhead:
     def test_efficiency_valid(self):
         gh = Gearhead(
             product_name="PHL-060",
+            manufacturer=MFG,
             product_type="gearhead",
             efficiency=0.97,
         )
@@ -269,6 +284,7 @@ class TestGearhead:
         with pytest.raises(ValidationError):
             Gearhead(
                 product_name="PHL-060",
+                manufacturer=MFG,
                 product_type="gearhead",
                 efficiency=1.5,
             )
@@ -277,15 +293,26 @@ class TestGearhead:
         with pytest.raises(ValidationError):
             Gearhead(
                 product_name="PHL-060",
+                manufacturer=MFG,
                 product_type="gearhead",
                 efficiency=-0.1,
             )
 
     def test_efficiency_boundary_values(self):
-        gh_zero = Gearhead(product_name="Test", product_type="gearhead", efficiency=0.0)
+        gh_zero = Gearhead(
+            product_name="Test",
+            manufacturer=MFG,
+            product_type="gearhead",
+            efficiency=0.0,
+        )
         assert gh_zero.efficiency == 0.0
 
-        gh_one = Gearhead(product_name="Test", product_type="gearhead", efficiency=1.0)
+        gh_one = Gearhead(
+            product_name="Test",
+            manufacturer=MFG,
+            product_type="gearhead",
+            efficiency=1.0,
+        )
         assert gh_one.efficiency == 1.0
 
 
@@ -297,6 +324,7 @@ class TestDatasheet:
             url="https://example.com/datasheet.pdf",
             product_type="motor",
             product_name="ECMA-C30804",
+            manufacturer=MFG,
         )
         assert ds.url == "https://example.com/datasheet.pdf"
         assert ds.product_type == "motor"
@@ -308,19 +336,21 @@ class TestDatasheet:
             url="https://example.com/datasheet.pdf",
             product_type="motor",
             product_name="Test",
+            manufacturer=MFG,
         )
         assert ds.PK == "DATASHEET#MOTOR"
         assert ds.SK == f"DATASHEET#{DETERMINISTIC_UUID}"
 
     def test_datasheet_required_url(self):
         with pytest.raises(ValidationError):
-            Datasheet(product_type="motor", product_name="Test")
+            Datasheet(product_type="motor", product_name="Test", manufacturer=MFG)
 
     def test_datasheet_auto_uuid(self):
         ds = Datasheet(
             url="https://example.com/datasheet.pdf",
             product_type="motor",
             product_name="Test",
+            manufacturer=MFG,
         )
         assert isinstance(ds.datasheet_id, UUID)
 
@@ -329,10 +359,11 @@ class TestDatasheet:
             url="https://example.com/datasheet.pdf",
             product_type="motor",
             product_name="Test",
+            manufacturer=MFG,
         )
         assert ds.pages is None
         assert ds.product_family is None
-        assert ds.manufacturer is None
+        assert ds.manufacturer == MFG
         assert ds.category is None
         assert ds.release_year is None
         assert ds.warranty is None

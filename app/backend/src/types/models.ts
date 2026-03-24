@@ -21,7 +21,7 @@ export interface Datasheet {
   product_name: string;
   product_family?: string;
   category?: string;
-  manufacturer?: string;
+  manufacturer: string;
   release_year?: number;
   warranty?: ValueUnit;
   PK?: string;
@@ -42,7 +42,7 @@ export interface ProductBase {
   product_type: string;
   product_family?: string;
   component_type?: string;
-  manufacturer?: string;
+  manufacturer: string;
   product_name?: string;
   part_number?: string;
   dimensions?: Dimensions;

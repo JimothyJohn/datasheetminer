@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card mgmt-section">
+  <h2>Delete by Product Type</h2>
+  <form hx-post="/management/delete" hx-target="#delete-result" hx-swap="innerHTML">
+    <div style="display:flex; gap:0.5rem; align-items:end; flex-wrap:wrap;">
+      <div>
+        <label for="del-type">Product Type</label>
+        <select name="product_type" id="del-type">
+          <option value="motor">Motor</option>
+          <option value="drive">Drive</option>
+          <option value="gearhead">Gearhead</option>
+          <option value="robot_arm">Robot Arm</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button type="submit" name="action" value="dry_run" class="btn btn-primary">Dry Run</button>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button type="submit" name="action" value="delete" class="btn btn-danger"
+                hx-confirm="Are you sure you want to delete all products of this type?">Delete</button>
+      </div>
+    </div>
+  </form>
+  <div id="delete-result"></div>
+</div>
+
+<div class="card mgmt-section">
+  <h2>Find &amp; Remove Duplicates</h2>
+  <form hx-post="/management/dedup" hx-target="#dedup-result" hx-swap="innerHTML">
+    <div style="display:flex; gap:0.5rem;">
+      <button type="submit" name="action" value="dry_run" class="btn btn-primary">Dry Run</button>
+      <button type="submit" name="action" value="delete" class="btn btn-danger"
+              hx-confirm="Are you sure you want to delete duplicates?">Delete Duplicates</button>
+    </div>
+  </form>
+  <div id="dedup-result"></div>
+</div>
+
+<div class="card mgmt-section">
+  <h2>Delete All Products</h2>
+  <form hx-post="/management/delete-all" hx-target="#delete-all-result" hx-swap="innerHTML">
+    <div style="display:flex; gap:0.5rem;">
+      <button type="submit" name="action" value="dry_run" class="btn btn-primary">Dry Run</button>
+      <button type="submit" name="action" value="delete" class="btn btn-danger"
+              hx-confirm="This will DELETE ALL products. Are you absolutely sure?">Delete All</button>
+    </div>
+  </form>
+  <div id="delete-all-result"></div>
+</div>
+{% endblock %}

@@ -51,13 +51,14 @@ The following information is already known:
 - Product Family: {context.get("product_family")}
 - Datasheet URL: {context.get("datasheet_url")}
 
-Your task is to identify the individual product versions from the document and extract their key technical specifications.
+Your task is to identify the individual product versions from the document and extract their key technical specifications as completely as possible.
 Do NOT include the product_name, manufacturer, product_family, or datasheet_url in your response.
 
 For any field that requires a value and a unit (e.g., weight, torque, voltage), format it as a single string: "value;unit".
 For fields representing a range, use the format: "min-max;unit".
 Example: "rated_current": "2.5;A", "rated_voltage": "100-200;V"
 
+Fill in as many fields as possible from the document. Only leave a field null if the specification is truly absent.
 Focus only on the fields defined in the response schema.
 
 {GUARDRAILS}

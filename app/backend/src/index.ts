@@ -6,6 +6,7 @@ import path from 'path';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import config from './config';
+import { readonlyGuard } from './middleware/readonly';
 import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 
@@ -18,9 +19,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Request logging middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  console.log(`${req.method} ${req.path}`);
+  console.log(`[${config.appMode}] ${req.method} ${req.path}`);
   next();
 });
+
+// Readonly guard — blocks writes in public mode
+if (config.appMode === 'public') {
+  console.log('[server] Public mode: write operations disabled');
+  app.use('/api', readonlyGuard);
+}
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
@@ -28,6 +35,7 @@ app.get('/health', (_req: Request, res: Response) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
+    mode: config.appMode,
   });
 });
 
@@ -81,8 +89,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`
-🚀 DatasheetMiner API Server
+DatasheetMiner API Server
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
+Mode: ${config.appMode}
 Environment: ${config.nodeEnv}
 Port: ${config.port}
 DynamoDB Table: ${config.dynamodb.tableName}

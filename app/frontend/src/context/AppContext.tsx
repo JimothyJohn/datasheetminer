@@ -431,10 +431,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // ===== API CALL =====
       console.log('[AppContext] Calling API to update product...');
       if (type === 'datasheet') {
-        await apiClient.updateDatasheet(id, updates as any);
-      } else {
-        // Implement generic product update if needed in future
-        console.warn('Generic product update not implemented yet');
+        await apiClient.updateDatasheet(id, updates as Partial<DatasheetEntry>);
+      } else if (type) {
+        await apiClient.updateProduct(id, updates, type);
       }
       console.log('[AppContext] Product updated successfully');
 

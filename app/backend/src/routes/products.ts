@@ -184,6 +184,14 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         return;
       }
 
+      if (!(product as any).manufacturer) {
+        res.status(400).json({
+          success: false,
+          error: 'Each product must have a manufacturer field',
+        });
+        return;
+      }
+
       // Check if it's a datasheet (has url) or a regular product
       if ('url' in product) {
         // It's a datasheet
@@ -223,6 +231,35 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       success: false,
       error: 'Failed to create product(s)',
     });
+  }
+});
+
+/**
+ * PUT /api/products/:id
+ * Update a product by ID
+ * Query params: type (any valid product type) - required
+ */
+router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const type = req.query.type as ProductType;
+
+    if (!type) {
+      res.status(400).json({ success: false, error: 'type query parameter is required' });
+      return;
+    }
+
+    const success = await db.updateProduct(id, type, req.body);
+
+    if (!success) {
+      res.status(404).json({ success: false, error: 'Product not found or failed to update' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Product updated successfully' });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ success: false, error: 'Failed to update product' });
   }
 });
 

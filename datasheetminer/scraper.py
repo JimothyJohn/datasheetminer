@@ -157,7 +157,10 @@ def main() -> None:
         action="store_true",
         help="Iterate through ALL datasheets in the DB and scrape them if not already processed.",
     )
-    parser.add_argument("--url", help="Datasheet URL (required if not using --from-json, --scrape-from-db, or --scrape-all)")
+    parser.add_argument(
+        "--url",
+        help="Datasheet URL (required if not using --from-json, --scrape-from-db, or --scrape-all)",
+    )
     parser.add_argument("--pages", help="Comma-separated list of pages (e.g. '1,2,3')")
     parser.add_argument("--product-name", help="Product name")
     parser.add_argument("--manufacturer", help="Manufacturer")
@@ -173,18 +176,16 @@ def main() -> None:
     except argparse.ArgumentTypeError as e:
         parser.error(str(e))
 
-
-
     # Handle Scrape All Mode
     if args.scrape_all:
         logger.info("Starting bulk scrape of all datasheets...")
         all_datasheets = client.get_all_datasheets()
         logger.info(f"Found {len(all_datasheets)} datasheets in DB.")
-        
+
         success_count = 0
         skip_count = 0
         fail_count = 0
-        
+
         for ds in all_datasheets:
             logger.info(f"Processing datasheet: {ds.product_name} ({ds.datasheet_id})")
             try:
@@ -192,12 +193,13 @@ def main() -> None:
                     client=client,
                     api_key=validated_api_key,
                     product_type=ds.product_type,
-                    manufacturer=ds.manufacturer or "Unknown", # Should not happen if schema enforced
+                    manufacturer=ds.manufacturer
+                    or "Unknown",  # Should not happen if schema enforced
                     product_name=ds.product_name,
                     product_family=ds.product_family or "",
                     url=ds.url,
                     pages=ds.pages,
-                    output_path=None # Don't write individual files for bulk scrape
+                    output_path=None,  # Don't write individual files for bulk scrape
                 )
                 if result == "skipped":
                     skip_count += 1
@@ -208,8 +210,10 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"Error processing datasheet {ds.datasheet_id}: {e}")
                 fail_count += 1
-                
-        logger.info(f"Bulk scrape completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}")
+
+        logger.info(
+            f"Bulk scrape completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}"
+        )
         sys.exit(0)
 
     # Determine source of information for single scrape
@@ -238,7 +242,7 @@ def main() -> None:
     elif args.scrape_from_db:
         # Query DB for datasheet
         datasheets = []
-        
+
         if args.product_name:
             # Try finding by product name first
             datasheets = client.get_datasheets_by_product_name(args.product_name)
@@ -260,34 +264,40 @@ def main() -> None:
             # Filter by type (required arg)
             if args.type and ds.product_type != args.type:
                 match = False
-                
+
             if args.product_name and ds.product_name != args.product_name:
                 match = False
             if args.product_family and ds.product_family != args.product_family:
                 match = False
             if args.manufacturer and ds.manufacturer != args.manufacturer:
                 match = False
-            
+
             if match:
                 filtered_datasheets.append(ds)
-        
+
         if not filtered_datasheets:
             criteria = []
-            if args.type: criteria.append(f"type='{args.type}'")
-            if args.product_name: criteria.append(f"name='{args.product_name}'")
-            if args.product_family: criteria.append(f"family='{args.product_family}'")
-            if args.manufacturer: criteria.append(f"manufacturer='{args.manufacturer}'")
-            
-            logger.error(f"No datasheet found in DB matching criteria: {', '.join(criteria)}")
+            if args.type:
+                criteria.append(f"type='{args.type}'")
+            if args.product_name:
+                criteria.append(f"name='{args.product_name}'")
+            if args.product_family:
+                criteria.append(f"family='{args.product_family}'")
+            if args.manufacturer:
+                criteria.append(f"manufacturer='{args.manufacturer}'")
+
+            logger.error(
+                f"No datasheet found in DB matching criteria: {', '.join(criteria)}"
+            )
             sys.exit(1)
-            
+
         # Process all matching datasheets
         logger.info(f"Found {len(filtered_datasheets)} matching datasheets in DB.")
-        
+
         success_count = 0
         skip_count = 0
         fail_count = 0
-        
+
         for ds in filtered_datasheets:
             logger.info(f"Processing datasheet: {ds.product_name} ({ds.datasheet_id})")
             try:
@@ -300,7 +310,7 @@ def main() -> None:
                     product_family=ds.product_family or "",
                     url=ds.url,
                     pages=ds.pages,
-                    output_path=None # Don't write individual files for bulk scrape
+                    output_path=None,  # Don't write individual files for bulk scrape
                 )
                 if result == "skipped":
                     skip_count += 1
@@ -311,8 +321,10 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"Error processing datasheet {ds.datasheet_id}: {e}")
                 fail_count += 1
-                
-        logger.info(f"Scrape from DB completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}")
+
+        logger.info(
+            f"Scrape from DB completed. Success: {success_count}, Skipped: {skip_count}, Failed: {fail_count}"
+        )
         sys.exit(0)
 
     else:
@@ -323,7 +335,7 @@ def main() -> None:
                 pages = [int(p.strip()) for p in args.pages.split(",")]
             except ValueError:
                 parser.error("Pages must be a comma-separated list of integers")
-        
+
         manufacturer_raw = args.manufacturer
         product_name_raw = args.product_name
         product_family_raw = args.product_family
@@ -331,10 +343,12 @@ def main() -> None:
     # Validation
     if not url_raw:
         parser.error("URL is required (via --url, --from-json, or --scrape-from-db)")
-    
+
     # If not scraping from DB, type is required
     if not args.scrape_from_db and not args.scrape_all and not product_type_raw:
-         parser.error("Product type is required (via -t/--type) when not scraping from DB.")
+        parser.error(
+            "Product type is required (via -t/--type) when not scraping from DB."
+        )
 
     if not manufacturer_raw:
         parser.error("Manufacturer is required")
@@ -365,7 +379,7 @@ def main() -> None:
             product_family=product_family_str,
             url=url_str,
             pages=pages,
-            output_path=args.output
+            output_path=args.output,
         )
     except Exception as e:
         logger.error(f"Error during document analysis: {e}")
@@ -381,16 +395,15 @@ def process_datasheet(
     product_family: str,
     url: str,
     pages: Optional[List[int]],
-    output_path: Optional[Path] = None
+    output_path: Optional[Path] = None,
 ) -> str:
     """
     Process a single datasheet: check existence, scrape, parse, and save to DB.
     Returns: "success", "skipped", or "failed"
     """
-    
+
     # Check if product already exists
     model_class: Type[ProductBase] = SCHEMA_CHOICES[product_type]
-    from datasheetminer.models.datasheet import Datasheet
 
     # Ensure Datasheet entry exists (for management UI)
     # DISABLED: User requested to prevent scraper from adding datasheets
@@ -476,9 +489,9 @@ def process_datasheet(
         # Inject source metadata and deterministic IDs
         import uuid
         import re
-        
+
         # Use a fixed namespace for product IDs to ensure reproducibility across runs
-        PRODUCT_NAMESPACE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
+        PRODUCT_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
         def normalize_string(s: Optional[str]) -> str:
             """Normalize string for ID generation: lowercase, alphanumeric only."""
@@ -487,24 +500,26 @@ def process_datasheet(
             # Remove non-alphanumeric characters (keep alphanumeric)
             # This handles "Nidec Corp." vs "Nidec-Corp" vs "Nidec"
             # We keep spaces for readability in the source string but strip them for ID
-            # Actually, removing ALL special chars including spaces makes it most robust against formatting 
+            # Actually, removing ALL special chars including spaces makes it most robust against formatting
             # e.g. "Model A" vs "Model-A"
             s = s.lower().strip()
-            return re.sub(r'[^a-z0-9]', '', s)
+            return re.sub(r"[^a-z0-9]", "", s)
 
         valid_models = []
-        
+
         for model in parsed_models:
             model.datasheet_url = url
             model.pages = pages
-            
+
             # Robust Deterministic ID Generation
-            norm_manufacturer = normalize_string(model.manufacturer) or normalize_string(manufacturer)
+            norm_manufacturer = normalize_string(
+                model.manufacturer
+            ) or normalize_string(manufacturer)
             norm_part_number = normalize_string(model.part_number)
             norm_name = normalize_string(model.product_name)
-            
+
             id_string = ""
-            
+
             if norm_manufacturer and norm_part_number:
                 # Primary Strategy: Manufacturer + Part Number
                 id_string = f"{norm_manufacturer}:{norm_part_number}"
@@ -513,7 +528,9 @@ def process_datasheet(
                 # Fallback Strategy: Manufacturer + Product Name
                 # Used when part number is missing but we have a distinct product name
                 id_string = f"{norm_manufacturer}:{norm_name}"
-                logger.warning(f"⚠️  Missing part number for '{model.product_name}'. Using Manuf+Name for ID.")
+                logger.warning(
+                    f"⚠️  Missing part number for '{model.product_name}'. Using Manuf+Name for ID."
+                )
             else:
                 # Last resort: Hash the URL + Index (if multiple items from one URL)
                 # This prevents "random" IDs but ties identity to the source URL
@@ -524,18 +541,31 @@ def process_datasheet(
                     "Missing Manufacturer AND (Part Number OR distinct Product Name). Skipping to avoid duplicates."
                 )
                 continue
-                
+
             model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_string)
             logger.info(f"Generated ID {model.product_id} from key '{id_string}'")
-            
+
             # Check if this specific ID already exists in DB
             from datasheetminer.models.product import ProductBase
+
             existing_item = client.read(model.product_id, ProductBase)
             if existing_item:
-                logger.info(f"ℹ️  Product with ID {model.product_id} already exists. Skipping.")
+                logger.info(
+                    f"ℹ️  Product with ID {model.product_id} already exists. Skipping."
+                )
                 continue
-            
+
             valid_models.append(model)
+
+        # Quality filter — reject products with too many missing spec fields
+        from datasheetminer.quality import filter_products
+
+        valid_models, rejected = filter_products(valid_models)
+        if rejected:
+            logger.warning(
+                "Dropped %d low-quality products (too many N/A fields)",
+                len(rejected),
+            )
 
         parsed_data: List[Any] = [item.model_dump() for item in valid_models]
 
@@ -556,7 +586,7 @@ def process_datasheet(
         logger.info(
             f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"
         )
-        
+
         if success_count > 0:
             return "success"
         else:
