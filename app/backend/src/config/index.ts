@@ -22,6 +22,9 @@ export const config = {
   dynamodb: {
     tableName: process.env.DYNAMODB_TABLE_NAME || `products-${stage}`,
   },
+  s3: {
+    uploadBucket: process.env.UPLOAD_BUCKET || `datasheetminer-uploads-${stage}`,
+  },
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,

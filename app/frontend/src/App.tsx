@@ -37,6 +37,7 @@ const isAdmin = APP_MODE === 'admin';
 
 // ========== Eager Imports ==========
 import ProductList from './components/ProductList';
+import UploadDatasheet from './components/UploadDatasheet';
 
 // ========== Lazy Imports (admin-only, tree-shaken in public builds) ==========
 const ProductManagement = isAdmin
@@ -94,7 +95,10 @@ function App() {
                 {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
               </nav>
             </div>
-            <ThemeToggle />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <UploadDatasheet />
+              <ThemeToggle />
+            </div>
           </header>
 
           {/* ===== ROUTES WITH SUSPENSE + ERROR BOUNDARY ===== */}

@@ -415,6 +415,40 @@ def cmd_smoke(args: argparse.Namespace) -> None:
     info("Smoke tests passed")
 
 
+def cmd_process(args: argparse.Namespace) -> None:
+    """Process queued PDF uploads from S3."""
+    stage = args.stage
+    bucket = (
+        args.bucket
+        or f"datasheetminer-uploads-{stage}-{os.environ.get('AWS_ACCOUNT_ID', 'unknown')}"
+    )
+
+    info(f"Processing upload queue: s3://{bucket}/queue/")
+    check_python_version()
+    require_cmd("uv")
+
+    process_env = {
+        "STAGE": stage,
+        "DYNAMODB_TABLE_NAME": os.environ.get(
+            "DYNAMODB_TABLE_NAME", f"products-{stage}"
+        ),
+        "AWS_REGION": os.environ.get("AWS_REGION", "us-east-1"),
+    }
+    once_flag = ["--once"] if args.once else []
+
+    run(
+        [
+            "uv",
+            "run",
+            "python",
+            "-c",
+            f"from cli.processor import run; run('{bucket}', once={'True' if args.once else 'False'})",
+        ],
+        cwd=ROOT,
+        env=process_env,
+    )
+
+
 # ── CLI ────────────────────────────────────────────────────────────
 
 
@@ -458,6 +492,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="API base URL (default: localhost:3001)",
     )
 
+    # process
+    p = sub.add_parser("process", help="Process queued PDF uploads from S3")
+    p.add_argument(
+        "--stage",
+        default=os.environ.get("STAGE", "dev"),
+        choices=["dev", "staging", "prod"],
+        help="Stage (determines bucket and table names)",
+    )
+    p.add_argument("--bucket", default=None, help="Override S3 bucket name")
+    p.add_argument(
+        "--once", action="store_true", help="Process queue once and exit (don't poll)"
+    )
+
     return parser
 
 
@@ -476,6 +523,7 @@ def main() -> None:
         "staging": cmd_staging,
         "deploy": cmd_deploy,
         "smoke": cmd_smoke,
+        "process": cmd_process,
     }
     commands[args.command](args)
 

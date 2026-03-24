@@ -462,6 +462,64 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  /**
+   * Upload a PDF for extraction. Available in both public and admin mode.
+   * Returns a presigned S3 URL for the client to PUT the file to.
+   */
+  async requestUpload(metadata: {
+    product_name: string;
+    manufacturer: string;
+    product_type: string;
+    pages?: number[];
+    filename: string;
+  }): Promise<{ upload_url: string; datasheet_id: string; s3_key: string }> {
+    const response = await this.request<{
+      upload_url: string;
+      datasheet_id: string;
+      s3_key: string;
+    }>('/api/upload', {
+      method: 'POST',
+      body: JSON.stringify(metadata),
+    });
+
+    if (!response.data) {
+      throw new Error('No upload data received');
+    }
+    return response.data;
+  }
+
+  /**
+   * Upload a PDF file: get presigned URL then PUT the file directly to S3.
+   */
+  async uploadPdf(
+    file: File,
+    metadata: {
+      product_name: string;
+      manufacturer: string;
+      product_type: string;
+      pages?: number[];
+    }
+  ): Promise<string> {
+    const { upload_url, datasheet_id } = await this.requestUpload({
+      ...metadata,
+      filename: file.name,
+    });
+
+    // PUT the file directly to S3 via the presigned URL
+    const uploadResp = await fetch(upload_url, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+
+    if (!uploadResp.ok) {
+      throw new Error(`S3 upload failed: ${uploadResp.status}`);
+    }
+
+    console.log(`[ApiClient] Uploaded PDF ${file.name} -> ${datasheet_id}`);
+    return datasheet_id;
+  }
 }
 
 // ========== Singleton Export ==========

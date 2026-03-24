@@ -9,6 +9,7 @@ import config from './config';
 import { readonlyGuard } from './middleware/readonly';
 import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
+import uploadRouter from './routes/upload';
 
 const app: Application = express();
 
@@ -38,6 +39,9 @@ app.get('/health', (_req: Request, res: Response) => {
     mode: config.appMode,
   });
 });
+
+// Upload route — available in both public and admin mode (queues only, no data mutation)
+app.use('/api/upload', uploadRouter);
 
 // API routes
 app.use('/api/products', productsRouter);
