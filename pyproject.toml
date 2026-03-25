@@ -20,6 +20,8 @@ dependencies = [
 [project.scripts]
 datasheetminer = "datasheetminer.scraper:main"
 page-finder = "datasheetminer.page_finder:main"
+dsm-agent = "cli.agent:main"
+dsm = "cli.query:main"
 
 [dependency-groups]
 dev = [
@@ -32,7 +34,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["datasheetminer"]
+packages = ["datasheetminer", "cli"]
 
 [tool.uv]
 package = true
