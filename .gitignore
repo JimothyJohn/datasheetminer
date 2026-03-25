@@ -268,7 +268,7 @@ $RECYCLE.BIN/
 schema/
 datasheets/
 *.changelog/
-*.json
+jsons/
 outputs/
 
 # Track test suites

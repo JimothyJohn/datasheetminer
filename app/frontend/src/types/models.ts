@@ -144,6 +144,7 @@ export interface DatasheetEntry extends ProductBase {
   product_family?: string;
   url: string;
   pages?: number[];
+  is_scraped?: boolean;
 }
 
 export type Product = Motor | Drive | RobotArm | Gearhead | DatasheetEntry;

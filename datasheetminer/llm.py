@@ -9,7 +9,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from datasheetminer.config import GUARDRAILS, MODEL, SCHEMA_CHOICES
+from datasheetminer.config import GUARDRAILS, MODEL, SCHEMA_CHOICES, PROMPT
 from datasheetminer.models.factory import create_llm_schema
 
 
@@ -119,7 +119,7 @@ Example: "rated_current": "2.5;A", "rated_voltage": "100-200;V"
             # for most datasheet extraction tasks. Setting artificially high limits may
             # cause the API to truncate responses unexpectedly.
             "max_output_tokens": 65536,
-            "response_schema": list[llm_schema],  # type: ignore[valid-type]
+            "response_schema": list[llm_schema.model_json_schema()],  # type: ignore[valid-type]
         },
     )
 

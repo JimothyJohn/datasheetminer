@@ -10,6 +10,7 @@ import { readonlyGuard } from './middleware/readonly';
 import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
+import subscriptionRouter from './routes/subscription';
 
 const app: Application = express();
 
@@ -46,6 +47,7 @@ app.use('/api/upload', uploadRouter);
 // API routes
 app.use('/api/products', productsRouter);
 app.use('/api/datasheets', datasheetsRouter);
+app.use('/api/subscription', subscriptionRouter);
 
 // Serve frontend static files in production (Docker container)
 if (process.env.NODE_ENV === 'production') {
@@ -67,6 +69,7 @@ app.get('/', (_req: Request, res: Response) => {
       products: '/api/products',
       datasheets: '/api/datasheets',
       summary: '/api/products/summary',
+      subscription: '/api/subscription',
     },
   });
 });

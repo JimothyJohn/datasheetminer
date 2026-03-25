@@ -26,6 +26,7 @@ export interface Datasheet {
   warranty?: ValueUnit;
   PK?: string;
   SK?: string;
+  last_scraped?: string;
 }
 
 export interface Dimensions {
@@ -125,7 +126,54 @@ export interface Drive extends ProductBase {
 }
 
 /**
+ * Gearhead model matching datasheetminer/models/gearhead.py
+ */
+export interface Gearhead extends ProductBase {
+  product_type: 'gearhead';
+  gear_ratio?: number;
+  gear_type?: string;
+  stages?: number;
+  nominal_input_speed?: ValueUnit;
+  max_input_speed?: ValueUnit;
+  max_continuous_torque?: ValueUnit;
+  max_peak_torque?: ValueUnit;
+  backlash?: ValueUnit;
+  efficiency?: number;
+  torsional_rigidity?: ValueUnit;
+  rotor_inertia?: ValueUnit;
+  noise_level?: ValueUnit;
+  frame_size?: string;
+  input_shaft_diameter?: ValueUnit;
+  output_shaft_diameter?: ValueUnit;
+  max_radial_load?: ValueUnit;
+  max_axial_load?: ValueUnit;
+  ip_rating?: string;
+  operating_temp?: MinMaxUnit;
+  service_life?: ValueUnit;
+  lubrication_type?: string;
+}
+
+/**
+ * Robot Arm model matching datasheetminer/models/robot_arm.py
+ */
+export interface RobotArm extends ProductBase {
+  product_type: 'robot_arm';
+  payload?: ValueUnit;
+  reach?: ValueUnit;
+  degrees_of_freedom?: number;
+  pose_repeatability?: ValueUnit;
+  max_tcp_speed?: ValueUnit;
+  ip_rating?: string;
+  cleanroom_class?: string;
+  noise_level?: ValueUnit;
+  mounting_position?: string;
+  operating_temp?: MinMaxUnit;
+  materials?: string[];
+  safety_certifications?: string[];
+}
+
+/**
  * Union type for all products
  */
-export type Product = Motor | Drive | Datasheet;
-export type ProductType = 'motor' | 'drive' | 'datasheet' | 'all';
+export type Product = Motor | Drive | Gearhead | RobotArm | Datasheet;
+export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'datasheet' | 'all';

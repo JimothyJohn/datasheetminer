@@ -84,7 +84,7 @@ def results_to_manufacturers(results: List[Dict[str, Any]]) -> List[Manufacturer
 def main():
     parser = argparse.ArgumentParser(description="Datasheetminer Mapper - Find Manufacturers using Google Search")
     parser.add_argument("query", help="What to search for (e.g. 'industrial motors')")
-    parser.add_argument("--limit", type=int, default=5, help="Max number of results to retrieve")
+    parser.add_argument("--limit", type=int, default=10, help="Max number of results to retrieve")
     parser.add_argument("--api-key", help="Google Search API Key (defaults to GOOGLE_SEARCH_API_KEY env var)")
     
     args = parser.parse_args()

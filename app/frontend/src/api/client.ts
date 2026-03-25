@@ -122,11 +122,12 @@ class ApiClient {
    */
   private async request<T>(
     endpoint: string,
-    options?: RequestInit,
+    options?: RequestInit & { timeout?: number }, // Extended options
     retryCount: number = 0
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const method = options?.method || 'GET';
+    const timeout = options?.timeout || DEFAULT_TIMEOUT;
 
     console.log(`[ApiClient] ${method} ${url}${retryCount > 0 ? ` (retry ${retryCount}/${MAX_RETRIES})` : ''}`);
 
@@ -134,9 +135,9 @@ class ApiClient {
       // ===== CREATE ABORT CONTROLLER FOR TIMEOUT =====
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.warn(`[ApiClient] Request timeout after ${DEFAULT_TIMEOUT}ms`);
+        console.warn(`[ApiClient] Request timeout after ${timeout}ms`);
         controller.abort();
-      }, DEFAULT_TIMEOUT);
+      }, timeout);
 
       // ===== MAKE REQUEST WITH TIMEOUT =====
       const response = await fetch(url, {
@@ -427,6 +428,62 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
+  }
+
+  /**
+   * Scrape a datasheet by ID
+   * 
+   * Triggers the backend scraper to process the datasheet URL using Gemini.
+   * 
+   * @param id - Datasheet ID
+   * @returns Promise<ApiResponse<void>>
+   */
+  async scrapeDatasheet(id: string): Promise<ApiResponse<void>> {
+    console.log(`[ApiClient] Scraping datasheet: ${id}`);
+    
+    // Using explicit request method because this is a custom action
+    // Timeout extended to 5 minutes as PDF scraping & LLM processing is slow
+    const response = await this.request<void>(`/api/datasheets/${id}/scrape`, {
+      method: 'POST',
+      timeout: 300000 
+    });
+    
+    return response;
+  }
+
+  // ========== Subscription Methods ==========
+
+  /**
+   * Check if billing is enabled on the backend
+   */
+  async getBillingConfig(): Promise<{ billing_enabled: boolean }> {
+    const response = await this.request<{ billing_enabled: boolean }>('/api/subscription/config');
+    return response.data || { billing_enabled: false };
+  }
+
+  /**
+   * Get subscription status for a user
+   */
+  async getSubscriptionStatus(userId: string): Promise<{
+    subscription_status: string;
+    billing_enabled?: boolean;
+    stripe_customer_id?: string;
+  }> {
+    const response = await this.request<any>(`/api/subscription/status/${userId}`);
+    if (!response.data) throw new Error('No subscription data received');
+    return response.data;
+  }
+
+  /**
+   * Create a Stripe checkout session and return the checkout URL
+   */
+  async createCheckoutSession(userId: string): Promise<string> {
+    const response = await this.request<{ checkout_url: string }>('/api/subscription/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!response.data?.checkout_url) throw new Error('No checkout URL received');
+    return response.data.checkout_url;
   }
 
   /**

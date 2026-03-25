@@ -17,11 +17,13 @@ from uuid import UUID
 import boto3  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
 
-from datasheetminer.config import REGION
+from datasheetminer.config import REGION, TABLE_NAME
 from datasheetminer.models.datasheet import Datasheet
 from datasheetminer.models.drive import Drive
+from datasheetminer.models.gearhead import Gearhead
 from datasheetminer.models.motor import Motor
 from datasheetminer.models.product import ProductBase
+from datasheetminer.models.robot_arm import RobotArm
 
 
 # Type variable for Pydantic models
@@ -35,7 +37,7 @@ class DynamoDBClient:
     dynamodb: Any  # boto3 DynamoDB resource
     table: Any  # boto3 DynamoDB table
 
-    def __init__(self, table_name: str = "products") -> None:
+    def __init__(self, table_name: str = TABLE_NAME) -> None:
         """Initialize DynamoDB client.
         Args:
             table_name: Name of the DynamoDB table (default: "products")
@@ -561,6 +563,8 @@ class DynamoDBClient:
             model_map: Dict[str, Type[ProductBase]] = {
                 "motor": Motor,
                 "drive": Drive,
+                "gearhead": Gearhead,
+                "robot_arm": RobotArm,
             }
 
             for item in items:

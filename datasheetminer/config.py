@@ -1,14 +1,25 @@
 import importlib
 import inspect
+import os
 import pkgutil
 from pathlib import Path
 from typing import Dict, Type
 
+from dotenv import load_dotenv
 
 from datasheetminer.models.product import ProductBase
 
+# Load .env from project root
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
-REGION: str = "us-east-1"
+REGION: str = os.environ.get("AWS_REGION", "us-east-1")
+TABLE_NAME: str = os.environ.get("DYNAMODB_TABLE_NAME", "products")
+
+PROMPT: str = """
+Extract the products and their specifications from this technical catalog.
+"""
 
 GUARDRAILS: str = """
 IMPORTANT EXTRACTION RULES:
@@ -21,7 +32,8 @@ IMPORTANT EXTRACTION RULES:
 - Each row or variant in a selection table is a separate product — extract them all.
 """
 
-MODEL: str = "gemini-2.5-flash"  # Explicitly define model for clarity
+MODEL: str = "gemini-3-flash-preview"  # Explicitly define model for clarity
+
 
 
 def _discover_schema_models() -> Dict[str, Type[ProductBase]]:

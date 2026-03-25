@@ -64,6 +64,16 @@ def handle_value_unit_input(v: Any) -> Any:
             # Clean value
             val = str(val).strip().strip("+~><")
             return f"{val};{unit}"
+        # Handle min/max dicts stored as ValueUnit (e.g., payload stored as {min, max, unit})
+        min_val = v.get("min")
+        max_val = v.get("max")
+        if unit is not None and (min_val is not None or max_val is not None):
+            if min_val is not None and max_val is not None:
+                return f"{min_val}-{max_val};{unit}"
+            elif min_val is not None:
+                return f"{min_val};{unit}"
+            elif max_val is not None:
+                return f"{max_val};{unit}"
     elif isinstance(v, str) and ";" not in v:
         # Try to handle space-separated "value unit"
         parts = v.strip().split()
@@ -119,6 +129,7 @@ def handle_min_max_unit_input(v: Any) -> Any:
     if isinstance(v, dict):
         min_val = v.get("min")
         max_val = v.get("max")
+        val = v.get("value")
         unit = v.get("unit")
         if unit is not None:
             if min_val is not None and max_val is not None:
@@ -127,6 +138,9 @@ def handle_min_max_unit_input(v: Any) -> Any:
                 return f"{min_val};{unit}"
             elif max_val is not None:
                 return f"{max_val};{unit}"
+            # Handle {value, unit} dicts (stored by TypeScript backend as single-value)
+            elif val is not None:
+                return f"{val};{unit}"
     return v
 
 

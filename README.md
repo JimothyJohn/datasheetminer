@@ -6,19 +6,12 @@ Extract technical specifications from product datasheets using AI.
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue.svg)](https://jimothyjohn.github.io/datasheetminer/)
 
-## Expected Performance
-
-- Max products per prompt: ~256
-- Processing time per product: ~2s
-
 ## TODO
 
 [] Add a field to ValueUnit that will set the default filter functinoality, ge, le, equal, not equal.
   - Exploring parsing by value type and/or unique values found.
 
 ## Quick Start
-
-### Option 1: CLI (Local)
 
 ```bash
 # Set API keys using .env.example
@@ -29,6 +22,11 @@ Extract technical specifications from product datasheets using AI.
 
 - **Product Comparison**: Extract specs from multiple datasheets for comparison
 - **Database Population**: Automate extraction of technical data into databases
+
+## Expected Performance
+
+- Max products per prompt: ~256
+- Processing time per product: ~2s
 
 ## License
 

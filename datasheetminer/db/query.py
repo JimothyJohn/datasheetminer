@@ -13,7 +13,9 @@ from typing import Any, Dict, List
 
 from datasheetminer.db.dynamo import DynamoDBClient
 from datasheetminer.models.drive import Drive
+from datasheetminer.models.gearhead import Gearhead
 from datasheetminer.models.motor import Motor
+from datasheetminer.models.robot_arm import RobotArm
 
 
 class TableInspector:
@@ -44,11 +46,15 @@ class TableInspector:
         # Count by type
         motor_count: int = sum(1 for item in all_items if isinstance(item, Motor))
         drive_count: int = sum(1 for item in all_items if isinstance(item, Drive))
+        gearhead_count: int = sum(1 for item in all_items if isinstance(item, Gearhead))
+        robot_arm_count: int = sum(1 for item in all_items if isinstance(item, RobotArm))
 
         return {
             "total": len(all_items),
             "motors": motor_count,
-            "products": drive_count,
+            "drives": drive_count,
+            "gearheads": gearhead_count,
+            "robot_arms": robot_arm_count,
         }
 
     def list_items(
@@ -75,6 +81,10 @@ class TableInspector:
             items = self.db_client.list(Motor, limit=limit)
         elif item_type == "drive":
             items = self.db_client.list(Drive, limit=limit)
+        elif item_type == "gearhead":
+            items = self.db_client.list(Gearhead, limit=limit)
+        elif item_type == "robot_arm":
+            items = self.db_client.list(RobotArm, limit=limit)
         else:
             raise ValueError(f"Invalid item type: {item_type}")
 
@@ -110,9 +120,8 @@ class TableInspector:
         """
         print(f"Retrieving {item_type} with ID: {item_id}...")
 
-        model_class: type[Motor] | type[Drive] = (
-            Motor if item_type == "motor" else Drive
-        )
+        type_map = {"motor": Motor, "drive": Drive, "gearhead": Gearhead, "robot_arm": RobotArm}
+        model_class = type_map.get(item_type, Drive)
         item: Any = self.db_client.read(item_id, model_class)
 
         if item:
@@ -129,7 +138,9 @@ class TableInspector:
         counts: Dict[str, int] = self.count_items()
         print(f"Total items:  {counts['total']}")
         print(f"Motors:       {counts['motors']}")
-        print(f"products:       {counts['products']}")
+        print(f"Drives:       {counts['drives']}")
+        print(f"Gearheads:    {counts['gearheads']}")
+        print(f"Robot Arms:   {counts['robot_arms']}")
         print()
 
 
@@ -190,7 +201,7 @@ Environment Variables:
     parser.add_argument(
         "--type",
         type=str,
-        choices=["all", "motor", "drive"],
+        choices=["all", "motor", "drive", "gearhead", "robot_arm"],
         default="all",
         help="Type of items to query (default: all)",
     )

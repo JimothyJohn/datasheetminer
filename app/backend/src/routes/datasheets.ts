@@ -1,3 +1,4 @@
+
 /**
  * API routes for datasheets
  */
@@ -7,6 +8,9 @@ import { DynamoDBService } from '../db/dynamodb';
 import { Datasheet } from '../types/models';
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
+import { scraperService } from '../services/scraper';
+import { requireSubscription } from '../middleware/subscription';
+import { stripeService } from '../services/stripe';
 
 const router = Router();
 const db = new DynamoDBService({ tableName: config.dynamodb.tableName });
@@ -20,15 +24,14 @@ router.get('/', async (_req: Request, res: Response) => {
     const datasheets = await db.listDatasheets();
     
     // Map to frontend expected format
-    // Frontend expects product_type='datasheet' to identify them
-    // We preserve the actual product type (e.g. 'motor') in the category field
-    // Frontend expects product_type='datasheet' to identify them in the list
     const mappedDatasheets = datasheets.map(ds => ({
       ...ds,
       product_type: 'datasheet',
-      component_type: ds.product_type, // Preserve the actual component type (motor, drive)
+      component_type: ds.product_type,
       product_name: ds.product_name,
       product_id: ds.datasheet_id, // Ensure product_id exists for frontend keys
+      // Ensure last_scraped is passed if present
+      is_scraped: !!ds.last_scraped,
     }));
 
     res.json({
@@ -41,6 +44,46 @@ router.get('/', async (_req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to list datasheets',
+    });
+  }
+});
+
+/**
+ * POST /api/datasheets/:id/scrape
+ * Scrape a datasheet by ID
+ * Requires active subscription when STRIPE_LAMBDA_URL is configured.
+ */
+router.post('/:id/scrape', requireSubscription, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const type = req.query.type as string | undefined;
+    const userId = (req as any).userId as string;
+
+    const result = await scraperService.scrapeDatasheet(id, type);
+
+    if (result.success) {
+      // Report token usage (estimate: ~1000 tokens per scraped product)
+      const estimatedTokens = Math.max(result.count * 1000, 500);
+      stripeService.reportUsage(userId, estimatedTokens).catch(e =>
+        console.error('Usage reporting failed (non-blocking):', e)
+      );
+
+      res.json({
+        success: true,
+        message: 'Datasheet scraped successfully',
+        count: result.count
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'Scraping failed'
+      });
+    }
+  } catch (error) {
+    console.error('Error scraping datasheet:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during scraping'
     });
   }
 });

@@ -107,24 +107,30 @@ export class DynamoDBService {
 
   /**
    * Delete products by manufacturer
+   * Restricted to deleting only Products (not Datasheets)
    */
   async deleteByManufacturer(manufacturer: string): Promise<{ deleted: number; failed: number }> {
-    return this.deleteByScan('manufacturer', manufacturer);
+    return this.deleteByScan('manufacturer', manufacturer, 'PRODUCT#');
   }
 
   /**
    * Delete products by product name
+   * Restricted to deleting only Products (not Datasheets)
    */
   async deleteByProductName(name: string): Promise<{ deleted: number; failed: number }> {
-    return this.deleteByScan('product_name', name);
+    return this.deleteByScan('product_name', name, 'PRODUCT#');
   }
 
   /**
    * Helper to delete items found by scanning a specific attribute
    */
-  private async deleteByScan(attributeName: string, attributeValue: string): Promise<{ deleted: number; failed: number }> {
+  private async deleteByScan(
+    attributeName: string, 
+    attributeValue: string,
+    pkPrefix?: string
+  ): Promise<{ deleted: number; failed: number }> {
     try {
-      console.log(`[DynamoDB] Scanning for items where ${attributeName} = ${attributeValue}`);
+      console.log(`[DynamoDB] Scanning for items where ${attributeName} = ${attributeValue}${pkPrefix ? ` (PK starts with ${pkPrefix})` : ''}`);
       
       const scanResult = await this.client.send(
         new ScanCommand({
@@ -136,7 +142,12 @@ export class DynamoDBService {
         })
       );
 
-      const items = scanResult.Items || [];
+      let items = scanResult.Items || [];
+
+      // Filter by PK prefix if specified (to avoid deleting Datasheets when targeting Products)
+      if (pkPrefix) {
+        items = items.filter(item => item.PK?.S?.startsWith(pkPrefix));
+      }
 
       if (items.length === 0) {
         return { deleted: 0, failed: 0 };
@@ -177,9 +188,10 @@ export class DynamoDBService {
   /**
    * Delete products by part number
    * Scans for items with matching part_number and deletes them
+   * Restricted to deleting only Products
    */
   async deleteByPartNumber(partNumber: string): Promise<{ deleted: number; failed: number }> {
-    return this.deleteByScan('part_number', partNumber);
+    return this.deleteByScan('part_number', partNumber, 'PRODUCT#');
   }
 
   /**
@@ -457,6 +469,57 @@ export class DynamoDBService {
       return (scanResult.Items?.length || 0) > 0;
     } catch (error) {
       console.error('Error checking datasheet existence:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get a datasheet by URL
+   */
+  async getDatasheetByUrl(url: string): Promise<Datasheet | null> {
+    try {
+      const scanResult = await this.client.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          FilterExpression: '#url = :url',
+          ExpressionAttributeNames: { '#url': 'url' },
+          ExpressionAttributeValues: marshall({ ':url': url }),
+          Limit: 1,
+        })
+      );
+      
+      if (!scanResult.Items || scanResult.Items.length === 0) {
+        return null;
+      }
+      
+      return unmarshall(scanResult.Items[0]) as Datasheet;
+    } catch (error) {
+      console.error('Error getting datasheet by URL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if any PRODUCTS exist for a given datasheet URL
+   */
+  async hasProductsForDatasheetUrl(url: string): Promise<boolean> {
+    try {
+      // We need to scan PRODUCT# items
+      // Filter by datasheet_url = :url
+      
+      const scanResult = await this.client.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          FilterExpression: 'datasheet_url = :url',
+          ExpressionAttributeValues: marshall({ ':url': url }),
+          Limit: 1,
+          ProjectionExpression: 'PK',
+        })
+      );
+
+      return (scanResult.Items?.length || 0) > 0;
+    } catch (error) {
+      console.error('Error checking products for datasheet URL:', error);
       return false;
     }
   }

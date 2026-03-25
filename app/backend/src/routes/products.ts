@@ -281,6 +281,10 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // 1. Get product before deletion to find datasheet_url
+    const product = await db.read(id, type);
+    
+    // 2. Delete product
     const success = await db.delete(id, type);
 
     if (!success) {
@@ -289,6 +293,29 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
         error: 'Product not found or failed to delete',
       });
       return;
+    }
+
+    // 3. Update Datasheet Status if it was the last product
+    if (product && 'datasheet_url' in product) {
+        // Safe access after check, or use casting if TS is stubborn about Union
+        const dsUrl = (product as any).datasheet_url;
+        
+        if (dsUrl) {
+            const remainingProducts = await db.hasProductsForDatasheetUrl(dsUrl);
+            
+            if (!remainingProducts) {
+                console.log(`[Delete] No products remaining for datasheet: ${dsUrl}. Resetting status.`);
+                const datasheet = await db.getDatasheetByUrl(dsUrl);
+                
+                if (datasheet && datasheet.datasheet_id) {
+                    // Update datasheet to remove last_scraped
+                    await db.updateDatasheet(datasheet.datasheet_id, datasheet.product_type, {
+                        last_scraped: undefined 
+                    });
+                    console.log(`[Delete] Datasheet ${datasheet.datasheet_id} marked as not scraped.`);
+                }
+            }
+        }
     }
 
     res.json({

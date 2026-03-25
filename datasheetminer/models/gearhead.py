@@ -8,9 +8,9 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from datasheetminer.models.common import MinMaxUnit, ValueUnit
 from datasheetminer.models.product import ProductBase
@@ -24,6 +24,20 @@ class Gearhead(ProductBase):
     gearheads, which are crucial for engineering and selection processes.
     This model is pre-populated with defaults for the Sesame PHL series.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_string_fields(cls, data: Any) -> Any:
+        """Convert dict-stored fields to strings when the model expects str."""
+        if isinstance(data, dict):
+            for field_name in ("frame_size", "gear_type", "lubrication_type", "ip_rating"):
+                val = data.get(field_name)
+                if isinstance(val, dict):
+                    # Convert {value: X, unit: Y} to "X Y" string
+                    v = val.get("value", val.get("min", ""))
+                    u = val.get("unit", "")
+                    data[field_name] = f"{v} {u}".strip() if v else str(val)
+        return data
 
     # --- Performance Specifications ---
     gear_ratio: Optional[float] = Field(
