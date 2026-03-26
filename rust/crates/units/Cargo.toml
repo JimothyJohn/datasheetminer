@@ -1,9 +1,0 @@
-[package]
-name = "dsm-units"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-
-[dependencies]
-phf = { workspace = true }
-tracing = { workspace = true }
