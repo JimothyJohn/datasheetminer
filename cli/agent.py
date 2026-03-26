@@ -155,8 +155,8 @@ def _extract_products(
     if not parsed:
         raise ValueError("Gemini returned no valid products")
 
-    # Assign deterministic IDs
-    identified: list[Any] = []
+    # Build (model, base_id_str) pairs
+    id_pairs: list[tuple[Any, str]] = []
     for model in parsed:
         model.datasheet_url = context.get("datasheet_url")
         model.pages = context.get("pages")
@@ -175,9 +175,9 @@ def _extract_products(
             log.warning("Cannot generate ID for %s — skipping", model.product_name)
             continue
 
-        model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_str)
-        log.info("ID %s from key '%s'", model.product_id, id_str)
-        identified.append(model)
+        id_pairs.append((model, id_str))
+
+    identified = _assign_unique_ids(id_pairs)
 
     passed, rejected = filter_products(identified)
     if rejected:
@@ -186,13 +186,68 @@ def _extract_products(
     return passed
 
 
+def _spec_suffix(model: Any) -> str:
+    """Build a distinguishing suffix from a product's specs for ID dedup."""
+    parts: list[str] = []
+    for attr in (
+        "rated_speed",
+        "rated_voltage",
+        "rated_torque",
+        "rated_power",
+        "rated_current",
+    ):
+        val = getattr(model, attr, None)
+        if val:
+            parts.append(_normalize(str(val)))
+    dims = getattr(model, "dimensions", None)
+    if dims and getattr(dims, "length", None) is not None:
+        parts.append(f"l{dims.length}")
+    return "_".join(parts)
+
+
+def _assign_unique_ids(id_pairs: list[tuple[Any, str]]) -> list[Any]:
+    """Assign deterministic product IDs, differentiating same-name products by specs."""
+    from collections import Counter
+
+    base_counts = Counter(id_str for _, id_str in id_pairs)
+
+    identified: list[Any] = []
+    seen_keys: set[str] = set()
+
+    for model, id_str in id_pairs:
+        full_key = id_str
+
+        if base_counts[id_str] > 1:
+            suffix = _spec_suffix(model)
+            if suffix:
+                full_key = f"{id_str}:{suffix}"
+
+        if full_key in seen_keys:
+            log.warning(
+                "Duplicate product '%s' — no distinguishing specs, skipping",
+                model.product_name,
+            )
+            continue
+
+        seen_keys.add(full_key)
+        model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, full_key)
+        log.info("ID %s from key '%s'", model.product_id, full_key)
+        identified.append(model)
+
+    return identified
+
+
 def _models_to_dicts(models: list[Any]) -> list[dict]:
     return [m.model_dump(mode="json") for m in models]
 
 
 def _move_to_done(bucket: str, key: str) -> None:
     s3 = _get_s3()
-    done_key = key.replace("queue/", "done/", 1)
+    # Support both legacy queue/ and new good_examples/ prefixes
+    if key.startswith("good_examples/"):
+        done_key = key.replace("good_examples/", "done/", 1)
+    else:
+        done_key = key.replace("queue/", "done/", 1)
     s3.copy_object(
         Bucket=bucket,
         CopySource={"Bucket": bucket, "Key": key},
@@ -227,28 +282,29 @@ def cmd_schemas(_args: argparse.Namespace) -> None:
 
 
 def cmd_list(args: argparse.Namespace) -> None:
-    """List PDFs in the S3 upload queue."""
+    """List PDFs ready for processing in good_examples/ (and legacy queue/)."""
     bucket = _resolve_bucket(args)
     s3 = _get_s3()
     items: list[dict] = []
     paginator = s3.get_paginator("list_objects_v2")
-    for page in paginator.paginate(Bucket=bucket, Prefix="queue/"):
-        for obj in page.get("Contents", []):
-            key = obj["Key"]
-            if key.lower().endswith(".pdf"):
-                # Extract datasheet_id from queue/{id}/{file}.pdf
-                parts = key.split("/")
-                ds_id = parts[1] if len(parts) >= 3 else None
-                items.append(
-                    {
-                        "s3_key": key,
-                        "datasheet_id": ds_id,
-                        "size_bytes": obj["Size"],
-                        "last_modified": obj["LastModified"].isoformat(),
-                    }
-                )
+    for prefix in ("good_examples/", "queue/"):
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.lower().endswith(".pdf"):
+                    parts = key.split("/")
+                    ds_id = parts[1] if len(parts) >= 3 else None
+                    items.append(
+                        {
+                            "s3_key": key,
+                            "datasheet_id": ds_id,
+                            "prefix": prefix.rstrip("/"),
+                            "size_bytes": obj["Size"],
+                            "last_modified": obj["LastModified"].isoformat(),
+                        }
+                    )
 
-    log.info("Found %d PDFs in s3://%s/queue/", len(items), bucket)
+    log.info("Found %d PDFs in s3://%s/{good_examples,queue}/", len(items), bucket)
     _json_out(
         {"bucket": bucket, "count": len(items), "items": items},
         exit_code=0 if items else 2,
@@ -354,12 +410,11 @@ def cmd_process(args: argparse.Namespace) -> None:
             exit_code=2,
         )
 
-    # Deduplicate against DB
-    from datasheetminer.models.product import ProductBase
-
+    # Deduplicate against DB — use type(m) so read() gets the concrete
+    # subclass (Motor, Drive, …) whose product_type default is defined.
     new_models = []
     for m in models:
-        if dynamo.read(m.product_id, ProductBase):
+        if dynamo.read(m.product_id, type(m)):
             log.info("Product %s already exists — skipping", m.product_id)
         else:
             new_models.append(m)
@@ -400,17 +455,18 @@ def cmd_process_all(args: argparse.Namespace) -> None:
     api_key = _validate_api_key()
     dynamo = _get_dynamo()
 
-    # Discover queue
+    # Discover PDFs in good_examples/ (primary) and queue/ (legacy)
     s3 = _get_s3()
     queue_items: list[dict] = []
     paginator = s3.get_paginator("list_objects_v2")
-    for page in paginator.paginate(Bucket=bucket, Prefix="queue/"):
-        for obj in page.get("Contents", []):
-            key = obj["Key"]
-            if key.lower().endswith(".pdf"):
-                parts = key.split("/")
-                ds_id = parts[1] if len(parts) >= 3 else None
-                queue_items.append({"s3_key": key, "datasheet_id": ds_id})
+    for prefix in ("good_examples/", "queue/"):
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.lower().endswith(".pdf"):
+                    parts = key.split("/")
+                    ds_id = parts[1] if len(parts) >= 3 else None
+                    queue_items.append({"s3_key": key, "datasheet_id": ds_id})
 
     if not queue_items:
         log.info("Queue empty")
@@ -421,7 +477,6 @@ def cmd_process_all(args: argparse.Namespace) -> None:
     # Look up metadata for each from DynamoDB
     import boto3
     from boto3.dynamodb.conditions import Attr
-    from datasheetminer.models.product import ProductBase
 
     table_name = os.environ.get("DYNAMODB_TABLE_NAME", "products")
     region = os.environ.get("AWS_REGION", "us-east-1")
@@ -483,10 +538,8 @@ def cmd_process_all(args: argparse.Namespace) -> None:
                 results.append(result_entry)
                 continue
 
-            # Deduplicate
-            new_models = [
-                m for m in models if not dynamo.read(m.product_id, ProductBase)
-            ]
+            # Deduplicate — use type(m) for the concrete subclass
+            new_models = [m for m in models if not dynamo.read(m.product_id, type(m))]
 
             if not new_models:
                 result_entry["status"] = "skipped"
@@ -527,6 +580,74 @@ def cmd_process_all(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_intake_list(args: argparse.Namespace) -> None:
+    """List PDFs in the S3 triage/ prefix awaiting intake scan."""
+    from cli.intake import list_triage
+
+    bucket = _resolve_bucket(args)
+    items = list_triage(bucket)
+    log.info("Found %d PDFs in s3://%s/triage/", len(items), bucket)
+    _json_out(
+        {"bucket": bucket, "count": len(items), "items": items},
+        exit_code=0 if items else 2,
+    )
+
+
+def cmd_intake(args: argparse.Namespace) -> None:
+    """Scan a single PDF in triage/ for TOC and specs, promote if valid."""
+    from cli.intake import intake_single
+
+    bucket = _resolve_bucket(args)
+    api_key = _validate_api_key()
+
+    result = intake_single(bucket, args.s3_key, api_key)
+    exit_code = 0 if result.get("status") == "approved" else 2
+    _json_out(result, exit_code=exit_code)
+
+
+def cmd_intake_all(args: argparse.Namespace) -> None:
+    """Scan all PDFs in triage/ and promote valid datasheets."""
+    from cli.intake import intake_single, list_triage
+
+    bucket = _resolve_bucket(args)
+    api_key = _validate_api_key()
+
+    items = list_triage(bucket)
+    if not items:
+        log.info("No PDFs in triage/")
+        _json_out({"status": "empty", "processed": 0, "results": []}, exit_code=2)
+
+    log.info("Scanning %d PDFs in triage/", len(items))
+
+    results: list[dict] = []
+    approved = 0
+    rejected = 0
+
+    for item in items:
+        s3_key = item["s3_key"]
+        try:
+            result = intake_single(bucket, s3_key, api_key)
+            if result.get("status") == "approved":
+                approved += 1
+            else:
+                rejected += 1
+            results.append(result)
+        except Exception as e:
+            log.error("Failed intake for %s: %s", s3_key, e)
+            results.append({"s3_key": s3_key, "status": "failed", "error": str(e)})
+            rejected += 1
+
+    _json_out(
+        {
+            "status": "complete",
+            "total": len(items),
+            "approved": approved,
+            "rejected": rejected,
+            "results": results,
+        }
+    )
+
+
 def _update_datasheet_status(table: Any, datasheet_id: str, status: str) -> None:
     """Best-effort status update on the datasheet record."""
     from boto3.dynamodb.conditions import Attr
@@ -554,14 +675,51 @@ def _update_datasheet_status(table: Any, datasheet_id: str, status: str) -> None
         log.warning("Could not update status for %s: %s", datasheet_id, e)
 
 
+def _lookup_datasheet_by_s3_key(s3_key: str) -> dict[str, Any] | None:
+    """Find a Datasheet record in DynamoDB by its s3_key."""
+    import boto3
+    from boto3.dynamodb.conditions import Attr
+
+    table_name = os.environ.get("DYNAMODB_TABLE_NAME", "products")
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+
+    # No Limit — scan evaluates items before filtering, so Limit=1 can miss matches
+    resp = table.scan(
+        FilterExpression=Attr("s3_key").eq(s3_key)
+        & Attr("PK").begins_with("DATASHEET#"),
+    )
+    items = resp.get("Items", [])
+    return items[0] if items else None
+
+
 def _build_metadata(args: argparse.Namespace) -> dict[str, Any]:
-    """Build context metadata dict from CLI args."""
+    """Build context metadata from Datasheet record first, CLI args as fallback."""
+    s3_key = getattr(args, "s3_key", "")
+    ds_record = _lookup_datasheet_by_s3_key(s3_key) if s3_key else None
+
+    if ds_record:
+        log.info(
+            "Using Datasheet record %s for context: %s by %s",
+            ds_record.get("datasheet_id"),
+            ds_record.get("product_name"),
+            ds_record.get("manufacturer"),
+        )
+
+    # Datasheet record wins, CLI args are fallback
+    cli_name = getattr(args, "product_name", "") or ""
+    cli_mfg = getattr(args, "manufacturer", "") or ""
+    cli_family = getattr(args, "product_family", "") or ""
+    cli_pages = _parse_pages(getattr(args, "pages", None))
+
     return {
-        "product_name": getattr(args, "product_name", "") or "",
-        "manufacturer": getattr(args, "manufacturer", "") or "",
-        "product_family": getattr(args, "product_family", "") or "",
-        "datasheet_url": f"s3://{_resolve_bucket(args)}/{args.s3_key}",
-        "pages": _parse_pages(getattr(args, "pages", None)),
+        "product_name": (ds_record or {}).get("product_name") or cli_name,
+        "manufacturer": (ds_record or {}).get("manufacturer") or cli_mfg,
+        "product_family": (ds_record or {}).get("product_family") or cli_family,
+        "datasheet_url": (ds_record or {}).get("url")
+        or f"s3://{_resolve_bucket(args)}/{s3_key}",
+        "pages": (ds_record or {}).get("pages") or cli_pages,
     }
 
 
@@ -640,6 +798,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Keep PDFs in queue/ instead of moving to done/",
     )
 
+    # intake-list (list triage/ PDFs)
+    sub.add_parser("intake-list", help="List PDFs in triage/ awaiting intake scan")
+
+    # intake (scan + promote one)
+    p = sub.add_parser(
+        "intake", help="Scan a triage/ PDF for TOC/specs, promote if valid"
+    )
+    p.add_argument("s3_key", help="S3 object key (e.g. triage/file.pdf)")
+
+    # intake-all (scan all triage/)
+    sub.add_parser("intake-all", help="Scan all triage/ PDFs and promote valid ones")
+
     return parser
 
 
@@ -654,6 +824,9 @@ def main() -> None:
         "extract": cmd_extract,
         "process": cmd_process,
         "process-all": cmd_process_all,
+        "intake-list": cmd_intake_list,
+        "intake": cmd_intake,
+        "intake-all": cmd_intake_all,
     }
 
     try:

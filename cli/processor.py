@@ -39,15 +39,16 @@ def _get_dynamo_client():
 
 
 def list_queued(bucket: str) -> list[dict]:
-    """List all objects under the queue/ prefix in S3."""
+    """List all objects under good_examples/ (primary) and queue/ (legacy) in S3."""
     s3 = _get_s3_client()
     items = []
     paginator = s3.get_paginator("list_objects_v2")
-    for page in paginator.paginate(Bucket=bucket, Prefix="queue/"):
-        for obj in page.get("Contents", []):
-            key = obj["Key"]
-            if key.lower().endswith(".pdf"):
-                items.append({"key": key, "size": obj["Size"]})
+    for prefix in ("good_examples/", "queue/"):
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.lower().endswith(".pdf"):
+                    items.append({"key": key, "size": obj["Size"]})
     return items
 
 
@@ -59,9 +60,12 @@ def download_pdf(bucket: str, key: str) -> bytes:
 
 
 def move_to_done(bucket: str, key: str) -> None:
-    """Move an object from queue/ to done/ prefix."""
+    """Move an object from good_examples/ or queue/ to done/ prefix."""
     s3 = _get_s3_client()
-    done_key = key.replace("queue/", "done/", 1)
+    if key.startswith("good_examples/"):
+        done_key = key.replace("good_examples/", "done/", 1)
+    else:
+        done_key = key.replace("queue/", "done/", 1)
     s3.copy_object(
         Bucket=bucket,
         CopySource={"Bucket": bucket, "Key": key},
@@ -72,10 +76,8 @@ def move_to_done(bucket: str, key: str) -> None:
 
 
 def find_datasheet_record(dynamo, datasheet_id: str) -> dict | None:
-    """Find a queued datasheet record by ID."""
+    """Find a datasheet record by ID with status approved or queued."""
 
-    # The datasheet record was stored with s3:// url and status=queued
-    # We need to scan for it. In production, use a GSI. For now, simple scan.
     import boto3
     from boto3.dynamodb.conditions import Attr
 
@@ -85,9 +87,10 @@ def find_datasheet_record(dynamo, datasheet_id: str) -> dict | None:
     )
     table = dynamodb.Table(table_name)
 
+    # Primary: look for approved (intake flow) then fall back to queued (legacy)
     resp = table.scan(
         FilterExpression=Attr("datasheet_id").eq(datasheet_id)
-        & Attr("status").eq("queued"),
+        & Attr("status").is_in(["approved", "queued"]),
         Limit=1,
     )
     items = resp.get("Items", [])
@@ -170,9 +173,7 @@ def process_pdf(
 
             model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_string)
 
-            from datasheetminer.models.product import ProductBase
-
-            if dynamo.read(model.product_id, ProductBase):
+            if dynamo.read(model.product_id, type(model)):
                 log.info(f"Product {model.product_id} already exists, skipping")
                 continue
 

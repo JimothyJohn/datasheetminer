@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { DatasheetEntry } from '../types/models';
 import { FilterCriterion } from '../types/filters';
+import { useColumnResize } from '../utils/hooks';
 import DatasheetFilterBar from './DatasheetFilterBar';
 import DatasheetEditModal from './DatasheetEditModal';
 import { sanitizeUrl } from '../utils/sanitize';
@@ -16,6 +17,14 @@ export default function DatasheetList() {
   const [selectedDatasheet, setSelectedDatasheet] = useState<DatasheetEntry | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [scrapingMap, setScrapingMap] = useState<Record<string, boolean>>({});
+
+  const { columnWidths, startResize } = useColumnResize({
+    product_name: 250,
+    product_type: 120,
+    product_family: 150,
+    manufacturer: 150,
+    actions: 80,
+  });
 
   useEffect(() => {
     loadProducts('datasheet');
@@ -144,14 +153,6 @@ export default function DatasheetList() {
     userSelect: 'none' as const
   };
 
-  if (loading && products.length === 0) {
-    return <div className="loading-spinner">Loading datasheets...</div>;
-  }
-
-  if (error) {
-    return <div className="error-message">{error}</div>;
-  }
-
   return (
     <div className="page-split-layout">
       <aside className="filter-sidebar">
@@ -168,6 +169,9 @@ export default function DatasheetList() {
             <span className="results-count">
               {sortedProducts.length} Datasheets
             </span>
+            {loading && (
+              <span style={{ marginLeft: '0.8rem', opacity: 0.6, fontSize: '0.8rem' }}>Loading...</span>
+            )}
           </div>
           <div className="results-header-right">
              <div className="pagination-controls">
@@ -185,21 +189,36 @@ export default function DatasheetList() {
           </div>
         </div>
 
+        {error && (
+          <div className="error-message" style={{ margin: '0.5rem 0' }}>{error}</div>
+        )}
+
         <div className="datasheet-table-container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-          <table className="datasheet-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+          <table className="datasheet-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: columnWidths['product_name'] }} />
+              <col style={{ width: columnWidths['product_type'] }} />
+              <col style={{ width: columnWidths['product_family'] }} />
+              <col style={{ width: columnWidths['manufacturer'] }} />
+              <col style={{ width: columnWidths['actions'] }} />
+            </colgroup>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                <th style={headerStyle} onClick={() => handleColumnSort('product_name')}>
+                <th style={{ ...headerStyle, position: 'relative' }} onClick={() => handleColumnSort('product_name')}>
                   Product Name{getSortIndicator('product_name')}
+                  <div className="col-resize-handle" onMouseDown={(e) => startResize('product_name', e)} />
                 </th>
-                <th style={headerStyle} onClick={() => handleColumnSort('product_type')}>
+                <th style={{ ...headerStyle, position: 'relative' }} onClick={() => handleColumnSort('product_type')}>
                   Product Type{getSortIndicator('product_type')}
+                  <div className="col-resize-handle" onMouseDown={(e) => startResize('product_type', e)} />
                 </th>
-                <th style={headerStyle} onClick={() => handleColumnSort('product_family')}>
+                <th style={{ ...headerStyle, position: 'relative' }} onClick={() => handleColumnSort('product_family')}>
                   Family{getSortIndicator('product_family')}
+                  <div className="col-resize-handle" onMouseDown={(e) => startResize('product_family', e)} />
                 </th>
-                <th style={headerStyle} onClick={() => handleColumnSort('manufacturer')}>
+                <th style={{ ...headerStyle, position: 'relative' }} onClick={() => handleColumnSort('manufacturer')}>
                   Manufacturer{getSortIndicator('manufacturer')}
+                  <div className="col-resize-handle" onMouseDown={(e) => startResize('manufacturer', e)} />
                 </th>
                 <th style={headerStyle}>Status</th>
                 <th style={{ ...headerStyle, cursor: 'default', textAlign: 'right' }}>Actions</th>
@@ -216,19 +235,19 @@ export default function DatasheetList() {
                     setSelectedDatasheet(datasheet);
                   }}
                 >
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}>
-                    <a 
+                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a
                       href={sanitizeUrl(datasheet.url)}
-                      target="_blank" 
+                      target="_blank"
                       rel="noopener noreferrer"
                       style={{ fontWeight: 500, color: 'var(--accent-primary)', textDecoration: 'none' }}
                     >
                       {datasheet.product_name}
                     </a>
                   </td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', textTransform: 'capitalize' }}>{datasheet.component_type || '-'}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}>{datasheet.product_family || '-'}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}>{datasheet.manufacturer || 'Unknown'}</td>
+                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{datasheet.component_type || '-'}</td>
+                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{datasheet.product_family || '-'}</td>
+                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{datasheet.manufacturer || 'Unknown'}</td>
                   <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}>
                     {datasheet.is_scraped ? (
                       <span style={{ color: '#10B981', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>

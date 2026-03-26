@@ -43,6 +43,15 @@ class Datasheet(BaseModel):
         None, description="Category or type of the datasheet product"
     )
 
+    # Pipeline tracking
+    status: Optional[str] = Field(
+        None,
+        description="Pipeline state: triaged, approved, processing, processed, failed",
+    )
+    s3_key: Optional[str] = Field(
+        None, description="S3 object key where the PDF is stored"
+    )
+
     # Additional metadata
     release_year: Optional[int] = None
     warranty: Optional[ValueUnit] = None

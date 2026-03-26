@@ -202,7 +202,16 @@ class DynamoDBClient:
             id_str = str(product_id) if isinstance(product_id, UUID) else product_id
 
             # Determine PK and SK based on the new schema
-            model_type = model_class.model_fields["product_type"].default.upper()
+            field_default = model_class.model_fields["product_type"].default
+            # Guard against abstract base classes where product_type has no default
+            from pydantic_core import PydanticUndefined
+
+            if field_default is PydanticUndefined:
+                raise ValueError(
+                    f"{model_class.__name__}.product_type has no default — "
+                    f"pass a concrete subclass (Motor, Drive, …) instead of ProductBase"
+                )
+            model_type = field_default.upper()
             pk = f"PRODUCT#{model_type}"
             sk = f"PRODUCT#{id_str}"
 
@@ -238,16 +247,18 @@ class DynamoDBClient:
             # But the user request implies checking by URL or similar.
             # For now, let's assume we scan or use a GSI if we had one.
             # Without GSI, we have to Scan, which is inefficient but acceptable for now as per plan.
-            
+
             response = self.table.scan(
                 FilterExpression="#url = :url",
                 ExpressionAttributeNames={"#url": "url"},
                 ExpressionAttributeValues={":url": url},
-                Limit=1
+                Limit=1,
             )
             return bool(response.get("Items"))
         except ClientError as e:
-            print(f"Error checking if datasheet exists: {e.response['Error']['Message']}")
+            print(
+                f"Error checking if datasheet exists: {e.response['Error']['Message']}"
+            )
             return False
         except Exception as e:
             print(f"Unexpected error checking if datasheet exists: {e}")
@@ -267,11 +278,11 @@ class DynamoDBClient:
                 FilterExpression="product_name = :name AND begins_with(PK, :pk_prefix)",
                 ExpressionAttributeValues={
                     ":name": product_name,
-                    ":pk_prefix": "DATASHEET#"
-                }
+                    ":pk_prefix": "DATASHEET#",
+                },
             )
             items = response.get("Items", [])
-            
+
             results = []
             for item in items:
                 ds = self._deserialize_item(item, Datasheet)
@@ -296,11 +307,11 @@ class DynamoDBClient:
                 FilterExpression="product_family = :family AND begins_with(PK, :pk_prefix)",
                 ExpressionAttributeValues={
                     ":family": family,
-                    ":pk_prefix": "DATASHEET#"
-                }
+                    ":pk_prefix": "DATASHEET#",
+                },
             )
             items = response.get("Items", [])
-            
+
             results = []
             for item in items:
                 ds = self._deserialize_item(item, Datasheet)
@@ -321,23 +332,19 @@ class DynamoDBClient:
             # Scan for all items where PK starts with "DATASHEET#"
             response = self.table.scan(
                 FilterExpression="begins_with(PK, :pk_prefix)",
-                ExpressionAttributeValues={
-                    ":pk_prefix": "DATASHEET#"
-                }
+                ExpressionAttributeValues={":pk_prefix": "DATASHEET#"},
             )
             items = response.get("Items", [])
-            
+
             # Handle pagination
             while "LastEvaluatedKey" in response:
                 response = self.table.scan(
                     FilterExpression="begins_with(PK, :pk_prefix)",
-                    ExpressionAttributeValues={
-                        ":pk_prefix": "DATASHEET#"
-                    },
-                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                    ExpressionAttributeValues={":pk_prefix": "DATASHEET#"},
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
                 )
                 items.extend(response.get("Items", []))
-            
+
             results = []
             for item in items:
                 ds = self._deserialize_item(item, Datasheet)
@@ -604,7 +611,9 @@ class DynamoDBClient:
             batch_size: int = 25
 
             for i in range(0, len(models), batch_size):
-                batch: Sequence[Union[ProductBase, Datasheet]] = models[i : i + batch_size]
+                batch: Sequence[Union[ProductBase, Datasheet]] = models[
+                    i : i + batch_size
+                ]
 
                 with self.table.batch_writer() as writer:
                     for model in batch:
@@ -954,7 +963,9 @@ class DynamoDBClient:
 
         try:
             pk_value = f"PRODUCT#{product_type.upper()}"
-            print(f"Querying table '{self.table_name}' for product_type='{product_type}'...")
+            print(
+                f"Querying table '{self.table_name}' for product_type='{product_type}'..."
+            )
             print(f"Partition key: {pk_value}")
 
             items: List[Dict[str, Any]] = []
@@ -1007,7 +1018,9 @@ class DynamoDBClient:
                             writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
                             deleted_count += 1
                         except Exception as e:
-                            print(f"Error deleting item {item.get('SK', 'unknown')}: {e}")
+                            print(
+                                f"Error deleting item {item.get('SK', 'unknown')}: {e}"
+                            )
                             continue
 
                 if deleted_count % 50 == 0:
@@ -1043,7 +1056,9 @@ class DynamoDBClient:
         """
         if not confirm and not dry_run:
             print("ERROR: delete_by_product_family() requires confirm=True parameter")
-            print(f"This operation will delete ALL products in family '{product_family}'!")
+            print(
+                f"This operation will delete ALL products in family '{product_family}'!"
+            )
             print("Use dry_run=True to see item count without deleting")
             return 0
 
@@ -1101,7 +1116,9 @@ class DynamoDBClient:
             print(f"Found {item_count} items with product_family='{product_family}'")
 
             if item_count == 0:
-                print(f"No products found for family '{product_family}' - nothing to delete")
+                print(
+                    f"No products found for family '{product_family}' - nothing to delete"
+                )
                 return 0
 
             # Show sample
@@ -1132,7 +1149,9 @@ class DynamoDBClient:
                             writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
                             deleted_count += 1
                         except Exception as e:
-                            print(f"Error deleting item {item.get('SK', 'unknown')}: {e}")
+                            print(
+                                f"Error deleting item {item.get('SK', 'unknown')}: {e}"
+                            )
                             continue
 
                 if deleted_count % 50 == 0:

@@ -72,6 +72,18 @@ def fail(msg: str) -> None:
 # ── Helpers ────────────────────────────────────────────────────────
 
 
+def _local_ip() -> str:
+    """Get the LAN IP address of this machine."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return "localhost"
+
+
 def require_cmd(name: str) -> str:
     """Return the path to a command, or fail."""
     path = shutil.which(name)
@@ -207,10 +219,11 @@ def cmd_dev(args: argparse.Namespace) -> None:
     if not health_check(url):
         warn(f"Backend may not be ready — check {LOG_DIR}/backend.log")
 
+    host = _local_ip()
     print()
     info("DatasheetMiner is running")
-    print("  Frontend:  http://localhost:3000")
-    print(f"  Backend:   {url}")
+    print(f"  Frontend:  http://{host}:3000")
+    print(f"  Backend:   http://{host}:{port}")
     print("  Mode:      admin (full access)")
     print(f"  Stage:     {os.environ.get('STAGE', 'dev')}")
     print(f"  Table:     {os.environ.get('DYNAMODB_TABLE_NAME', 'products-dev')}")

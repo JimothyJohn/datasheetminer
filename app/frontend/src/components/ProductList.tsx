@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
 import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType } from '../types/filters';
 import { formatValue } from '../utils/formatting';
+import { useColumnResize } from '../utils/hooks';
 import FilterBar from './FilterBar';
 import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
@@ -23,6 +24,25 @@ export default function ProductList() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
+
+  // Default column widths (px): part number + spec columns
+  const defaultPartWidth = 120;
+  const defaultColWidth = 90;
+  const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
+
+  // Sync column widths when product type or additional columns change
+  useEffect(() => {
+    if (!productType) return;
+    const defaults = getDisplayedAttributes(productType);
+    const allKeys = ['part_number', ...defaults, ...additionalColumns];
+    setColumnWidths(prev => {
+      const next: Record<string, number> = {};
+      for (const key of allKeys) {
+        next[key] = prev[key] ?? (key === 'part_number' ? defaultPartWidth : defaultColWidth);
+      }
+      return next;
+    });
+  }, [productType, additionalColumns]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -320,22 +340,6 @@ export default function ProductList() {
 
 
 
-  if (error) {
-    return (
-      <div className="error">
-        Error: {error}
-        <button onClick={() => loadProducts(productType)} style={{ marginLeft: '0.8rem' }}>
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  // Show loading only if there are no products yet (first load)
-  if (loading && products.length === 0) {
-    return <div className="loading">Loading products...</div>;
-  }
-
   return (
     <div className="page-split-layout">
       {/* Left sidebar - filter interface */}
@@ -355,10 +359,7 @@ export default function ProductList() {
       {/* Right side - results section */}
       <main className="results-main">
         <div className="results-header">
-          {/* Sort controls */}
           <div className="results-header-left">
-            {/* Sort controls removed as requested */}
-            {/* Pagination controls */}
             <div className="pagination-controls">
               <label className="pagination-label">Show:</label>
               <select
@@ -376,20 +377,28 @@ export default function ProductList() {
           </div>
 
           <div className="results-header-right">
-            {/* Refresh button removed as requested */}
-            {loading && products.length > 0 && (
-              <span style={{ marginLeft: '0.8rem', opacity: 0.6, fontSize: '0.8rem' }}>
-                Refreshing...
+            {loading && (
+              <span style={{ opacity: 0.6, fontSize: '0.8rem' }}>
+                Loading...
               </span>
             )}
           </div>
         </div>
 
-        {productType === null || sortedProducts.length === 0 ? (
+        {error && (
+          <div className="error" style={{ margin: '0.5rem 0' }}>
+            {error}
+            <button onClick={() => loadProducts(productType)} style={{ marginLeft: '0.8rem' }}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {productType === null || (!loading && sortedProducts.length === 0) ? (
           <div className="empty-state-minimal">
             <p>
               {productType === null
-                ? 'Please select a product type to begin searching'
+                ? 'Select a product type to begin'
                 : products.length === 0
                 ? 'No products in database'
                 : 'No results match your filters'}
@@ -400,8 +409,9 @@ export default function ProductList() {
             <div className="product-grid">
             {/* Column headers */}
             <div className="product-grid-headers">
-              <div 
+              <div
                 className="product-grid-header-part clickable"
+                style={{ width: columnWidths['part_number'] ?? defaultPartWidth }}
                 onClick={() => handleColumnSort('part_number')}
                 title="Click to sort by Part Number"
               >
@@ -409,10 +419,11 @@ export default function ProductList() {
                 <span className="sort-indicator">
                   {sorts.find(s => s.attribute === 'part_number')?.direction === 'asc' && '↑'}
                   {sorts.find(s => s.attribute === 'part_number')?.direction === 'desc' && '↓'}
-                  {sorts.some(s => s.attribute === 'part_number') && sorts.length > 1 && 
+                  {sorts.some(s => s.attribute === 'part_number') && sorts.length > 1 &&
                     <span className="sort-order">{sorts.findIndex(s => s.attribute === 'part_number') + 1}</span>
                   }
                 </span>
+                <div className="col-resize-handle" onMouseDown={(e) => startResize('part_number', e)} />
               </div>
               {/* Default columns */}
               {getColumnHeaders().map((header) => {
@@ -424,6 +435,7 @@ export default function ProductList() {
                   <div
                     key={header.key}
                     className="product-grid-header-item clickable"
+                    style={{ width: columnWidths[header.key] ?? defaultColWidth }}
                     onClick={() => handleColumnSort(header.key)}
                     title="Click to sort"
                   >
@@ -436,6 +448,7 @@ export default function ProductList() {
                       </span>
                     </div>
                     {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
+                    <div className="col-resize-handle" onMouseDown={(e) => startResize(header.key, e)} />
                   </div>
                 );
               })}
@@ -456,6 +469,7 @@ export default function ProductList() {
                   <div
                     key={`additional-${attrKey}`}
                     className="product-grid-header-item clickable removable"
+                    style={{ width: columnWidths[attrKey] ?? defaultColWidth }}
                   >
                     <button
                       className="column-remove-btn"
@@ -480,6 +494,7 @@ export default function ProductList() {
                       </span>
                     </div>
                     {unit && <div className="product-grid-header-unit">({unit})</div>}
+                    <div className="col-resize-handle" onMouseDown={(e) => startResize(attrKey, e)} />
                   </div>
                 );
               })}

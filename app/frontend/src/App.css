@@ -5,52 +5,52 @@
   --product-grid-gap: 1.2rem;
   --product-part-width: 120px;
 
-  /* Natural backgrounds with subtle green tint */
-  --bg-primary: #f2f4f1;
-  --bg-secondary: #e7ebe5;
-  --bg-tertiary: #d8ddd5;
-  --bg-gradient-start: #f7f9f6;
-  --bg-gradient-end: #e7ebe5;
+  /* Warm cream/stone backgrounds */
+  --bg-primary: #f3f2ed;
+  --bg-secondary: #e9e7e0;
+  --bg-tertiary: #dbd9d0;
+  --bg-gradient-start: #f5f4ef;
+  --bg-gradient-end: #eceae3;
 
-  /* Earthy text with good contrast */
-  --text-primary: #2d3a2e;
-  --text-secondary: #5a6b5c;
-  --text-tertiary: #8a9a8c;
+  /* Earthy brown-green text */
+  --text-primary: #2e3028;
+  --text-secondary: #5c5a4e;
+  --text-tertiary: #8e8c7e;
 
-  /* Natural green-gray borders */
-  --border-color: #c5cfc7;
-  --border-color-light: #d8ddd5;
+  /* Warm stone borders */
+  --border-color: #c8c5b8;
+  --border-color-light: #dad8ce;
 
-  /* Earthy green accents */
-  --accent-primary: #6b8e6f;
-  --accent-secondary: #567a5a;
-  --accent-gradient-start: #6b8e6f;
-  --accent-gradient-end: #7a9e7e;
+  /* Olive-sage accents */
+  --accent-primary: #7b8a68;
+  --accent-secondary: #6a7858;
+  --accent-gradient-start: #7b8a68;
+  --accent-gradient-end: #82906e;
 
-  /* Card with soft green-tinted background */
-  --card-bg: #f7f9f6;
-  --card-border: #d8ddd5;
+  /* Card with warm cream background */
+  --card-bg: #f5f4ef;
+  --card-border: #dad8ce;
 
-  /* Dark green-gray header */
-  --header-bg-start: #3a4a3d;
-  --header-bg-end: #4a5a4d;
-  --header-text: #f2f4f1;
+  /* Warm olive header */
+  --header-bg-start: #3a3d32;
+  --header-bg-end: #4a4d42;
+  --header-text: #f3f2ed;
 
   /* Navigation */
-  --nav-bg: #f7f9f6;
-  --nav-border: #d8ddd5;
+  --nav-bg: #f5f4ef;
+  --nav-border: #dad8ce;
 
   /* Softer shadows */
-  --shadow-sm: rgba(45, 58, 46, 0.06);
-  --shadow-md: rgba(45, 58, 46, 0.10);
-  --shadow-lg: rgba(45, 58, 46, 0.15);
-  --shadow-xl: rgba(45, 58, 46, 0.20);
-  --glow-accent: rgba(107, 142, 111, 0.3);
+  --shadow-sm: rgba(50, 48, 40, 0.06);
+  --shadow-md: rgba(50, 48, 40, 0.10);
+  --shadow-lg: rgba(50, 48, 40, 0.14);
+  --shadow-xl: rgba(50, 48, 40, 0.18);
+  --glow-accent: rgba(123, 138, 104, 0.2);
 
-  /* Natural status colors */
-  --success: #6b8e6f;
-  --warning: #b8a87a;
-  --danger: #b07a6f;
+  /* Muted status colors */
+  --success: #7b8a68;
+  --warning: #b5a476;
+  --danger: #a87a68;
 }
 
 :root[data-theme="dark"],
@@ -60,52 +60,52 @@
   --product-grid-gap: 1.2rem;
   --product-part-width: 120px;
 
-  /* Deep backgrounds with subtle green undertones */
-  --bg-primary: #1a1e1b;
-  --bg-secondary: #242a25;
-  --bg-tertiary: #313833;
-  --bg-gradient-start: #1a1e1b;
-  --bg-gradient-end: #242a25;
+  /* Deep warm backgrounds with olive undertones */
+  --bg-primary: #1b1d19;
+  --bg-secondary: #252821;
+  --bg-tertiary: #33362e;
+  --bg-gradient-start: #1b1d19;
+  --bg-gradient-end: #252821;
 
-  /* Soft, natural text */
-  --text-primary: #e2e7e3;
-  --text-secondary: #b8c3ba;
-  --text-tertiary: #8a9a8c;
+  /* Warm cream text */
+  --text-primary: #e3e2dc;
+  --text-secondary: #b8b5ab;
+  --text-tertiary: #8e8c80;
 
-  /* Subtle green-gray borders */
-  --border-color: #3a4239;
-  --border-color-light: #2e352f;
+  /* Warm olive borders */
+  --border-color: #3a3d34;
+  --border-color-light: #30322b;
 
-  /* Earthy green accents */
-  --accent-primary: #7a9e7e;
-  --accent-secondary: #6b8e6f;
-  --accent-gradient-start: #7a9e7e;
-  --accent-gradient-end: #8aae8e;
+  /* Olive-sage accents */
+  --accent-primary: #8b9874;
+  --accent-secondary: #7b8865;
+  --accent-gradient-start: #8b9874;
+  --accent-gradient-end: #919c7a;
 
-  /* Cards with dark green-tinted background */
-  --card-bg: #242a25;
-  --card-border: #3a4239;
+  /* Cards with warm dark background */
+  --card-bg: #252821;
+  --card-border: #3a3d34;
 
   /* Header */
-  --header-bg-start: #1a1e1b;
-  --header-bg-end: #242a25;
-  --header-text: #e2e7e3;
+  --header-bg-start: #1b1d19;
+  --header-bg-end: #252821;
+  --header-text: #e3e2dc;
 
   /* Navigation */
-  --nav-bg: #242a25;
-  --nav-border: #3a4239;
+  --nav-bg: #252821;
+  --nav-border: #3a3d34;
 
   /* Softer shadows */
-  --shadow-sm: rgba(0, 0, 0, 0.2);
-  --shadow-md: rgba(0, 0, 0, 0.25);
-  --shadow-lg: rgba(0, 0, 0, 0.3);
-  --shadow-xl: rgba(0, 0, 0, 0.35);
-  --glow-accent: rgba(122, 158, 126, 0.2);
+  --shadow-sm: rgba(0, 0, 0, 0.18);
+  --shadow-md: rgba(0, 0, 0, 0.22);
+  --shadow-lg: rgba(0, 0, 0, 0.28);
+  --shadow-xl: rgba(0, 0, 0, 0.32);
+  --glow-accent: rgba(139, 152, 116, 0.15);
 
-  /* Natural status colors */
-  --success: #7a9e7e;
-  --warning: #b8a87a;
-  --danger: #b88a7e;
+  /* Muted status colors */
+  --success: #8b9874;
+  --warning: #b5a476;
+  --danger: #b08674;
 }
 
 * {
@@ -115,15 +115,16 @@
 }
 
 body {
-  font-family: 'IBM Plex Mono', 'Space Mono', 'Courier New', monospace;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
   color: var(--text-primary);
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   font-weight: 400;
   text-rendering: optimizeLegibility;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .app {
@@ -402,10 +403,10 @@ body {
 }
 
 .filter-bar-button {
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.8rem;
   border: none;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
@@ -863,10 +864,10 @@ body {
 }
 
 button {
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.8rem;
   border: none;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1060,22 +1061,22 @@ button.secondary:hover {
 .btn-clear {
   width: 100%;
   padding: 0.35rem 0.6rem;
-  background: linear-gradient(135deg, #b07a6f 0%, #a06960 100%);
-  border: 1px solid #8a5a52;
+  background: #a0836e;
+  border: 1px solid #8a7060;
   border-radius: 4px;
   font-size: 0.75rem;
-  color: #f2f4f1;
+  color: #f3f2ed;
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .btn-clear:hover {
-  background: linear-gradient(135deg, #c08a7f 0%, #b07970 100%);
-  border-color: #9a6a62;
+  background: #b0937e;
+  border-color: #9a8070;
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 /* Filter chips container */
@@ -1182,13 +1183,13 @@ button.secondary:hover {
 
 /* Color-coded operators */
 .filter-operator[data-operator="="] {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: #10b981;
+  background: var(--accent-primary);
+  border-color: var(--accent-secondary);
 }
 
 .filter-operator[data-operator="!="] {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border-color: #ef4444;
+  background: var(--danger);
+  border-color: #9a7060;
 }
 
 .filter-operator[data-operator=">"],
@@ -1915,6 +1916,7 @@ button.secondary:hover {
 /* Product list - compact table layout */
 .product-grid {
   display: table;
+  table-layout: fixed;
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -1934,11 +1936,12 @@ button.secondary:hover {
   display: table-cell;
   vertical-align: middle;
   text-align: center;
-  width: 70px;
   padding: 0.3rem 0.4rem;
   border-bottom: 2px solid var(--border-color);
   position: relative;
   background: var(--bg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .product-grid-header-item.clickable {
@@ -1977,7 +1980,7 @@ button.secondary:hover {
 .column-remove-btn:hover {
   opacity: 1;
   transform: scale(1.1);
-  background: #d32f2f;
+  background: var(--danger);
 }
 
 .add-column-btn {
@@ -2000,14 +2003,30 @@ button.secondary:hover {
   background: var(--accent-secondary);
 }
 
+/* Column resize handle */
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 2;
+  transition: background 0.15s;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle:active {
+  background: var(--accent-primary);
+}
+
 .product-grid-header-label {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.3;
   display: block;
   gap: 0.3rem;
 }
@@ -2061,11 +2080,10 @@ button.secondary:hover {
 
 .product-grid-header-part {
   display: table-cell;
-  font-size: 0.75rem;
-  font-weight: 700;
+  position: relative;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   border-right: 2px solid var(--border-color);
   border-bottom: 2px solid var(--border-color);
   text-align: left;
@@ -2124,7 +2142,7 @@ button.secondary:hover {
   font-weight: 700;
   color: var(--text-primary);
   font-size: 1rem;
-  font-family: 'Courier New', monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
 }
 
 .product-name {
@@ -2149,17 +2167,18 @@ button.secondary:hover {
   display: table-cell;
   vertical-align: middle;
   text-align: center;
-  width: 70px;
   padding: 0.3rem 0.4rem;
   border-bottom: 1px solid var(--border-color-light);
   transition: all 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spec-header-value {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 400;
   color: var(--text-primary);
-  font-family: 'Space Mono', monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   line-height: 1.3;
   text-align: center;
   display: block;
@@ -2197,10 +2216,10 @@ button.secondary:hover {
 }
 
 .product-info-part {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   white-space: nowrap;
   display: block;
   overflow: hidden;
@@ -2256,10 +2275,10 @@ button.secondary:hover {
 .product-detail-modal {
   background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
   border: 2px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 20px 60px var(--shadow-lg);
   width: 90%;
-  max-width: 800px;
+  max-width: 600px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -2300,16 +2319,16 @@ button.secondary:hover {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 1.2rem 1.5rem;
-  padding-top: 1.5rem;
+  padding: 0.6rem 1rem;
+  padding-top: 0.8rem;
   border-bottom: 2px solid var(--border-color);
   background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--card-bg) 100%);
 }
 
 .product-detail-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: var(--text-primary);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.15rem;
   background: linear-gradient(135deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2317,8 +2336,8 @@ button.secondary:hover {
 }
 
 .product-detail-part {
-  font-family: 'Courier New', monospace;
-  font-size: 1.1rem;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 1rem;
   color: var(--text-secondary);
   font-weight: 600;
   margin: 0;
@@ -2327,11 +2346,11 @@ button.secondary:hover {
 .product-detail-part-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   color: var(--accent-primary);
   text-decoration: none;
   transition: all 0.2s;
-  padding: 0.25rem 0;
+  padding: 0.1rem 0;
   cursor: pointer;
 }
 
@@ -2352,23 +2371,25 @@ button.secondary:hover {
 }
 
 .product-detail-type {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
-  margin-top: 0.25rem;
+  margin-top: 0.1rem;
 }
 
 .product-detail-close {
   background: var(--bg-tertiary);
   border: 2px solid var(--border-color);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   cursor: pointer;
   color: var(--text-tertiary);
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
   line-height: 1;
@@ -2376,20 +2397,20 @@ button.secondary:hover {
 }
 
 .product-detail-close:hover {
-  background: rgba(244, 67, 54, 0.2);
-  border-color: #ef4444;
-  color: #ef4444;
+  background: rgba(176, 134, 116, 0.2);
+  border-color: var(--danger);
+  color: var(--danger);
   transform: rotate(90deg);
 }
 
 .product-detail-content {
   overflow-y: auto;
-  padding: 1.2rem 1.5rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Categorized specification sections */
 .spec-category {
-  margin-bottom: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .spec-category:last-child {
@@ -2397,13 +2418,13 @@ button.secondary:hover {
 }
 
 .spec-category-title {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.2rem;
+  padding-bottom: 0.15rem;
   border-bottom: 2px solid var(--border-color);
   background: linear-gradient(90deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
   -webkit-background-clip: text;
@@ -2431,8 +2452,8 @@ button.secondary:hover {
 }
 
 .spec-label {
-  padding: 0.5rem 0.8rem;
-  font-size: 0.9rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: capitalize;
@@ -2441,18 +2462,18 @@ button.secondary:hover {
 }
 
 .spec-value {
-  padding: 0.5rem 0.8rem;
-  font-size: 0.95rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
   font-weight: 500;
-  font-family: 'Courier New', monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   width: 40%;
   vertical-align: middle;
 }
 
 .spec-unit {
-  padding: 0.5rem 0.8rem;
-  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
   font-weight: 600;
   text-align: right;
@@ -2466,7 +2487,7 @@ button.secondary:hover {
 }
 
 .spec-value-nested {
-  padding: 0.5rem 0;
+  padding: 0.15rem 0;
 }
 
 .spec-subtable {
@@ -2488,9 +2509,9 @@ button.secondary:hover {
 }
 
 .spec-sublabel {
-  padding: 0.5rem 1rem;
-  padding-left: 2rem;
-  font-size: 0.95rem;
+  padding: 0.15rem 0.5rem;
+  padding-left: 1.5rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-tertiary);
   text-transform: capitalize;
@@ -2499,18 +2520,18 @@ button.secondary:hover {
 }
 
 .spec-subvalue {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
   font-weight: 400;
-  font-family: 'Courier New', monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   width: 40%;
   vertical-align: middle;
 }
 
 .spec-subunit {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
   font-weight: 600;
   text-align: right;
@@ -2925,12 +2946,11 @@ button.secondary:hover {
   border-radius: 0 !important;
 }
 
-/* Terminal-style text rendering */
+/* Heading typography */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Space Mono', 'IBM Plex Mono', monospace;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 /* Code/data emphasis */
@@ -2939,7 +2959,7 @@ code, pre, .monospace {
   letter-spacing: 0.02em;
 }
 
-/* Military-spec borders (hard, angular, utilitarian) */
+/* Subtle borders */
 .product-card,
 .card,
 .modal-content,
@@ -2950,9 +2970,7 @@ input,
 select,
 textarea {
   border: 1px solid var(--border-color) !important;
-  box-shadow: 
-    2px 2px 0 rgba(0, 0, 0, 0.15),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.03) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Terminal screen effect - subtle CRT scan lines */
@@ -2999,21 +3017,20 @@ textarea {
   content: '▸ ';
 }
 
-/* Utilitarian button styling */
+/* Button styling */
 button,
 .button {
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 0.75rem 1.5rem !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 0.35rem 0.8rem !important;
   border: none !important;
   background: var(--accent-primary) !important;
   color: var(--bg-primary) !important;
   position: relative;
   box-shadow:
-    2px 2px 0 rgba(0, 0, 0, 0.2),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
+    1px 1px 0 rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
 button:hover,
@@ -3021,8 +3038,8 @@ button:hover,
   background: var(--accent-secondary) !important;
   color: var(--bg-primary) !important;
   box-shadow:
-    3px 3px 0 rgba(0, 0, 0, 0.25),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.15) !important;
+    1px 2px 0 rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Removed decorative squares on all buttons for cleaner appearance */
@@ -3052,12 +3069,12 @@ button:hover,
   font-weight: 700;
 }
 
-/* Terminal-style filter chips */
+/* Filter chips */
 .filter-chip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-weight: 500;
+  letter-spacing: 0;
   background: var(--bg-tertiary) !important;
   border: 1px solid var(--border-color) !important;
   padding: 0.4rem 0.8rem !important;
@@ -3078,37 +3095,32 @@ button:hover,
   font-weight: 700;
 }
 
-/* Data table styling (utilitarian) */
+/* Data table styling */
 table {
   border-collapse: collapse;
   width: 100%;
-  font-family: 'IBM Plex Mono', monospace;
 }
 
 table th {
-  font-family: 'Space Mono', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 700;
-  border-bottom: 2px solid var(--accent-primary);
-  padding: 0.75rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
   text-align: left;
+  font-size: 0.85rem;
 }
 
 table td {
   border-bottom: 1px solid var(--border-color);
-  padding: 0.75rem;
-  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  font-weight: 400;
 }
 
-/* Status indicators with military color codes */
+/* Status indicators */
 .status-indicator,
 .badge {
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 0.25rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
   border: 1px solid currentColor;
   display: inline-block;
 }
@@ -3127,28 +3139,28 @@ table td {
   100% { content: ''; }
 }
 
-/* Numeric displays (specs, values) */
+/* Numeric displays — monospace for tabular alignment */
 .numeric-value,
 .spec-value {
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-weight: 500;
   font-feature-settings: 'tnum' 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
-/* Input fields with terminal aesthetic */
+/* Input fields */
 input[type="text"],
 input[type="search"],
 input[type="number"],
 select,
 textarea {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg-tertiary) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary);
-  padding: 0.75rem !important;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  padding: 0.5rem 0.75rem !important;
+  font-weight: 400;
+  font-size: 0.9rem;
 }
 
 input:focus,
@@ -3186,6 +3198,7 @@ textarea:focus {
 /* Product grid with utilitarian spacing */
 .product-grid {
   display: table;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
@@ -3205,22 +3218,19 @@ textarea:focus {
   border-color: var(--accent-primary) !important;
 }
 
-/* Attribute labels with terminal style */
+/* Attribute labels */
 .attribute-label,
 .spec-label {
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
-/* Values with monospace clarity */
+/* Values — monospace for data alignment */
 .attribute-value,
 .spec-value {
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 600;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -3244,13 +3254,10 @@ textarea:focus {
   height: 18px !important;
 }
 
-/* Network status banner with alert styling */
+/* Network status banner */
 [role="alert"] {
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border-bottom: 3px solid currentColor !important;
+  font-weight: 600;
+  border-bottom: 2px solid currentColor !important;
 }
 
 [role="alert"]::before {
