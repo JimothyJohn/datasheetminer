@@ -187,17 +187,21 @@ export default function FilterChip({
     onUpdate({ ...filter, operator: nextOp });
   };
 
-  // Handle slider value change - update local state only
+  // Compute slider fill percentage for active-region coloring
+  const sliderPercent = useMemo(() => {
+    if (!rangeInfo) return 0;
+    const range = rangeInfo.max - rangeInfo.min;
+    if (range <= 0) return 0;
+    return ((localSliderValue - rangeInfo.min) / range) * 100;
+  }, [localSliderValue, rangeInfo]);
+
+  // Handle slider value change — update local state AND filter results immediately
   const handleSliderChange = (newValue: number) => {
     setLocalSliderValue(newValue);
-  };
-
-  // Commit slider value change to parent on drag end
-  const handleSliderCommit = () => {
     onUpdate({
       ...filter,
-      value: localSliderValue,
-      operator: filter.operator || '>=' // Use current operator or default to >=
+      value: newValue,
+      operator: filter.operator || '>='
     });
   };
 
@@ -397,21 +401,37 @@ export default function FilterChip({
         {/* Render slider for numeric ValueUnit/MinMaxUnit fields */}
         {showSlider && rangeInfo ? (
           <div className="filter-slider-wrapper">
-            <input
-              type="range"
-              className="filter-slider"
-              min={rangeInfo.min}
-              max={rangeInfo.max}
-              step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
-              value={localSliderValue}
-              onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
-              onMouseUp={handleSliderCommit}
-              onTouchEnd={handleSliderCommit}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            />
+            <div className="filter-slider-range-labels">
+              <span>{rangeInfo.min}</span>
+              <span>{rangeInfo.max}</span>
+            </div>
+            <div className="filter-slider-track-container">
+              <div
+                className="filter-slider-active-region"
+                style={{
+                  left: (filter.operator === '<' || filter.operator === '<=')
+                    ? '0%'
+                    : `${sliderPercent}%`,
+                  right: (filter.operator === '<' || filter.operator === '<=')
+                    ? `${100 - sliderPercent}%`
+                    : '0%',
+                }}
+              />
+              <input
+                type="range"
+                className="filter-slider"
+                min={rangeInfo.min}
+                max={rangeInfo.max}
+                step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
+                value={localSliderValue}
+                onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
             <div className="filter-slider-value">
-              {localSliderValue.toFixed(1)} {rangeInfo.unit}
+              <span className="filter-slider-operator">{filter.operator || '>='}</span>
+              {' '}{localSliderValue.toFixed(1)} {rangeInfo.unit}
             </div>
           </div>
         ) : (

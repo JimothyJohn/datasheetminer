@@ -28,6 +28,7 @@ def _scan_result(*, valid: bool = True, **overrides) -> IntakeScanResult:
         "product_family": "X-Series",
         "category": "brushless dc motor",
         "spec_pages": [3, 4, 5],
+        "spec_density": 0.7,
         "rejection_reason": None if valid else "no specification data",
     }
     defaults.update(overrides)
@@ -148,8 +149,11 @@ class TestPromotePdf:
         # S3 operations
         s3.copy_object.assert_called_once()
         copy_args = s3.copy_object.call_args
-        assert copy_args.kwargs["Key"].startswith("good_examples/")
-        assert copy_args.kwargs["Key"].endswith("/motor_spec.pdf")
+        key = copy_args.kwargs["Key"]
+        assert key.startswith("good_examples/")
+        assert key.endswith(".pdf")
+        # Flat key: good_examples/{mfg}_{name}_{short_id}.pdf
+        assert "acme-corp_x100_" in key
         s3.delete_object.assert_called_once_with(
             Bucket="test-bucket", Key="triage/motor_spec.pdf"
         )
@@ -227,9 +231,11 @@ class TestPromotePdf:
 
 @pytest.mark.unit
 class TestIntakeSingle:
+    @patch("cli.intake._find_by_content_hash")
     @patch("cli.intake.scan_pdf")
-    def test_approved_pdf_promoted(self, mock_scan):
-        mock_scan.return_value = _scan_result(valid=True)
+    def test_approved_pdf_promoted(self, mock_scan, mock_find):
+        mock_find.return_value = None
+        mock_scan.return_value = _scan_result(valid=True, spec_density=0.7)
 
         s3 = MagicMock()
         body = MagicMock()
@@ -251,8 +257,10 @@ class TestIntakeSingle:
         assert "datasheet_id" in result
         mock_scan.assert_called_once_with(b"%PDF-fake-content", "fake-api-key")
 
+    @patch("cli.intake._find_by_content_hash")
     @patch("cli.intake.scan_pdf")
-    def test_rejected_pdf_stays_in_triage(self, mock_scan):
+    def test_rejected_pdf_stays_in_triage(self, mock_scan, mock_find):
+        mock_find.return_value = None
         mock_scan.return_value = _scan_result(
             valid=False, rejection_reason="just a brochure"
         )
@@ -278,8 +286,10 @@ class TestIntakeSingle:
         s3.copy_object.assert_not_called()
         dynamo.create.assert_not_called()
 
+    @patch("cli.intake._find_by_content_hash")
     @patch("cli.intake.scan_pdf")
-    def test_rejected_no_reason_gives_default(self, mock_scan):
+    def test_rejected_no_reason_gives_default(self, mock_scan, mock_find):
+        mock_find.return_value = None
         mock_scan.return_value = _scan_result(valid=False, rejection_reason=None)
 
         s3 = MagicMock()

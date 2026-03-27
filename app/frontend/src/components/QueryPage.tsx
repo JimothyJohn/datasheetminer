@@ -678,9 +678,9 @@ export default function QueryPage() {
               <button
                 className="add-column-btn"
                 onClick={() => setShowSortSelector(true)}
-                title="Add column"
+                title="Add spec"
               >
-                + Add Column
+                + Add Spec
               </button>
             </div>
 

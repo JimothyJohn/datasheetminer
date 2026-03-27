@@ -60,7 +60,9 @@ export default function FilterBar({
   const handleAddOrEditFilter = (attribute: typeof availableAttributes[0]) => {
     // Get available operators for this attribute based on actual data
     const availableOperators = getAvailableOperators(products, attribute.key);
-    const defaultOperator = availableOperators.length > 0 ? availableOperators[0] : '=';
+    // Default to >= for numeric/slider fields, = for string-only fields
+    const hasComparison = availableOperators.some(op => op === '>' || op === '>=' || op === '<' || op === '<=');
+    const defaultOperator = hasComparison ? '>=' : (availableOperators.length > 0 ? availableOperators[0] : '=');
 
     if (editingFilterIndex !== null) {
       // Edit existing filter - preserve value and operator if valid, otherwise use default
@@ -137,53 +139,40 @@ export default function FilterBar({
 
       <h2 className="filter-sidebar-title">Filters</h2>
 
-      {/* Clear all button - at the top */}
-      {(filters.length > 0 || sort) && (
-        <div className="filter-clear-container">
+      {/* Action buttons — fixed position, never jump */}
+      <div className="filter-actions-container">
+        <button
+          className="btn-add-filter"
+          onClick={() => {
+            setEditingFilterIndex(null);
+            setShowAttributeSelector(true);
+          }}
+          title="Add filter (Ctrl+K)"
+        >
+          + Add Filter
+        </button>
+        {(filters.length > 0 || sort) && (
           <button
             className="btn-clear"
             onClick={handleClearFilters}
             title="Clear all filters and sorts"
-            style={{ color: '#ef4444' }}
           >
-            Clear All Filters
+            Clear All
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Filter chips - populate below */}
       <div className="filter-chips-container">
         {filters.map((filter, index) => {
-          // Find attribute metadata for this filter
           const attributeMetadata = availableAttributes.find(
             attr => attr.key === filter.attribute
           );
 
-          // Calculate context products for this filter (apply all OTHER filters)
-          // This ensures the slider range reflects the current search context (faceted navigation)
-          // but doesn't disappear when the current filter excludes everything.
           const otherFilters = filters.filter((_, i) => i !== index);
-          // We need to import applyFilters if it's not already imported or available in scope
-          // It is imported at the top of the file.
-          // However, applyFilters is expensive, so we should be careful.
-          // But for this feature it's necessary.
-          // Note: applyFilters is imported from '../types/filters'
-          
-          // Optimization: If no other filters, context is allProducts
-          const contextProducts = otherFilters.length === 0 
-            ? allProducts 
-            : (() => {
-                // We need to use the applyFilters function imported from '../types/filters'
-                // But we can't call it inside the render loop easily without performance impact if many filters.
-                // For now, we'll do it directly.
-                // Actually, let's use a useMemo for the whole list if possible, but it depends on index.
-                // Since we are inside map, we can't use hooks.
-                // We will rely on the fact that applyFilters is reasonably fast (client-side).
-                
-                // We need to import applyFilters. It's not imported in the original file content I saw?
-                // Let me check the imports in FilterBar.tsx again.
-                return applyFilters(allProducts, otherFilters);
-              })();
+          const contextProducts = otherFilters.length === 0
+            ? allProducts
+            : applyFilters(allProducts, otherFilters);
 
           return (
             <FilterChip
@@ -200,20 +189,6 @@ export default function FilterBar({
             />
           );
         })}
-      </div>
-
-      {/* Add filter button - at the bottom */}
-      <div className="filter-add-container" style={{ marginTop: filters.length === 0 ? '0.5rem' : undefined }}>
-        <button
-          className="btn-add-filter"
-          onClick={() => {
-            setEditingFilterIndex(null);
-            setShowAttributeSelector(true);
-          }}
-          title="Add filter (Ctrl+K)"
-        >
-          + Add Filter
-        </button>
       </div>
 
       {/* Attribute Selector Modal for Filters */}

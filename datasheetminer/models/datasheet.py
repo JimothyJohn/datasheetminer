@@ -46,10 +46,19 @@ class Datasheet(BaseModel):
     # Pipeline tracking
     status: Optional[str] = Field(
         None,
-        description="Pipeline state: triaged, approved, processing, processed, failed",
+        description="Pipeline state: triaged, approved, processing, processed, failed, blacklisted",
     )
     s3_key: Optional[str] = Field(
         None, description="S3 object key where the PDF is stored"
+    )
+    content_hash: Optional[str] = Field(
+        None, description="SHA-256 hex digest of the PDF bytes for dedup"
+    )
+    failure_count: int = Field(
+        0, description="Number of extraction failures; auto-blacklisted at 2"
+    )
+    spec_density: Optional[float] = Field(
+        None, description="Estimated spec field coverage (0-1) from intake triage scan"
     )
 
     # Additional metadata

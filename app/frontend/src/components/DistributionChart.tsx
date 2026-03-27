@@ -8,11 +8,8 @@ interface DistributionChartProps {
 }
 
 export default function DistributionChart({ products, attribute, title }: DistributionChartProps) {
-  // Helper to extract value from product (handles nested properties)
   const getValue = (product: any, path: string): string => {
     if (!product) return 'Unknown';
-    
-    // Handle dot notation for nested properties
     if (path.includes('.')) {
       const parts = path.split('.');
       let current = product;
@@ -22,7 +19,6 @@ export default function DistributionChart({ products, attribute, title }: Distri
       }
       return formatValue(current);
     }
-
     return formatValue(product[path]);
   };
 
@@ -36,7 +32,6 @@ export default function DistributionChart({ products, attribute, title }: Distri
     return String(val);
   };
 
-  // Calculate distribution
   const distribution = useMemo(() => {
     const counts: Record<string, number> = {};
     let total = 0;
@@ -47,20 +42,14 @@ export default function DistributionChart({ products, attribute, title }: Distri
       total++;
     });
 
-    // Sort by count descending and take top 5 + Other
     const sortedAll = Object.entries(counts)
       .sort(([, a], [, b]) => b - a);
-    
-    let finalItems = sortedAll;
-    let otherCount = 0;
 
-    // If too many items, group into "Other"
-    if (sortedAll.length > 6) {
-      finalItems = sortedAll.slice(0, 5);
-      otherCount = sortedAll.slice(5).reduce((sum, [, count]) => sum + count, 0);
-    }
+    // Top 3 only — keep it tight
+    const top = sortedAll.slice(0, 3);
+    const otherCount = sortedAll.slice(3).reduce((sum, [, count]) => sum + count, 0);
 
-    const result = finalItems.map(([name, count]) => ({
+    const result = top.map(([name, count]) => ({
       name,
       count,
       percentage: (count / total) * 100
@@ -77,85 +66,83 @@ export default function DistributionChart({ products, attribute, title }: Distri
     return { items: result, total };
   }, [products, attribute]);
 
-  // Generate colors (simple palette)
-  const colors = [
-    '#3b82f6', // blue
-    '#ef4444', // red
-    '#10b981', // green
-    '#f59e0b', // yellow
-    '#8b5cf6', // purple
-    '#ec4899', // pink
-    '#06b6d4', // cyan
-    '#6366f1', // indigo
-    '#84cc16', // lime
-    '#f97316', // orange
-  ];
+  const colors = ['#3b82f6', '#10b981', '#f59e0b'];
 
   const getColor = (index: number, name: string) => {
-    if (name === 'Other') return '#9ca3af'; // Gray for Other
-    return colors[index % colors.length];
+    if (name === 'Other') return 'var(--text-tertiary)';
+    return colors[index] || colors[0];
   };
 
   if (distribution.total === 0) return null;
 
   return (
-    <div className="distribution-chart" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-      <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
-        {title} Distribution
-      </h3>
-      
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-        {/* Stacked Vertical Bar Chart */}
-        <div 
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '120px',
-            width: '24px',
-            backgroundColor: 'var(--bg-secondary)',
-            borderRadius: '4px',
-            overflow: 'hidden',
-            border: '1px solid var(--border-color)'
-          }}
-        >
-          {distribution.items.map((item, index) => (
-            <div
-              key={item.name}
-              style={{
-                width: '100%',
-                height: `${item.percentage}%`,
-                backgroundColor: getColor(index, item.name),
-                transition: 'height 0.3s ease',
-                position: 'relative'
-              }}
-              title={`${item.name}: ${item.count} (${Math.round(item.percentage)}%)`}
-            />
-          ))}
-        </div>
+    <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border-color)' }}>
+      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '0.4rem' }}>
+        {title}
+      </div>
 
-        {/* Legend on the Right */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.3rem', overflow: 'hidden' }}>
-          {distribution.items.map((item, index) => (
-            <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
-                <span style={{ 
-                  width: '6px', 
-                  height: '6px', 
-                  borderRadius: '50%', 
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        {distribution.items.map((item, index) => {
+          const isOther = item.name === 'Other';
+          return (
+            <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Horizontal bar */}
+              <div style={{
+                flex: 1,
+                height: '6px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '3px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${item.percentage}%`,
+                  height: '100%',
                   backgroundColor: getColor(index, item.name),
-                  display: 'inline-block',
-                  flexShrink: 0
+                  borderRadius: '3px',
+                  opacity: isOther ? 0.5 : 0.8,
+                  transition: 'width 0.3s ease'
                 }} />
-                <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.name}>
-                  {item.name}
-                </span>
               </div>
-              <span style={{ fontWeight: 500, color: 'var(--text-primary)', marginLeft: '4px' }}>
+              {/* Percentage — bold and prominent */}
+              <span style={{
+                fontSize: isOther ? '0.65rem' : '0.75rem',
+                fontWeight: isOther ? 400 : 700,
+                color: isOther ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                minWidth: '30px',
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums'
+              }}>
                 {Math.round(item.percentage)}%
               </span>
             </div>
-          ))}
-        </div>
+          );
+        })}
+      </div>
+
+      {/* Labels under bars — compact row */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+        {distribution.items.filter(i => i.name !== 'Other').map((item, index) => (
+          <span key={item.name} style={{
+            fontSize: '0.6rem',
+            color: 'var(--text-secondary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.2rem'
+          }} title={`${item.name}: ${item.count}`}>
+            <span style={{
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              backgroundColor: getColor(index, item.name),
+              flexShrink: 0
+            }} />
+            {item.name}
+          </span>
+        ))}
       </div>
     </div>
   );

@@ -388,6 +388,19 @@ def cmd_process(args: argparse.Namespace) -> None:
     api_key = _validate_api_key()
     dynamo = _get_dynamo()
 
+    # Blacklist gate — refuse to process blacklisted datasheets
+    ds_record = _lookup_datasheet_by_s3_key(args.s3_key)
+    if _is_blacklisted(ds_record):
+        log.warning("Skipping blacklisted PDF: %s", args.s3_key)
+        _json_out(
+            {
+                "s3_key": args.s3_key,
+                "status": "skipped",
+                "reason": "blacklisted",
+            },
+            exit_code=2,
+        )
+
     log.info("Downloading s3://%s/%s", bucket, args.s3_key)
     pdf_bytes = _download_s3_pdf(bucket, args.s3_key)
 
@@ -396,11 +409,13 @@ def cmd_process(args: argparse.Namespace) -> None:
     try:
         models = _extract_products(pdf_bytes, args.type, api_key, metadata)
     except ValueError as e:
+        _record_failure(args.s3_key)
         _json_out(
             {"error": str(e), "s3_key": args.s3_key, "status": "failed"}, exit_code=1
         )
 
     if not models:
+        _record_failure(args.s3_key)
         _json_out(
             {
                 "s3_key": args.s3_key,
@@ -493,7 +508,7 @@ def cmd_process_all(args: argparse.Namespace) -> None:
         ds_id = item["datasheet_id"]
         result_entry: dict[str, Any] = {"s3_key": s3_key, "datasheet_id": ds_id}
 
-        # Fetch metadata from DB
+        # Fetch metadata from DB — try datasheet_id first, fall back to s3_key
         record: dict[str, Any] | None = None
         if ds_id:
             resp = table.scan(
@@ -504,9 +519,21 @@ def cmd_process_all(args: argparse.Namespace) -> None:
             record = db_items[0] if db_items else None
 
         if not record:
-            log.warning("No metadata for %s — skipping", ds_id)
+            record = _lookup_datasheet_by_s3_key(s3_key)
+
+        if not record:
+            log.warning("No metadata for %s — skipping", s3_key)
             result_entry["status"] = "skipped"
             result_entry["reason"] = "no metadata in database"
+            skip_count += 1
+            results.append(result_entry)
+            continue
+
+        # Blacklist gate
+        if _is_blacklisted(record):
+            log.info("Skipping blacklisted PDF: %s", s3_key)
+            result_entry["status"] = "skipped"
+            result_entry["reason"] = "blacklisted"
             skip_count += 1
             results.append(result_entry)
             continue
@@ -532,6 +559,7 @@ def cmd_process_all(args: argparse.Namespace) -> None:
             models = _extract_products(pdf_bytes, product_type, api_key, metadata)
 
             if not models:
+                _record_failure(s3_key)
                 result_entry["status"] = "skipped"
                 result_entry["reason"] = "no products after filtering"
                 skip_count += 1
@@ -564,7 +592,7 @@ def cmd_process_all(args: argparse.Namespace) -> None:
             result_entry["status"] = "failed"
             result_entry["error"] = str(e)
             fail_count += 1
-            _update_datasheet_status(table, ds_id, "failed")
+            _record_failure(s3_key)
 
         results.append(result_entry)
 
@@ -694,6 +722,60 @@ def _lookup_datasheet_by_s3_key(s3_key: str) -> dict[str, Any] | None:
     return items[0] if items else None
 
 
+# Maximum extraction failures before auto-blacklisting
+_MAX_FAILURES = 2
+
+
+def _is_blacklisted(ds_record: dict[str, Any] | None) -> bool:
+    """Check if a Datasheet record is blacklisted."""
+    if not ds_record:
+        return False
+    return ds_record.get("status") == "blacklisted"
+
+
+def _record_failure(s3_key: str) -> None:
+    """Increment failure_count on a Datasheet record; auto-blacklist at threshold."""
+    import boto3
+    from boto3.dynamodb.conditions import Attr
+    import datetime
+
+    table_name = os.environ.get("DYNAMODB_TABLE_NAME", "products")
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+
+    # Find by s3_key
+    resp = table.scan(
+        FilterExpression=Attr("s3_key").eq(s3_key)
+        & Attr("PK").begins_with("DATASHEET#"),
+    )
+    items = resp.get("Items", [])
+    if not items:
+        log.debug("No Datasheet record for %s — cannot record failure", s3_key)
+        return
+
+    item = items[0]
+    current_count = int(item.get("failure_count", 0))
+    new_count = current_count + 1
+    new_status = "blacklisted" if new_count >= _MAX_FAILURES else "failed"
+
+    table.update_item(
+        Key={"PK": item["PK"], "SK": item["SK"]},
+        UpdateExpression="SET failure_count = :fc, #s = :s, updated_at = :t",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={
+            ":fc": new_count,
+            ":s": new_status,
+            ":t": datetime.datetime.now().isoformat(),
+        },
+    )
+
+    if new_status == "blacklisted":
+        log.warning("Auto-blacklisted %s after %d failures", s3_key, new_count)
+    else:
+        log.info("Recorded failure %d/%d for %s", new_count, _MAX_FAILURES, s3_key)
+
+
 def _build_metadata(args: argparse.Namespace) -> dict[str, Any]:
     """Build context metadata from Datasheet record first, CLI args as fallback."""
     s3_key = getattr(args, "s3_key", "")
@@ -814,6 +896,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     parser = build_parser()
     args = parser.parse_args()
 

@@ -24,6 +24,7 @@ export default function ProductList() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
+  const [gearRatio, setGearRatio] = useState<number>(1);
 
   // Default column widths (px): part number + spec columns
   const defaultPartWidth = 120;
@@ -46,7 +47,6 @@ export default function ProductList() {
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
-    // Only load products if a product type is selected
     if (productType !== null) {
       loadProducts(productType);
     }
@@ -60,7 +60,6 @@ export default function ProductList() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        // Trigger add filter button click
         const addButton = document.querySelector('.filter-bar-button.primary') as HTMLButtonElement;
         addButton?.click();
       }
@@ -73,25 +72,43 @@ export default function ProductList() {
   // Handle product type change
   const handleProductTypeChange = (newType: ProductType) => {
     setProductType(newType);
-    // Reset filters and sorts when changing product type
     setFilters([]);
     setSorts([]);
+    setGearRatio(1);
   };
 
-  // Apply filters first
+  // Gear ratio keys — torque is multiplied, speed is divided at the output
+  const TORQUE_KEYS = ['rated_torque', 'peak_torque'];
+  const SPEED_KEYS = ['rated_speed'];
+
+  // Transform filters so user-entered values represent the geared output.
+  // User says "torque >= 50 Nm" at 10:1 → raw motor needs torque >= 5 Nm.
+  // User says "speed >= 300 rpm" at 10:1 → raw motor needs speed >= 3000 rpm.
+  const gearedFilters = useMemo(() => {
+    if (gearRatio === 1 || productType !== 'motor') return filters;
+    return filters.map(f => {
+      if (f.value === undefined || typeof f.value !== 'number') return f;
+      const baseAttr = f.attribute.split('.')[0];
+      if (TORQUE_KEYS.includes(baseAttr)) {
+        return { ...f, value: f.value / gearRatio };
+      }
+      if (SPEED_KEYS.includes(baseAttr)) {
+        return { ...f, value: f.value * gearRatio };
+      }
+      return f;
+    });
+  }, [filters, gearRatio, productType]);
+
+  // Apply filters (with gear-adjusted values) to raw products
   const filteredProducts = useMemo(
-    () => applyFilters(products, filters),
-    [products, filters]
+    () => applyFilters(products, gearedFilters),
+    [products, gearedFilters]
   );
 
   // Get available attributes for sorting based on product type
-  // Simply show all attributes for the selected product type
   const availableAttributes = useMemo(() => {
     return getAttributesForType(productType);
   }, [productType]);
-
-
-
 
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
@@ -99,14 +116,44 @@ export default function ProductList() {
     [filteredProducts, sorts]
   );
 
+  const applyGearRatio = (value: any, ratio: number, multiply: boolean): any => {
+    if (!value || ratio === 1) return value;
+    const factor = multiply ? ratio : 1 / ratio;
+    if (typeof value === 'object' && 'value' in value && typeof value.value === 'number') {
+      return { ...value, value: parseFloat((value.value * factor).toPrecision(4)) };
+    }
+    if (typeof value === 'object' && 'min' in value && 'max' in value) {
+      return {
+        ...value,
+        min: value.min != null ? parseFloat((value.min * factor).toPrecision(4)) : value.min,
+        max: value.max != null ? parseFloat((value.max * factor).toPrecision(4)) : value.max,
+      };
+    }
+    return value;
+  };
+
+  const gearedProducts = useMemo(() => {
+    if (gearRatio === 1 || productType !== 'motor') return sortedProducts;
+    return sortedProducts.map(p => {
+      const copy = { ...p } as any;
+      for (const key of TORQUE_KEYS) {
+        if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, true);
+      }
+      for (const key of SPEED_KEYS) {
+        if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, false);
+      }
+      return copy as Product;
+    });
+  }, [sortedProducts, gearRatio, productType]);
+
   // Paginate products
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return sortedProducts.slice(startIndex, endIndex);
-  }, [sortedProducts, currentPage, itemsPerPage]);
+    return gearedProducts.slice(startIndex, endIndex);
+  }, [gearedProducts, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const totalPages = Math.ceil(gearedProducts.length / itemsPerPage);
 
   // Reset to page 1 when filters, sorts, or items per page change
   useEffect(() => {
@@ -148,13 +195,10 @@ export default function ProductList() {
     if (typeof value === 'string') return value;
 
     if (typeof value === 'object') {
-      // ValueUnit: { value: number, unit: string }
       if ('value' in value && value.value !== null && value.value !== undefined) {
         return String(value.value);
       }
 
-      // MinMaxUnit: { min: number, max: number, unit: string }
-      // Handle cases where only one property might be present
       const hasMin = 'min' in value && value.min !== null && value.min !== undefined;
       const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
 
@@ -173,12 +217,9 @@ export default function ProductList() {
   // Extract just the unit from a spec
   const extractUnit = (value: any): string | null => {
     if (!value) return null;
-
-    // ValueUnit or MinMaxUnit: { ..., unit: string }
     if (typeof value === 'object' && 'unit' in value) {
       return value.unit;
     }
-
     return null;
   };
 
@@ -191,7 +232,6 @@ export default function ProductList() {
       if ('nominal' in value && typeof value.nominal === 'number') return value.nominal;
       if ('rated' in value && typeof value.rated === 'number') return value.rated;
 
-      // Handle min/max - check which values are present
       const hasMin = 'min' in value && value.min !== null && value.min !== undefined;
       const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
 
@@ -208,19 +248,15 @@ export default function ProductList() {
 
   // Get color based on proximity to filter value
   const getProximityColor = (attribute: string, productValue: any): string => {
-    // Find if there's a filter for this attribute (exact or nested property)
     const filter = filters.find(f => f.attribute === attribute || f.attribute.startsWith(attribute + '.'));
     if (!filter || filter.operator === '!=') return '';
 
-    // Determine the actual value to compare
     let numericProductValue: number | null = null;
 
     if (filter.attribute === attribute) {
-      // Direct attribute match
       numericProductValue = extractNumericValue(productValue);
     } else if (filter.attribute.startsWith(attribute + '.')) {
-      // Nested property (e.g., filtering on 'input_voltage.min' when attribute is 'input_voltage')
-      const nestedKey = filter.attribute.split('.').pop(); // Get 'min' or 'max'
+      const nestedKey = filter.attribute.split('.').pop();
       if (nestedKey && productValue && typeof productValue === 'object' && nestedKey in productValue) {
         numericProductValue = extractNumericValue(productValue[nestedKey]);
       }
@@ -231,17 +267,15 @@ export default function ProductList() {
     if (numericProductValue === null || numericFilterValue === null) return '';
     if (numericFilterValue === 0) return '';
 
-    // For equality filters, check if values match
     if (filter.operator === '=') {
       const percentDiff = Math.abs((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
-      if (percentDiff === 0) return 'hsla(140, 40%, 50%, 0.25)'; // Perfect match - subtle green
+      if (percentDiff === 0) return 'hsla(140, 40%, 50%, 0.25)';
       if (percentDiff < 5) return 'hsla(140, 30%, 50%, 0.2)';
       if (percentDiff < 10) return 'hsla(100, 30%, 50%, 0.2)';
       if (percentDiff < 20) return 'hsla(60, 30%, 50%, 0.2)';
       return '';
     }
 
-    // For comparison filters (> or <), show green if condition is met
     if (filter.operator === '>') {
       if (numericProductValue > numericFilterValue) {
         const percentOver = ((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
@@ -263,16 +297,13 @@ export default function ProductList() {
     return '';
   };
 
-  // Check if an attribute is currently being sorted
   const isSortedAttribute = (attribute: string): boolean => {
     return sorts.some(sort => sort.attribute === attribute);
   };
 
-  // Check if an attribute is currently being filtered (including nested properties)
   const isFilteredAttribute = (attribute: string): boolean => {
     return filters.some(filter => {
       if (filter.value === undefined) return false;
-      // Check for exact match or if filter is on a nested property of this attribute
       return filter.attribute === attribute || filter.attribute.startsWith(attribute + '.');
     });
   };
@@ -287,24 +318,19 @@ export default function ProductList() {
     setClickPosition(null);
   };
 
-  // Handle clicking a column header to sort
   const handleColumnSort = (attribute: string) => {
     const existingSortIndex = sorts.findIndex(s => s.attribute === attribute);
 
     if (existingSortIndex !== -1) {
-      // Column is already sorted
       const existingSort = sorts[existingSortIndex];
       if (existingSort.direction === 'asc') {
-        // Change to descending
         const newSorts = [...sorts];
         newSorts[existingSortIndex] = { ...existingSort, direction: 'desc' };
         setSorts(newSorts);
       } else {
-        // Remove sort
         setSorts(sorts.filter((_, i) => i !== existingSortIndex));
       }
     } else {
-      // Add new sort (ascending)
       const attributes = getAttributesForType(productType || 'motor');
       const attributeMetadata = attributes.find(attr => attr.key === attribute);
       if (attributeMetadata) {
@@ -317,20 +343,14 @@ export default function ProductList() {
     }
   };
 
-  // Handle removing a column
   const handleRemoveColumn = (attribute: string, isDefault: boolean) => {
-    // Remove from sorts if it's being sorted
     setSorts(sorts.filter(s => s.attribute !== attribute));
-
-    // If it's an additional column, remove it from additionalColumns
     if (!isDefault) {
       setAdditionalColumns(additionalColumns.filter(col => col !== attribute));
     }
   };
 
-  // Handle adding a new column from the sort selector
   const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
-    // Add to additional columns if not already there and not a default column
     const defaultColumns = getDisplayedAttributes(productType || '');
     if (!defaultColumns.includes(attribute.key) && !additionalColumns.includes(attribute.key)) {
       setAdditionalColumns([...additionalColumns, attribute.key]);
@@ -342,21 +362,7 @@ export default function ProductList() {
 
   return (
     <div className="page-split-layout">
-      {/* Left sidebar - filter interface */}
-      <aside className="filter-sidebar">
-        <FilterBar
-          productType={productType}
-          filters={filters}
-          sort={null}
-          products={filteredProducts}
-          onFiltersChange={setFilters}
-          onSortChange={() => {}}
-          onProductTypeChange={handleProductTypeChange}
-          allProducts={products}
-        />
-      </aside>
-
-      {/* Right side - results section */}
+      {/* Left side - results */}
       <main className="results-main">
         <div className="results-header">
           <div className="results-header-left">
@@ -369,10 +375,14 @@ export default function ProductList() {
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={250}>250</option>
+                <option value={500}>500</option>
               </select>
             </div>
             <span className="results-count" style={{ marginLeft: '1rem' }}>
-              {sortedProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedProducts.length)}`} of {sortedProducts.length}
+              {gearedProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, gearedProducts.length)}`} of {gearedProducts.length}
             </span>
           </div>
 
@@ -394,7 +404,7 @@ export default function ProductList() {
           </div>
         )}
 
-        {productType === null || (!loading && sortedProducts.length === 0) ? (
+        {productType === null || (!loading && gearedProducts.length === 0) ? (
           <div className="empty-state-minimal">
             <p>
               {productType === null
@@ -458,7 +468,7 @@ export default function ProductList() {
                 const attrMetadata = attributes.find(a => a.key === attrKey);
                 if (!attrMetadata) return null;
 
-                const firstProduct = sortedProducts[0];
+                const firstProduct = gearedProducts[0];
                 const unit = firstProduct ? extractUnit((firstProduct as any)[attrKey]) : null;
 
                 const sortIndex = sorts.findIndex(s => s.attribute === attrKey);
@@ -498,14 +508,14 @@ export default function ProductList() {
                   </div>
                 );
               })}
-              {/* Add column button */}
+              {/* Add spec button */}
               <button
                 ref={(el) => setAddColumnBtnRef(el)}
                 className="add-column-btn"
                 onClick={() => setShowSortSelector(true)}
-                title="Add column"
+                title="Add spec"
               >
-                + Add Column
+                + Add Spec
               </button>
             </div>
 
@@ -517,7 +527,21 @@ export default function ProductList() {
                 >
                   {/* Product info - first grid cell */}
                   <div className="product-card-info">
-                    <div className="product-info-part">{product.part_number || 'N/A'}</div>
+                    <div className="product-info-part">
+                      {product.datasheet_url?.url ? (
+                        <a
+                          href={product.datasheet_url.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'var(--text-tertiary)', textUnderlineOffset: '2px' }}
+                        >
+                          {product.part_number || 'N/A'}
+                        </a>
+                      ) : (
+                        product.part_number || 'N/A'
+                      )}
+                    </div>
                   </div>
 
                   {/* Spec values - each as a direct grid cell */}
@@ -527,7 +551,7 @@ export default function ProductList() {
                     const numericValue = extractNumericOnly(productValue);
                     const proximityColor = getProximityColor(attrKey, productValue);
                     const hasProximityColor = !!proximityColor;
-                    
+
                     return (
                       <div
                         key={`default-value-${attrKey}`}
@@ -594,6 +618,67 @@ export default function ProductList() {
           </>
         )}
       </main>
+
+      {/* Right sidebar - filters & gear ratio */}
+      <aside className="filter-sidebar">
+        {productType === 'motor' && (
+          <div className="gear-ratio-control">
+            <div className="gear-ratio-header">
+              <span className="gear-ratio-icon">⚙</span>
+              <span className="gear-ratio-label">Gear Ratio</span>
+            </div>
+            <div className="gear-ratio-input-row">
+              <button
+                className="gear-ratio-step"
+                onClick={() => setGearRatio(r => Math.max(1, r - 5))}
+                disabled={gearRatio <= 1}
+              >
+                −
+              </button>
+              <div className="gear-ratio-display">
+                <input
+                  type="number"
+                  className="gear-ratio-input"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={gearRatio}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(100, Math.round(Number(e.target.value) || 1)));
+                    setGearRatio(v);
+                  }}
+                />
+                <span className="gear-ratio-suffix">: 1</span>
+              </div>
+              <button
+                className="gear-ratio-step"
+                onClick={() => setGearRatio(r => Math.min(100, r + 5))}
+                disabled={gearRatio >= 100}
+              >
+                +
+              </button>
+            </div>
+            {gearRatio > 1 && (
+              <button
+                className="gear-ratio-reset"
+                onClick={() => setGearRatio(1)}
+              >
+                Reset to direct drive
+              </button>
+            )}
+          </div>
+        )}
+        <FilterBar
+          productType={productType}
+          filters={filters}
+          sort={null}
+          products={filteredProducts}
+          onFiltersChange={setFilters}
+          onSortChange={() => {}}
+          onProductTypeChange={handleProductTypeChange}
+          allProducts={products}
+        />
+      </aside>
 
       <ProductDetailModal
         product={selectedProduct}

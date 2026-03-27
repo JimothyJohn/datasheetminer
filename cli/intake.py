@@ -14,8 +14,10 @@ Usage (via dsm-agent):
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import re
 import uuid
 from typing import Any
 
@@ -43,11 +45,51 @@ Extract the following metadata from the document:
 - product_family: the product family or sub-series (if identifiable)
 - category: a brief category description (e.g., "brushless dc motor", "servo drive")
 - spec_pages: list of page numbers that contain specification tables (1-indexed)
+- spec_density: a float from 0.0 to 1.0 estimating what fraction of the product's
+  technical specifications this document covers. Consider the typical fields for the
+  detected product_type:
+    motor: rated_voltage, rated_speed, max_speed, rated_torque, peak_torque, rated_power,
+           rated_current, peak_current, voltage_constant, torque_constant, resistance,
+           inductance, poles, rotor_inertia, ip_rating, dimensions, weight
+    drive: input_voltage, rated_current, peak_current, output_power, switching_frequency,
+           fieldbus, encoder_feedback_support, digital_inputs, digital_outputs, ip_rating,
+           dimensions, weight
+    gearhead: gear_ratio, gear_type, stages, max_continuous_torque, backlash, efficiency,
+              input_shaft_diameter, output_shaft_diameter, ip_rating, dimensions, weight
+    robot_arm: payload, reach, degrees_of_freedom, pose_repeatability, max_tcp_speed,
+               ip_rating, joints, dimensions, weight
+  Score 0.0 if the document contains none of these fields.
+  Score 0.3 if only a handful of fields are present (e.g. just voltage and dimensions).
+  Score 0.6 if roughly half the fields can be extracted.
+  Score 0.9-1.0 if most or all fields have explicit numeric values with units.
 
 Be conservative: only mark is_valid_datasheet=false if the document clearly has NO
 technical specifications or product data whatsoever (e.g., marketing brochures with
 no specs, instruction manuals, safety notices).
 """
+
+# Minimum spec density to promote a PDF from triage
+MIN_SPEC_DENSITY = 0.2
+
+
+def _find_by_content_hash(
+    dynamo_client: Any, content_hash: str
+) -> dict[str, Any] | None:
+    """Check if a Datasheet with this content hash already exists."""
+    import boto3
+    from boto3.dynamodb.conditions import Attr
+
+    table_name = os.environ.get("DYNAMODB_TABLE_NAME", "products")
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+
+    resp = table.scan(
+        FilterExpression=Attr("content_hash").eq(content_hash)
+        & Attr("PK").begins_with("DATASHEET#"),
+    )
+    items = resp.get("Items", [])
+    return items[0] if items else None
 
 
 class IntakeScanResult(BaseModel):
@@ -69,6 +111,10 @@ class IntakeScanResult(BaseModel):
     category: str | None = Field(None, description="Brief category description")
     spec_pages: list[int] | None = Field(
         None, description="Page numbers containing specification tables"
+    )
+    spec_density: float | None = Field(
+        None,
+        description="Estimated spec field coverage 0.0-1.0 (fraction of schema fields present)",
     )
     rejection_reason: str | None = Field(
         None, description="Why the PDF was rejected (if not valid)"
@@ -107,10 +153,11 @@ def scan_pdf(pdf_bytes: bytes, api_key: str) -> IntakeScanResult:
     result = IntakeScanResult.model_validate(raw)
 
     log.info(
-        "Scan result: valid=%s toc=%s tables=%s type=%s mfg=%s name=%s",
+        "Scan result: valid=%s toc=%s tables=%s density=%.2f type=%s mfg=%s name=%s",
         result.is_valid_datasheet,
         result.has_table_of_contents,
         result.has_specification_tables,
+        result.spec_density or 0.0,
         result.product_type,
         result.manufacturer,
         result.product_name,
@@ -123,6 +170,7 @@ def promote_pdf(
     triage_key: str,
     scan: IntakeScanResult,
     *,
+    content_hash: str | None = None,
     s3_client: Any = None,
     dynamo_client: Any = None,
 ) -> dict[str, Any]:
@@ -145,10 +193,16 @@ def promote_pdf(
         table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
         dynamo_client = DynamoDBClient(table_name=table)
 
-    # Build good_examples/ key from triage/ key
-    filename = triage_key.rsplit("/", 1)[-1]
+    # Build a flat, human-readable key in good_examples/
     datasheet_id = uuid.uuid4()
-    good_key = f"good_examples/{datasheet_id}/{filename}"
+    short_id = str(datasheet_id)[:8]
+    mfg_slug = re.sub(
+        r"[^a-z0-9]+", "-", (scan.manufacturer or "unknown").lower()
+    ).strip("-")
+    name_slug = re.sub(
+        r"[^a-z0-9]+", "-", (scan.product_name or "unknown").lower()
+    ).strip("-")
+    good_key = f"good_examples/{mfg_slug}_{name_slug}_{short_id}.pdf"
 
     # Move PDF: copy then delete
     s3_client.copy_object(
@@ -165,12 +219,15 @@ def promote_pdf(
         url=f"s3://{bucket}/{good_key}",
         pages=scan.spec_pages,
         product_type=scan.product_type or "motor",
-        product_name=scan.product_name or filename.replace(".pdf", ""),
+        product_name=scan.product_name
+        or triage_key.rsplit("/", 1)[-1].replace(".pdf", ""),
         product_family=scan.product_family,
         manufacturer=scan.manufacturer or "Unknown",
         category=scan.category,
         status="approved",
         s3_key=good_key,
+        content_hash=content_hash,
+        spec_density=scan.spec_density,
     )
 
     dynamo_client.create(datasheet)
@@ -211,10 +268,35 @@ def intake_single(
             "s3", region_name=os.environ.get("AWS_REGION", "us-east-1")
         )
 
+    if dynamo_client is None:
+        from datasheetminer.db.dynamo import DynamoDBClient
+
+        table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
+        dynamo_client = DynamoDBClient(table_name=table)
+
     # Download
     log.info("Downloading s3://%s/%s", bucket, triage_key)
     resp = s3_client.get_object(Bucket=bucket, Key=triage_key)
     pdf_bytes: bytes = resp["Body"].read()
+
+    # Content hash dedup — skip if this exact PDF was already ingested
+    content_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    existing = _find_by_content_hash(dynamo_client, content_hash)
+    if existing:
+        log.info(
+            "Duplicate PDF detected (hash=%s…) — already ingested as %s (status=%s)",
+            content_hash[:12],
+            existing.get("datasheet_id"),
+            existing.get("status"),
+        )
+        return {
+            "s3_key": triage_key,
+            "status": "skipped",
+            "reason": "duplicate content hash",
+            "content_hash": content_hash,
+            "existing_datasheet_id": existing.get("datasheet_id"),
+            "existing_status": existing.get("status"),
+        }
 
     # Scan
     scan = scan_pdf(pdf_bytes, api_key)
@@ -231,13 +313,38 @@ def intake_single(
             "reason": scan.rejection_reason or "no specification data found",
             "has_toc": scan.has_table_of_contents,
             "has_spec_tables": scan.has_specification_tables,
+            "spec_density": scan.spec_density,
+        }
+
+    # Reject low spec density even if marked valid
+    density = scan.spec_density or 0.0
+    if density < MIN_SPEC_DENSITY:
+        log.warning(
+            "Rejected %s: spec_density=%.2f below threshold %.2f",
+            triage_key,
+            density,
+            MIN_SPEC_DENSITY,
+        )
+        return {
+            "s3_key": triage_key,
+            "status": "rejected",
+            "reason": f"spec density too low ({density:.2f} < {MIN_SPEC_DENSITY})",
+            "spec_density": density,
+            "has_toc": scan.has_table_of_contents,
+            "has_spec_tables": scan.has_specification_tables,
         }
 
     # Promote
     result = promote_pdf(
-        bucket, triage_key, scan, s3_client=s3_client, dynamo_client=dynamo_client
+        bucket,
+        triage_key,
+        scan,
+        content_hash=content_hash,
+        s3_client=s3_client,
+        dynamo_client=dynamo_client,
     )
     result["status"] = "approved"
+    result["content_hash"] = content_hash
     return result
 
 

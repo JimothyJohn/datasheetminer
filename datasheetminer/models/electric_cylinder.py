@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+from typing import Literal, Optional
+
+from pydantic import Field
+
+from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.product import ProductBase
+
+
+class ElectricCylinder(ProductBase):
+    """Linear actuator with integrated motor — produces force (N), not torque (Nm).
+
+    Covers products like Faulhaber L-series linear actuators that combine
+    a motor, gearhead, and lead screw into a single unit producing linear
+    motion. Key differentiator from motors: output is force/stroke, not
+    torque/speed.
+    """
+
+    product_type: Literal["electric_cylinder"] = "electric_cylinder"
+    type: Optional[
+        Literal[
+            "linear actuator",
+            "linear servo",
+            "micro linear actuator",
+            "tubular linear motor",
+        ]
+    ] = None
+    series: Optional[str] = None
+
+    # --- Linear output specs ---
+    stroke: Optional[ValueUnit] = Field(
+        None, description="Maximum linear travel (e.g., in mm)"
+    )
+    max_push_force: Optional[ValueUnit] = Field(
+        None, description="Maximum push/extend force (e.g., in N)"
+    )
+    max_pull_force: Optional[ValueUnit] = Field(
+        None, description="Maximum pull/retract force (e.g., in N)"
+    )
+    continuous_force: Optional[ValueUnit] = Field(
+        None, description="Continuous rated force (e.g., in N)"
+    )
+    max_linear_speed: Optional[ValueUnit] = Field(
+        None, description="Maximum linear speed unloaded (e.g., in mm/s)"
+    )
+    linear_speed_at_rated_load: Optional[ValueUnit] = Field(
+        None, description="Linear speed at rated load (e.g., in mm/s)"
+    )
+    positioning_repeatability: Optional[ValueUnit] = Field(
+        None, description="Repeatability of positioning (e.g., in mm)"
+    )
+
+    # --- Integrated motor specs ---
+    rated_voltage: Optional[MinMaxUnit] = Field(
+        None, description="Rated input voltage (e.g., in V)"
+    )
+    rated_current: Optional[ValueUnit] = Field(
+        None, description="Rated current draw (e.g., in A)"
+    )
+    peak_current: Optional[ValueUnit] = Field(
+        None, description="Peak current draw (e.g., in A)"
+    )
+    rated_power: Optional[ValueUnit] = Field(
+        None, description="Rated motor power (e.g., in W)"
+    )
+    motor_type: Optional[str] = Field(
+        None,
+        description="Type of integrated motor (e.g., 'brushless dc', 'brushed dc')",
+    )
+
+    # --- Mechanical ---
+    lead_screw_pitch: Optional[ValueUnit] = Field(
+        None, description="Lead screw pitch (e.g., in mm/rev)"
+    )
+    gear_ratio: Optional[float] = Field(
+        None, description="Internal gear ratio if geared (e.g., 14.0 for 14:1)"
+    )
+    backlash: Optional[ValueUnit] = Field(
+        None, description="Mechanical backlash (e.g., in mm)"
+    )
+    max_radial_load: Optional[ValueUnit] = Field(
+        None, description="Maximum radial load on output shaft (e.g., in N)"
+    )
+    max_axial_load: Optional[ValueUnit] = Field(
+        None, description="Maximum static axial load (e.g., in N)"
+    )
+
+    # --- Feedback & control ---
+    encoder_feedback_support: Optional[str] = Field(
+        None, description="Encoder or position feedback type"
+    )
+    fieldbus: Optional[str] = Field(
+        None, description="Communication interface (e.g., 'CANopen', 'RS-232')"
+    )
+
+    # --- Environmental ---
+    ip_rating: Optional[str] = Field(None, description="Ingress Protection rating")
+    operating_temp: Optional[MinMaxUnit] = Field(
+        None, description="Operating temperature range"
+    )
+    service_life: Optional[ValueUnit] = Field(
+        None, description="Expected service life (e.g., in hours or cycles)"
+    )
+    noise_level: Optional[ValueUnit] = Field(
+        None, description="Noise level (e.g., in dBA)"
+    )

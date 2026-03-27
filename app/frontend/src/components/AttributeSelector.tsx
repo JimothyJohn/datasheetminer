@@ -37,22 +37,17 @@ export default function AttributeSelector({
   useEffect(() => {
     if (isOpen && anchorElement) {
       const rect = anchorElement.getBoundingClientRect();
-      
-      // Default to aligning left edge with anchor left edge, and top with anchor bottom
-      // Since overlay is fixed, we use viewport coordinates (rect) directly
-      let top = rect.bottom + 8; // 8px gap
-      let left = rect.left;
-      
-      // Check if it would go off screen to the right (rough estimate of width 500px)
-      if (left + 500 > window.innerWidth) {
-        // Align right edge with anchor right edge
-        left = rect.right - 500;
+
+      let top = rect.bottom + 4;
+      // Align right edge with anchor right edge
+      let left = rect.right - 260;
+
+      if (left < 8) {
+        left = 8;
       }
-      
-      // Check if it would go off screen to the bottom (rough estimate of height 400px)
-      if (top + 400 > window.innerHeight) {
-        // Position above the button
-        top = rect.top - 400 - 8;
+
+      if (top + 300 > window.innerHeight) {
+        top = rect.top - 300 - 4;
       }
 
       setPosition({ top, left });
@@ -134,23 +129,23 @@ export default function AttributeSelector({
     left: `${position.left}px`,
     margin: 0,
     transform: 'none',
-    animation: 'none' // Disable slide animation that might conflict
+    animation: 'none'
   } : {};
 
   return (
-    <div className="attribute-selector-overlay" style={position ? { 
-      background: 'transparent', 
-      pointerEvents: 'none', // Let clicks pass through to document for outside click detection
+    <div className="attribute-selector-overlay" style={position ? {
+      background: 'transparent',
+      pointerEvents: 'none',
       justifyContent: 'unset',
       alignItems: 'unset',
       padding: 0
     } : {}}>
-      <div 
-        className="attribute-selector-modal" 
+      <div
+        className="attribute-selector-modal"
         ref={modalRef}
         style={{
           ...modalStyle,
-          pointerEvents: 'auto' // Re-enable pointer events for the modal itself
+          pointerEvents: 'auto'
         }}
       >
         <div className="attribute-selector-header">
