@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
 import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType } from '../types/filters';
 import { formatValue } from '../utils/formatting';
+import { extractNumeric, numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
 import FilterBar from './FilterBar';
 import ProductDetailModal from './ProductDetailModal';
@@ -25,6 +26,7 @@ export default function ProductList() {
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
   const [gearRatio, setGearRatio] = useState<number>(1);
+  const [autoGear, setAutoGear] = useState<boolean>(true);
 
   // Default column widths (px): part number + spec columns
   const defaultPartWidth = 120;
@@ -81,9 +83,7 @@ export default function ProductList() {
   const TORQUE_KEYS = ['rated_torque', 'peak_torque'];
   const SPEED_KEYS = ['rated_speed'];
 
-  // Transform filters so user-entered values represent the geared output.
-  // User says "torque >= 50 Nm" at 10:1 → raw motor needs torque >= 5 Nm.
-  // User says "speed >= 300 rpm" at 10:1 → raw motor needs speed >= 3000 rpm.
+  // Transform filters so user-entered values represent the geared output (manual mode only).
   const gearedFilters = useMemo(() => {
     if (gearRatio === 1 || productType !== 'motor') return filters;
     return filters.map(f => {
@@ -98,23 +98,6 @@ export default function ProductList() {
       return f;
     });
   }, [filters, gearRatio, productType]);
-
-  // Apply filters (with gear-adjusted values) to raw products
-  const filteredProducts = useMemo(
-    () => applyFilters(products, gearedFilters),
-    [products, gearedFilters]
-  );
-
-  // Get available attributes for sorting based on product type
-  const availableAttributes = useMemo(() => {
-    return getAttributesForType(productType);
-  }, [productType]);
-
-  // Apply sorting to filtered products
-  const sortedProducts = useMemo(
-    () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
-    [filteredProducts, sorts]
-  );
 
   const applyGearRatio = (value: any, ratio: number, multiply: boolean): any => {
     if (!value || ratio === 1) return value;
@@ -132,7 +115,140 @@ export default function ProductList() {
     return value;
   };
 
+  // --- Auto-gear: compute per-motor optimal gear ratio ---
+  // For each motor, computes the minimum gear ratio that satisfies all torque/speed constraints.
+  // Torque at output = motor_torque * R, Speed at output = motor_speed / R.
+  const autoGearResults = useMemo(() => {
+    if (!autoGear || productType !== 'motor') return null;
+
+    // Split filters into gear-affected vs everything else
+    const gearFilters: FilterCriterion[] = [];
+    const otherFilters: FilterCriterion[] = [];
+    for (const f of filters) {
+      const base = f.attribute.split('.')[0];
+      if ((TORQUE_KEYS.includes(base) || SPEED_KEYS.includes(base)) && f.mode === 'include' && typeof f.value === 'number') {
+        gearFilters.push(f);
+      } else {
+        otherFilters.push(f);
+      }
+    }
+
+    if (gearFilters.length === 0) return null;
+
+    // Separate = and != filters — checked post-ratio-computation
+    const boundFilters = gearFilters.filter(f => f.operator !== '=' && f.operator !== '!=');
+    const postCheckFilters = gearFilters.filter(f => f.operator === '=' || f.operator === '!=');
+
+    const candidates = applyFilters(products, otherFilters);
+    const results: Array<Product & { _computedGearRatio: number }> = [];
+
+    for (const product of candidates) {
+      let rMin = 1;
+      let rMax = Infinity;
+      let feasible = true;
+
+      for (const f of boundFilters) {
+        const base = f.attribute.split('.')[0];
+        const raw = extractNumeric(product, f.attribute);
+        if (raw == null || raw === 0) { feasible = false; break; }
+
+        const target = f.value as number;
+        const isTorque = TORQUE_KEYS.includes(base);
+
+        if (isTorque) {
+          if (f.operator === '>=' || f.operator === '>') rMin = Math.max(rMin, target / raw);
+          if (f.operator === '<=' || f.operator === '<') rMax = Math.min(rMax, target / raw);
+        } else {
+          if (f.operator === '>=' || f.operator === '>') rMax = Math.min(rMax, raw / target);
+          if (f.operator === '<=' || f.operator === '<') rMin = Math.max(rMin, raw / target);
+        }
+      }
+
+      // '=' pins R exactly
+      for (const f of postCheckFilters) {
+        if (f.operator !== '=') continue;
+        const base = f.attribute.split('.')[0];
+        const raw = extractNumeric(product, f.attribute);
+        if (raw == null || raw === 0) { feasible = false; break; }
+        const target = f.value as number;
+        const pinned = TORQUE_KEYS.includes(base) ? target / raw : raw / target;
+        rMin = Math.max(rMin, pinned);
+        rMax = Math.min(rMax, pinned);
+      }
+
+      if (!feasible || rMin > rMax) continue;
+
+      const ratio = Math.max(1, parseFloat(rMin.toPrecision(4)));
+      if (ratio > rMax) continue;
+
+      // '!=' post-check
+      let excluded = false;
+      for (const f of postCheckFilters) {
+        if (f.operator !== '!=') continue;
+        const base = f.attribute.split('.')[0];
+        const raw = extractNumeric(product, f.attribute);
+        if (raw == null) continue;
+        const geared = TORQUE_KEYS.includes(base) ? raw * ratio : raw / ratio;
+        if (geared === (f.value as number)) { excluded = true; break; }
+      }
+      if (excluded) continue;
+
+      results.push({ ...product, _computedGearRatio: ratio } as Product & { _computedGearRatio: number });
+    }
+
+    return results;
+  }, [products, filters, autoGear, productType]);
+
+  const autoGearActive = autoGearResults !== null;
+
+  // Summary stats for computed ratios (displayed in sidebar)
+  const autoGearSummary = useMemo(() => {
+    if (!autoGearResults || autoGearResults.length === 0) return null;
+    const ratios = autoGearResults.map(r => r._computedGearRatio).sort((a, b) => a - b);
+    return {
+      min: ratios[0],
+      max: ratios[ratios.length - 1],
+      median: ratios[Math.floor(ratios.length / 2)],
+      count: ratios.length,
+    };
+  }, [autoGearResults]);
+
+  // Auto-gear path: filtering done inside autoGearResults.
+  // Manual path: use gearedFilters (values transformed by global ratio).
+  const filteredProducts = useMemo(() => {
+    if (autoGearActive) {
+      return autoGearResults! as Product[];
+    }
+    return applyFilters(products, gearedFilters);
+  }, [products, gearedFilters, autoGearActive, autoGearResults]);
+
+  // Get available attributes for sorting based on product type
+  const availableAttributes = useMemo(() => {
+    return getAttributesForType(productType);
+  }, [productType]);
+
+  // Apply sorting to filtered products
+  const sortedProducts = useMemo(
+    () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
+    [filteredProducts, sorts]
+  );
+
+  // Transform display values: per-motor ratio (auto) or global ratio (manual)
   const gearedProducts = useMemo(() => {
+    if (autoGearActive) {
+      return sortedProducts.map(p => {
+        const ratio = (p as any)._computedGearRatio ?? 1;
+        if (ratio === 1) return p;
+        const copy = { ...p } as any;
+        for (const key of TORQUE_KEYS) {
+          if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, true);
+        }
+        for (const key of SPEED_KEYS) {
+          if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, false);
+        }
+        return copy as Product;
+      });
+    }
     if (gearRatio === 1 || productType !== 'motor') return sortedProducts;
     return sortedProducts.map(p => {
       const copy = { ...p } as any;
@@ -144,7 +260,7 @@ export default function ProductList() {
       }
       return copy as Product;
     });
-  }, [sortedProducts, gearRatio, productType]);
+  }, [sortedProducts, gearRatio, productType, autoGearActive]);
 
   // Paginate products
   const paginatedProducts = useMemo(() => {
@@ -223,29 +339,6 @@ export default function ProductList() {
     return null;
   };
 
-  // Extract numeric value from a value object
-  const extractNumericValue = (value: any): number | null => {
-    if (!value) return null;
-    if (typeof value === 'number') return value;
-    if (typeof value === 'object') {
-      if ('value' in value && typeof value.value === 'number') return value.value;
-      if ('nominal' in value && typeof value.nominal === 'number') return value.nominal;
-      if ('rated' in value && typeof value.rated === 'number') return value.rated;
-
-      const hasMin = 'min' in value && value.min !== null && value.min !== undefined;
-      const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
-
-      if (hasMin && hasMax) {
-        return (Number(value.min) + Number(value.max)) / 2;
-      } else if (hasMin) {
-        return Number(value.min);
-      } else if (hasMax) {
-        return Number(value.max);
-      }
-    }
-    return null;
-  };
-
   // Get color based on proximity to filter value
   const getProximityColor = (attribute: string, productValue: any): string => {
     const filter = filters.find(f => f.attribute === attribute || f.attribute.startsWith(attribute + '.'));
@@ -254,15 +347,15 @@ export default function ProductList() {
     let numericProductValue: number | null = null;
 
     if (filter.attribute === attribute) {
-      numericProductValue = extractNumericValue(productValue);
+      numericProductValue = numericFromValue(productValue);
     } else if (filter.attribute.startsWith(attribute + '.')) {
       const nestedKey = filter.attribute.split('.').pop();
       if (nestedKey && productValue && typeof productValue === 'object' && nestedKey in productValue) {
-        numericProductValue = extractNumericValue(productValue[nestedKey]);
+        numericProductValue = numericFromValue(productValue[nestedKey]);
       }
     }
 
-    const numericFilterValue = extractNumericValue(filter.value);
+    const numericFilterValue = numericFromValue(filter.value);
 
     if (numericProductValue === null || numericFilterValue === null) return '';
     if (numericFilterValue === 0) return '';
@@ -435,6 +528,17 @@ export default function ProductList() {
                 </span>
                 <div className="col-resize-handle" onMouseDown={(e) => startResize('part_number', e)} />
               </div>
+              {/* Auto-gear ratio column */}
+              {autoGearActive && (
+                <div
+                  className="product-grid-header-item gear-ratio-col"
+                  style={{ width: 60 }}
+                  title="Computed gear ratio needed to meet torque/speed filters"
+                >
+                  <div className="product-grid-header-label">Ratio</div>
+                  <div className="product-grid-header-unit">(: 1)</div>
+                </div>
+              )}
               {/* Default columns */}
               {getColumnHeaders().map((header) => {
                 const sortIndex = sorts.findIndex(s => s.attribute === header.key);
@@ -544,6 +648,15 @@ export default function ProductList() {
                     </div>
                   </div>
 
+                  {/* Auto-gear ratio value */}
+                  {autoGearActive && (
+                    <div className="spec-header-item gear-ratio-cell">
+                      <div className="spec-header-value">
+                        {((product as any)._computedGearRatio ?? 1) <= 1.01 ? '1' : ((product as any)._computedGearRatio).toFixed(1)}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Spec values - each as a direct grid cell */}
                   {getColumnHeaders().map((header) => {
                     const attrKey = header.key;
@@ -626,45 +739,86 @@ export default function ProductList() {
             <div className="gear-ratio-header">
               <span className="gear-ratio-icon">⚙</span>
               <span className="gear-ratio-label">Gear Ratio</span>
-            </div>
-            <div className="gear-ratio-input-row">
               <button
-                className="gear-ratio-step"
-                onClick={() => setGearRatio(r => Math.max(1, r - 5))}
-                disabled={gearRatio <= 1}
+                className={`gear-auto-toggle ${autoGear ? 'gear-auto-active' : ''}`}
+                onClick={() => {
+                  setAutoGear(prev => !prev);
+                  if (!autoGear) setGearRatio(1);
+                }}
+                title={autoGear ? 'Auto mode: per-motor ratio computed from filters' : 'Manual mode: fixed ratio for all motors'}
               >
-                −
+                {autoGear ? 'Auto' : 'Manual'}
               </button>
-              <div className="gear-ratio-display">
-                <input
-                  type="number"
-                  className="gear-ratio-input"
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={gearRatio}
-                  onChange={(e) => {
-                    const v = Math.max(1, Math.min(100, Math.round(Number(e.target.value) || 1)));
-                    setGearRatio(v);
-                  }}
-                />
-                <span className="gear-ratio-suffix">: 1</span>
+            </div>
+            {!autoGear && (
+              <>
+                <div className="gear-ratio-input-row">
+                  <button
+                    className="gear-ratio-step"
+                    onClick={() => setGearRatio(r => Math.max(1, r - 5))}
+                    disabled={gearRatio <= 1}
+                  >
+                    −
+                  </button>
+                  <div className="gear-ratio-display">
+                    <input
+                      type="number"
+                      className="gear-ratio-input"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={gearRatio}
+                      onChange={(e) => {
+                        const v = Math.max(1, Math.min(100, Math.round(Number(e.target.value) || 1)));
+                        setGearRatio(v);
+                      }}
+                    />
+                    <span className="gear-ratio-suffix">: 1</span>
+                  </div>
+                  <button
+                    className="gear-ratio-step"
+                    onClick={() => setGearRatio(r => Math.min(100, r + 5))}
+                    disabled={gearRatio >= 100}
+                  >
+                    +
+                  </button>
+                </div>
+                {gearRatio > 1 && (
+                  <button
+                    className="gear-ratio-reset"
+                    onClick={() => setGearRatio(1)}
+                  >
+                    Reset to direct drive
+                  </button>
+                )}
+              </>
+            )}
+            {autoGear && autoGearActive && autoGearSummary && (
+              <div className="gear-auto-summary">
+                <div className="gear-auto-range">
+                  {autoGearSummary.min === autoGearSummary.max ? (
+                    <span className="gear-auto-value">{autoGearSummary.min <= 1.01 ? '1' : autoGearSummary.min.toFixed(1)}:1</span>
+                  ) : (
+                    <>
+                      <span className="gear-auto-value">{autoGearSummary.min <= 1.01 ? '1' : autoGearSummary.min.toFixed(1)}</span>
+                      <span className="gear-auto-sep"> - </span>
+                      <span className="gear-auto-value">{autoGearSummary.max.toFixed(1)}</span>
+                      <span className="gear-auto-unit">: 1</span>
+                    </>
+                  )}
+                </div>
+                <div className="gear-auto-detail">
+                  Median {autoGearSummary.median <= 1.01 ? '1' : autoGearSummary.median.toFixed(1)}:1 across {autoGearSummary.count} motors
+                </div>
               </div>
-              <button
-                className="gear-ratio-step"
-                onClick={() => setGearRatio(r => Math.min(100, r + 5))}
-                disabled={gearRatio >= 100}
-              >
-                +
-              </button>
-            </div>
-            {gearRatio > 1 && (
-              <button
-                className="gear-ratio-reset"
-                onClick={() => setGearRatio(1)}
-              >
-                Reset to direct drive
-              </button>
+            )}
+            {autoGear && autoGearActive && !autoGearSummary && (
+              <div className="gear-auto-hint">No motors match these constraints</div>
+            )}
+            {autoGear && !autoGearActive && (
+              <div className="gear-auto-hint">
+                Add a torque or speed filter to auto-compute ratios
+              </div>
             )}
           </div>
         )}

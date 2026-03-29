@@ -858,11 +858,22 @@ const matchesFilter = (value: any, filter: FilterCriterion): boolean => {
     }
 
     // MinMaxUnit: { min: number, max: number, unit: string }
-    // Use average for comparison
+    // Use the bound most favorable to the motor for directional operators:
+    //   >= / > : use max (motor's best case meets the threshold)
+    //   <= / < : use min (motor's best case stays under the limit)
+    //   = / != : use average as a representative value
     if ('min' in value && 'max' in value) {
       if (typeof filter.value === 'number') {
-        const avgValue = (value.min + value.max) / 2;
-        return compareNumbers(avgValue, filter.operator || '=', filter.value);
+        const op = filter.operator || '=';
+        let representative: number;
+        if (op === '>=' || op === '>') {
+          representative = value.max;
+        } else if (op === '<=' || op === '<') {
+          representative = value.min;
+        } else {
+          representative = (value.min + value.max) / 2;
+        }
+        return compareNumbers(representative, op, filter.value);
       }
     }
   }

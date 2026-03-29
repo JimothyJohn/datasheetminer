@@ -77,6 +77,36 @@ function getNestedValue(obj: any, path: string): any {
 }
 
 /**
+ * Extract a numeric value from a product attribute, traversing dot-notation paths.
+ * Handles: bare numbers, ValueUnit (.value), MinMaxUnit (avg of min/max),
+ * and legacy shapes (.nominal, .rated).
+ */
+export function extractNumeric(product: any, attribute: string): number | null {
+  const val = getNestedValue(product, attribute);
+  return numericFromValue(val);
+}
+
+/**
+ * Extract a numeric value from a resolved value (no path traversal).
+ * Shared core for sorting, filtering, proximity coloring, and auto-gear.
+ */
+export function numericFromValue(val: any): number | null {
+  if (val == null) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'object') {
+    if ('value' in val && typeof val.value === 'number') return val.value;
+    if ('nominal' in val && typeof val.nominal === 'number') return val.nominal;
+    if ('rated' in val && typeof val.rated === 'number') return val.rated;
+    const hasMin = 'min' in val && val.min != null;
+    const hasMax = 'max' in val && val.max != null;
+    if (hasMin && hasMax) return (Number(val.min) + Number(val.max)) / 2;
+    if (hasMin) return Number(val.min);
+    if (hasMax) return Number(val.max);
+  }
+  return null;
+}
+
+/**
  * Format a value for display
  */
 export function formatValueForDisplay(value: string | number): string {

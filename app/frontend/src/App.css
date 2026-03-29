@@ -1107,6 +1107,51 @@ button.secondary:hover {
   box-shadow: 0 1px 4px var(--shadow-sm);
 }
 
+/* Exclude mode: red-tinted chip */
+.filter-chip-minimal.filter-chip-exclude-mode {
+  border-color: #c0392b;
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.08) 0%, rgba(192, 57, 43, 0.15) 100%);
+}
+.filter-chip-minimal.filter-chip-exclude-mode:hover {
+  border-color: #e74c3c;
+  box-shadow: 0 1px 4px rgba(231, 76, 60, 0.2);
+}
+
+/* IS / NOT mode toggle button */
+.filter-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.15s;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.filter-mode-include {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.4);
+  color: #27ae60;
+}
+.filter-mode-include:hover {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: rgba(46, 204, 113, 0.6);
+}
+.filter-mode-exclude {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.4);
+  color: #c0392b;
+}
+.filter-mode-exclude:hover {
+  background: rgba(231, 76, 60, 0.25);
+  border-color: rgba(231, 76, 60, 0.6);
+}
+
 /* Header with attribute name and remove button */
 .filter-chip-header {
   display: flex;
@@ -1722,6 +1767,87 @@ button.secondary:hover {
 
 .gear-ratio-reset:hover {
   color: var(--text-primary);
+}
+
+/* Auto/Manual toggle in gear ratio header */
+.gear-auto-toggle {
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.gear-auto-toggle:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+.gear-auto-toggle.gear-auto-active {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.4);
+  color: #27ae60;
+}
+.gear-auto-toggle.gear-auto-active:hover {
+  background: rgba(46, 204, 113, 0.25);
+}
+
+.gear-auto-hint {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+  margin-top: 0.15rem;
+}
+
+/* Computed ratio summary display */
+.gear-auto-summary {
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.08) 0%, rgba(46, 204, 113, 0.15) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  border-radius: 4px;
+}
+.gear-auto-range {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15rem;
+}
+.gear-auto-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.gear-auto-sep {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.gear-auto-unit {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+.gear-auto-detail {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-top: 0.2rem;
+  line-height: 1.3;
+}
+
+/* Gear ratio column in results table */
+.gear-ratio-col {
+  text-align: center;
+}
+.gear-ratio-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .results-count {

@@ -318,8 +318,15 @@ export default function FilterChip({
   }, []);
 
   return (
-    <div className="filter-chip-minimal" data-operator={filter.operator || '='}>
+    <div className={`filter-chip-minimal${filter.mode === 'exclude' ? ' filter-chip-exclude-mode' : ''}`} data-operator={filter.operator || '='}>
       <div className="filter-chip-header">
+        <button
+          className={`filter-mode-toggle ${filter.mode === 'exclude' ? 'filter-mode-exclude' : 'filter-mode-include'}`}
+          onClick={() => onUpdate({ ...filter, mode: filter.mode === 'exclude' ? 'include' : 'exclude' })}
+          title={filter.mode === 'exclude' ? 'Omit mode — click to switch to Select' : 'Select mode — click to switch to Omit'}
+        >
+          {filter.mode === 'exclude' ? 'NOT' : 'IS'}
+        </button>
         <span
           className="filter-attribute"
           onClick={onEditAttribute}
@@ -354,7 +361,9 @@ export default function FilterChip({
                 alignItems: 'center',
                 gap: '0.3rem',
                 padding: '0.15rem 0.35rem',
-                background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
+                background: filter.mode === 'exclude'
+                  ? 'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)'
+                  : 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
                 color: 'white',
                 borderRadius: '3px',
                 fontSize: '0.75rem',
