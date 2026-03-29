@@ -14,9 +14,12 @@ Usage:
     uv run dsm search "Maxon" --type motor                       # scoped search
     uv run dsm list --type motor                                 # list all motors
     uv run dsm list --type motor --manufacturer Maxon             # filter by mfg
+    uv run dsm list --type motor --sort rated_power:desc          # list sorted
     uv run dsm get <product_id> --type motor                     # full details
     uv run dsm filter --type motor --where "rated_power>100"     # spec filter
-    uv run dsm filter --type motor --where "rated_voltage>=24"   # multi-filter
+    uv run dsm filter --type motor --where "rated_voltage>=24" --sort "rated_torque:desc"
+    uv run dsm find --type motor --where "rated_voltage>=24" --where "rated_power>=100" --sort "rated_torque:desc"
+    uv run dsm find --type motor "EC" --manufacturer Maxon --sort "rated_power:desc"
     uv run dsm types                                             # type summary
     uv run dsm manufacturers --type motor                        # list manufacturers
     uv run dsm fields --type motor                               # field definitions
@@ -53,7 +56,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARNING"), handlers=[_sh,
 log = logging.getLogger("dsm")
 
 # Product types included in search/list (skip metadata-only types)
-QUERYABLE_TYPES = {"motor", "drive", "gearhead", "robot_arm"}
+QUERYABLE_TYPES = {"motor", "drive", "gearhead", "robot_arm", "electric_cylinder"}
 
 # Key specs shown in summary views per product type
 SUMMARY_SPECS: dict[str, list[str]] = {
@@ -88,6 +91,16 @@ SUMMARY_SPECS: dict[str, list[str]] = {
         "degrees_of_freedom",
         "max_tcp_speed",
         "pose_repeatability",
+    ],
+    "electric_cylinder": [
+        "type",
+        "stroke",
+        "max_push_force",
+        "max_pull_force",
+        "continuous_force",
+        "max_linear_speed",
+        "rated_voltage",
+        "rated_power",
     ],
 }
 
@@ -219,6 +232,54 @@ def parse_where(expr: str) -> tuple[str, str, str]:
     raise ValueError(f"Cannot parse filter: '{expr}'. Use format: field>value")
 
 
+def parse_sort(expr: str) -> tuple[str, bool]:
+    """Parse 'field:desc' into (field, reverse). Default direction is ascending."""
+    if ":" in expr:
+        field, direction = expr.rsplit(":", 1)
+        return field.strip(), direction.strip().lower().startswith("d")
+    return expr.strip(), False
+
+
+def sort_products(products: list, sort_keys: list[str]) -> list:
+    """Multi-level sort by spec values. Each key is 'field:asc' or 'field:desc'."""
+    if not sort_keys:
+        return products
+
+    import functools
+
+    parsed = [parse_sort(k) for k in sort_keys]
+    log.info("Sorting by %s", [(f, "desc" if r else "asc") for f, r in parsed])
+
+    def compare(a: Any, b: Any) -> int:
+        for field, reverse in parsed:
+            a_val = getattr(a, field, None)
+            b_val = getattr(b, field, None)
+            a_num = extract_numeric(a_val)
+            b_num = extract_numeric(b_val)
+
+            # None always sorts last
+            if a_val is None and b_val is None:
+                continue
+            if a_val is None:
+                return 1
+            if b_val is None:
+                return -1
+
+            cmp = 0
+            if a_num is not None and b_num is not None:
+                cmp = (a_num > b_num) - (a_num < b_num)
+            else:
+                a_str = str(a_val).lower()
+                b_str = str(b_val).lower()
+                cmp = (a_str > b_str) - (a_str < b_str)
+
+            if cmp != 0:
+                return -cmp if reverse else cmp
+        return 0
+
+    return sorted(products, key=functools.cmp_to_key(compare))
+
+
 def apply_where(product: Any, field: str, op: str, value: str) -> bool:
     """Check if a product passes a single where clause."""
     product_val = getattr(product, field, None)
@@ -327,6 +388,9 @@ def cmd_list(args: argparse.Namespace) -> None:
             if getattr(p, "product_family", None) and fam in p.product_family.lower()
         ]
 
+    if getattr(args, "sort", None):
+        products = sort_products(products, args.sort)
+
     limit = args.limit or 10
     products = products[:limit]
     omit = bool(getattr(args, "type", None))
@@ -373,6 +437,9 @@ def cmd_filter(args: argparse.Namespace) -> None:
             _json_out({"error": str(e)}, exit_code=1)
         products = [p for p in products if apply_where(p, field, op, value)]
 
+    if getattr(args, "sort", None):
+        products = sort_products(products, args.sort)
+
     limit = args.limit or 10
     products = products[:limit]
 
@@ -382,6 +449,54 @@ def cmd_filter(args: argparse.Namespace) -> None:
             "products": [product_summary(p, omit_type=True) for p in products],
         },
         exit_code=0 if products else 2,
+    )
+
+
+def cmd_find(args: argparse.Namespace) -> None:
+    """Find ideal products by combining filters, sorting, and optional text search."""
+    if not args.type:
+        _json_out({"error": "--type is required for find"}, exit_code=1)
+
+    log.info("Finding %s products", args.type)
+    products = _fetch_products(product_type=args.type)
+
+    # Apply manufacturer filter
+    if args.manufacturer:
+        mfg = args.manufacturer.lower()
+        products = [p for p in products if mfg in p.manufacturer.lower()]
+
+    # Apply where filters
+    for expr in args.where or []:
+        try:
+            field, op, value = parse_where(expr)
+        except ValueError as e:
+            _json_out({"error": str(e)}, exit_code=1)
+        products = [p for p in products if apply_where(p, field, op, value)]
+
+    # Apply text query for relevance scoring (optional)
+    if args.query:
+        scored = [(text_score(p, args.query), p) for p in products]
+        # Keep all products but boost matched ones
+        scored.sort(key=lambda x: x[0], reverse=True)
+        products = [p for _, p in scored]
+
+    # Apply multi-level sorting
+    if args.sort:
+        products = sort_products(products, args.sort)
+
+    limit = args.limit or 10
+    products = products[:limit]
+
+    out: list[dict] = []
+    for p in products:
+        entry = product_summary(p, omit_type=True)
+        if args.query:
+            entry["relevance"] = text_score(p, args.query)
+        out.append(entry)
+
+    _json_out(
+        {"count": len(out), "type": args.type, "products": out},
+        exit_code=0 if out else 2,
     )
 
 
@@ -469,6 +584,12 @@ def build_parser() -> argparse.ArgumentParser:
         "-f", "--family", default=None, help="Filter by product family (substring)"
     )
     p.add_argument(
+        "-s",
+        "--sort",
+        action="append",
+        help="Sort by spec (e.g. 'rated_power:desc')",
+    )
+    p.add_argument(
         "-n", "--limit", type=int, default=10, help="Max results (default: 10)"
     )
 
@@ -486,6 +607,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--where",
         action="append",
         help="Spec filter (e.g. 'rated_power>100')",
+    )
+    p.add_argument(
+        "-s",
+        "--sort",
+        action="append",
+        help="Sort by spec (e.g. 'rated_power:desc')",
+    )
+    p.add_argument(
+        "-n", "--limit", type=int, default=10, help="Max results (default: 10)"
+    )
+
+    # find — combined filter + sort + search for agent workflows
+    p = sub.add_parser(
+        "find",
+        help="Find ideal products by combining filters, sorting, and text search",
+    )
+    p.add_argument("query", nargs="?", default=None, help="Optional text query")
+    p.add_argument("-t", "--type", required=True, help="Product type")
+    p.add_argument("-m", "--manufacturer", default=None, help="Filter by manufacturer")
+    p.add_argument(
+        "-w",
+        "--where",
+        action="append",
+        help="Spec filter (e.g. 'rated_power>100')",
+    )
+    p.add_argument(
+        "-s",
+        "--sort",
+        action="append",
+        help="Sort by spec (e.g. 'rated_torque:desc', 'weight:asc')",
     )
     p.add_argument(
         "-n", "--limit", type=int, default=10, help="Max results (default: 10)"
@@ -521,6 +672,7 @@ def main() -> None:
         "list": cmd_list,
         "get": cmd_get,
         "filter": cmd_filter,
+        "find": cmd_find,
         "types": cmd_types,
         "manufacturers": cmd_manufacturers,
         "fields": cmd_fields,

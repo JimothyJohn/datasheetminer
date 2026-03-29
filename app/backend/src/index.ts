@@ -14,6 +14,9 @@ import subscriptionRouter from './routes/subscription';
 
 const app: Application = express();
 
+// Security: don't leak server technology
+app.disable('x-powered-by');
+
 // Middleware
 app.use(cors(config.cors));
 app.use(express.json({ limit: '10mb' }));

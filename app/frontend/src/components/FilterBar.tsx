@@ -127,8 +127,11 @@ export default function FilterBar({
           value={productType === null ? '' : productType}
           onChange={(e) => onProductTypeChange(e.target.value === '' ? null : e.target.value as ProductType)}
           className="product-type-select"
+          disabled={categories.length === 0}
         >
-          <option value="">Select Product Type...</option>
+          <option value="">
+            {categories.length === 0 ? 'Loading...' : 'Select Product Type...'}
+          </option>
           {categories.map((category) => (
             <option key={category.type} value={category.type}>
               {category.display_name}

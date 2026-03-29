@@ -509,3 +509,225 @@ class TestCmdFields:
         field_names = [f["name"] for f in data["fields"]]
         assert "gear_ratio" in field_names
         assert "backlash" in field_names
+
+
+# ---------------------------------------------------------------------------
+# parse_sort
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestParseSort:
+    def test_desc(self):
+        from cli.query import parse_sort
+
+        field, reverse = parse_sort("rated_power:desc")
+        assert field == "rated_power"
+        assert reverse is True
+
+    def test_asc(self):
+        from cli.query import parse_sort
+
+        field, reverse = parse_sort("rated_torque:asc")
+        assert field == "rated_torque"
+        assert reverse is False
+
+    def test_no_direction_defaults_asc(self):
+        from cli.query import parse_sort
+
+        field, reverse = parse_sort("rated_voltage")
+        assert field == "rated_voltage"
+        assert reverse is False
+
+    def test_uppercase_direction(self):
+        from cli.query import parse_sort
+
+        field, reverse = parse_sort("weight:DESC")
+        assert field == "weight"
+        assert reverse is True
+
+
+# ---------------------------------------------------------------------------
+# sort_products
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSortProducts:
+    def test_sort_numeric_asc(self):
+        from cli.query import sort_products
+
+        motors = [
+            _make_motor(rated_power="200;W", product_name="Big"),
+            _make_motor(rated_power="50;W", product_name="Small"),
+            _make_motor(rated_power="100;W", product_name="Mid"),
+        ]
+        result = sort_products(motors, ["rated_power:asc"])
+        powers = [extract_numeric(p.rated_power) for p in result]
+        assert powers == [50.0, 100.0, 200.0]
+
+    def test_sort_numeric_desc(self):
+        from cli.query import sort_products
+
+        motors = [
+            _make_motor(rated_power="50;W", product_name="Small"),
+            _make_motor(rated_power="200;W", product_name="Big"),
+            _make_motor(rated_power="100;W", product_name="Mid"),
+        ]
+        result = sort_products(motors, ["rated_power:desc"])
+        powers = [extract_numeric(p.rated_power) for p in result]
+        assert powers == [200.0, 100.0, 50.0]
+
+    def test_sort_string_asc(self):
+        from cli.query import sort_products
+
+        motors = [
+            _make_motor(manufacturer="Maxon", product_name="A"),
+            _make_motor(manufacturer="ABB", product_name="B"),
+            _make_motor(manufacturer="Faulhaber", product_name="C"),
+        ]
+        result = sort_products(motors, ["manufacturer:asc"])
+        mfgs = [p.manufacturer for p in result]
+        assert mfgs == ["ABB", "Faulhaber", "Maxon"]
+
+    def test_sort_none_values_last(self):
+        from cli.query import sort_products
+
+        motors = [
+            _make_motor(rated_power=None, product_name="NoSpec"),
+            _make_motor(rated_power="50;W", product_name="HasSpec"),
+        ]
+        result = sort_products(motors, ["rated_power:asc"])
+        assert result[0].product_name == "HasSpec"
+        assert result[1].product_name == "NoSpec"
+
+    def test_multi_level_sort(self):
+        from cli.query import sort_products
+
+        motors = [
+            _make_motor(manufacturer="ABB", rated_power="100;W", product_name="A"),
+            _make_motor(manufacturer="ABB", rated_power="200;W", product_name="B"),
+            _make_motor(manufacturer="Maxon", rated_power="50;W", product_name="C"),
+        ]
+        result = sort_products(motors, ["manufacturer:asc", "rated_power:desc"])
+        names = [p.product_name for p in result]
+        assert names == ["B", "A", "C"]
+
+    def test_empty_sort_keys_returns_original(self):
+        from cli.query import sort_products
+
+        motors = [_make_motor(product_name="X")]
+        result = sort_products(motors, [])
+        assert len(result) == 1
+
+
+# ---------------------------------------------------------------------------
+# Parser — find subcommand
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFindParser:
+    def test_find_requires_type(self):
+        parser = build_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["find"])
+
+    def test_find_with_type(self):
+        parser = build_parser()
+        args = parser.parse_args(["find", "-t", "motor"])
+        assert args.command == "find"
+        assert args.type == "motor"
+        assert args.query is None
+
+    def test_find_with_query(self):
+        parser = build_parser()
+        args = parser.parse_args(["find", "-t", "motor", "EC-45"])
+        assert args.query == "EC-45"
+
+    def test_find_with_where_and_sort(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "find",
+                "-t",
+                "motor",
+                "-w",
+                "rated_power>100",
+                "-s",
+                "rated_torque:desc",
+                "-s",
+                "weight:asc",
+            ]
+        )
+        assert args.where == ["rated_power>100"]
+        assert args.sort == ["rated_torque:desc", "weight:asc"]
+
+    def test_find_with_manufacturer(self):
+        parser = build_parser()
+        args = parser.parse_args(["find", "-t", "motor", "-m", "Maxon"])
+        assert args.manufacturer == "Maxon"
+
+    def test_find_with_limit(self):
+        parser = build_parser()
+        args = parser.parse_args(["find", "-t", "motor", "-n", "5"])
+        assert args.limit == 5
+
+
+# ---------------------------------------------------------------------------
+# Parser — sort flag on list and filter
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSortFlagParser:
+    def test_list_with_sort(self):
+        parser = build_parser()
+        args = parser.parse_args(["list", "-t", "motor", "-s", "rated_power:desc"])
+        assert args.sort == ["rated_power:desc"]
+
+    def test_filter_with_sort(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "filter",
+                "-t",
+                "motor",
+                "-w",
+                "rated_voltage>=24",
+                "-s",
+                "rated_torque:desc",
+            ]
+        )
+        assert args.sort == ["rated_torque:desc"]
+        assert args.where == ["rated_voltage>=24"]
+
+    def test_list_multi_sort(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "list",
+                "-t",
+                "motor",
+                "-s",
+                "manufacturer:asc",
+                "-s",
+                "rated_power:desc",
+            ]
+        )
+        assert args.sort == ["manufacturer:asc", "rated_power:desc"]
+
+
+# ---------------------------------------------------------------------------
+# Constants — electric_cylinder
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestElectricCylinder:
+    def test_electric_cylinder_in_queryable_types(self):
+        assert "electric_cylinder" in QUERYABLE_TYPES
+
+    def test_electric_cylinder_has_summary_specs(self):
+        assert "electric_cylinder" in SUMMARY_SPECS
+        assert len(SUMMARY_SPECS["electric_cylinder"]) > 0

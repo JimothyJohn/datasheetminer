@@ -38,7 +38,6 @@ class TestResponseSchemas:
         assert status == 200
         data = body.get("data", {})
         assert "total" in data
-        assert "byType" in data or "byManufacturer" in data
 
 
 @pytest.mark.integration

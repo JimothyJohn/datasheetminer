@@ -15,8 +15,10 @@ from uuid import uuid4
 BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3001")
 
 
-def api_request(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
-    """Helper to make API requests."""
+def api_request(
+    method: str, path: str, body: dict | None = None
+) -> tuple[int, dict | None]:
+    """Helper to make API requests. Returns None body if response is not JSON."""
     url = f"{BASE_URL}{path}"
     data = json.dumps(body).encode() if body else None
     headers = {"Content-Type": "application/json"} if body else {}
@@ -24,9 +26,42 @@ def api_request(method: str, path: str, body: dict | None = None) -> tuple[int, 
     req = Request(url, data=data, headers=headers, method=method)
     try:
         with urlopen(req, timeout=10) as resp:
-            return resp.status, json.loads(resp.read().decode())
+            text = resp.read().decode()
+            try:
+                return resp.status, json.loads(text)
+            except json.JSONDecodeError:
+                return resp.status, None
     except HTTPError as e:
-        return e.code, json.loads(e.read().decode())
+        text = e.read().decode()
+        try:
+            return e.code, json.loads(text)
+        except json.JSONDecodeError:
+            return e.code, None
+
+
+def _server_mode() -> str:
+    """Detect the server's APP_MODE from /health."""
+    try:
+        req = Request(f"{BASE_URL}/health")
+        with urlopen(req, timeout=5) as resp:
+            body = json.loads(resp.read().decode())
+            return body.get("mode", "unknown")
+    except Exception:
+        return "unknown"
+
+
+requires_admin = pytest.mark.skipif(
+    _server_mode() == "public",
+    reason="Server is in public (read-only) mode — write tests skipped",
+)
+
+# CloudFront transforms error responses into SPA HTML and routes / to frontend
+_is_behind_cdn = "localhost" not in BASE_URL and "127.0.0.1" not in BASE_URL
+
+direct_api_only = pytest.mark.skipif(
+    _is_behind_cdn,
+    reason="Test requires direct API access — CloudFront transforms error responses",
+)
 
 
 @pytest.mark.integration
@@ -37,6 +72,7 @@ class TestHealthEndpoint:
         assert body["status"] == "healthy"
         assert "timestamp" in body
 
+    @direct_api_only
     def test_root_endpoint(self):
         status, body = api_request("GET", "/")
         assert status == 200
@@ -75,10 +111,12 @@ class TestProductsAPI:
         status, body = api_request("GET", f"/api/products/{uuid4()}")
         assert status == 400
 
+    @direct_api_only
     def test_get_product_not_found_returns_404(self):
         status, body = api_request("GET", f"/api/products/{uuid4()}?type=motor")
         assert status == 404
 
+    @requires_admin
     def test_create_and_delete_product(self):
         # Create
         product = {
@@ -94,6 +132,7 @@ class TestProductsAPI:
         # Note: We can't easily get the ID back to delete since batch_create doesn't return it
         # But we can verify creation didn't error
 
+    @direct_api_only
     def test_404_for_unknown_endpoint(self):
         status, body = api_request("GET", "/api/nonexistent")
         assert status == 404

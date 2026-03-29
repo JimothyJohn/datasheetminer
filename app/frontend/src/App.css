@@ -1009,20 +1009,20 @@ button.secondary:hover {
 .product-type-select {
   width: 100%;
   padding: 0.4rem 2rem 0.4rem 0.65rem;
-  border: none;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
-  background-image: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233b82f6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat, no-repeat;
-  background-position: center, right 0.65rem center;
-  background-size: 100%, 10px;
+  background-color: var(--bg-tertiary);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237b8a68' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 12px;
   color: var(--text-primary);
   cursor: pointer;
   outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -1031,25 +1031,20 @@ button.secondary:hover {
 }
 
 .product-type-select:hover {
-  background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-tertiary) 100%);
-  background-image: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-tertiary) 100%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233b82f6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat, no-repeat;
-  background-position: center, right 0.65rem center;
-  background-size: 100%, 10px;
+  background-color: var(--card-bg);
+  border-color: var(--accent-primary);
   box-shadow: 0 2px 6px var(--shadow-md);
-  border: 1px solid var(--accent-primary);
 }
 
 .product-type-select:focus {
-  background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-tertiary) 100%);
-  background-image: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-tertiary) 100%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233b82f6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat, no-repeat;
-  background-position: center, right 0.65rem center;
-  background-size: 100%, 10px;
+  background-color: var(--card-bg);
+  border-color: var(--accent-primary);
   box-shadow: 0 2px 6px var(--shadow-md);
-  border: 1px solid var(--accent-primary);
+}
+
+.product-type-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .product-type-select option {
@@ -2638,6 +2633,43 @@ button.secondary:hover {
   margin-top: 0.1rem;
 }
 
+.product-detail-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.product-detail-pages-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-right: 0.15rem;
+}
+
+.product-detail-page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color-light);
+  border-radius: 3px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.product-detail-page-link:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
 .product-detail-close {
   background: var(--bg-tertiary);
   border: 2px solid var(--border-color);
@@ -2801,6 +2833,13 @@ button.secondary:hover {
   vertical-align: middle;
 }
 
+/* ========== MOBILE FILTER TOGGLE ========== */
+
+/* Hidden on desktop — only used on mobile */
+.mobile-filter-toggle {
+  display: none;
+}
+
 /* ========== MOBILE OPTIMIZATIONS ========== */
 
 /* Mobile-first responsive design improvements */
@@ -2852,14 +2891,79 @@ button.secondary:hover {
     flex-direction: column;
   }
 
-  /* Filter sidebar on mobile */
+  /* Filter sidebar on mobile — moves to top */
   .filter-sidebar {
     width: 100%;
     min-width: unset;
     position: static;
     height: auto;
+    order: -1;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+    box-shadow: 0 2px 8px var(--shadow-sm);
+  }
+
+  /* Mobile toggle bar — visible on mobile */
+  .mobile-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg);
+    border: none;
+    border-bottom: 1px solid var(--border-color-light);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .mobile-filter-toggle:active {
+    background: var(--bg-secondary);
+  }
+
+  .mobile-filter-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .mobile-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-primary);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+  }
+
+  .mobile-filter-arrow {
+    transition: transform 0.2s ease;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .mobile-filter-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  /* Sidebar body — collapsed by default on mobile */
+  .filter-sidebar-body {
+    display: none;
+    padding: 0.75rem 1rem;
+  }
+
+  .filter-sidebar-body.mobile-expanded {
+    display: block;
   }
 
   /* Results main area on mobile */

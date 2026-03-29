@@ -27,6 +27,7 @@ export default function ProductList() {
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
   const [gearRatio, setGearRatio] = useState<number>(1);
   const [autoGear, setAutoGear] = useState<boolean>(true);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Default column widths (px): part number + spec columns
   const defaultPartWidth = 120;
@@ -480,11 +481,6 @@ export default function ProductList() {
           </div>
 
           <div className="results-header-right">
-            {loading && (
-              <span style={{ opacity: 0.6, fontSize: '0.8rem' }}>
-                Loading...
-              </span>
-            )}
           </div>
         </div>
 
@@ -734,6 +730,23 @@ export default function ProductList() {
 
       {/* Right sidebar - filters & gear ratio */}
       <aside className="filter-sidebar">
+        {/* Mobile-only toggle header */}
+        <button
+          className="mobile-filter-toggle"
+          onClick={() => setMobileFiltersOpen(prev => !prev)}
+        >
+          <span className="mobile-filter-summary">
+            {productType
+              ? categories.find(c => c.type === productType)?.display_name ?? productType
+              : 'Select Type'}
+            {filters.length > 0 && (
+              <span className="mobile-filter-count">{filters.length}</span>
+            )}
+          </span>
+          <span className={`mobile-filter-arrow ${mobileFiltersOpen ? 'open' : ''}`}>&#9662;</span>
+        </button>
+
+        <div className={`filter-sidebar-body${mobileFiltersOpen ? ' mobile-expanded' : ''}`}>
         {productType === 'motor' && (
           <div className="gear-ratio-control">
             <div className="gear-ratio-header">
@@ -832,6 +845,7 @@ export default function ProductList() {
           onProductTypeChange={handleProductTypeChange}
           allProducts={products}
         />
+        </div>
       </aside>
 
       <ProductDetailModal

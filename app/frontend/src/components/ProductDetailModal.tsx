@@ -121,7 +121,7 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
   };
 
   const groupSpecs = () => {
-    const skipKeys = ['product_id', 'product_type', 'PK', 'SK', 'pk', 'sk', 'manufacturer', 'part_number', 'type', 'series', 'datasheet_url'];
+    const skipKeys = ['product_id', 'product_type', 'PK', 'SK', 'pk', 'sk', 'manufacturer', 'part_number', 'type', 'series', 'datasheet_url', 'pages', 'product_name'];
 
     // Define category groups for better organization
     const categories: Record<string, Array<{ key: string; label: string; value: any }>> = {
@@ -174,6 +174,15 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
 
   const groupedSpecs = groupSpecs();
 
+  // Resolve datasheet URL — only linkable if it's an HTTP(S) URL
+  const rawDatasheetUrl = typeof product.datasheet_url === 'string'
+    ? product.datasheet_url
+    : (product.datasheet_url as any)?.url ?? null;
+  const datasheetUrl = rawDatasheetUrl?.startsWith('http') ? rawDatasheetUrl : null;
+  const pages: number[] = ('pages' in product && Array.isArray((product as any).pages))
+    ? (product as any).pages
+    : [];
+
   return (
     <div className="product-detail-overlay">
       <div
@@ -186,9 +195,9 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
         <div className="product-detail-header">
           <div>
             <h2>{product.manufacturer || 'Unknown Manufacturer'}</h2>
-            {product.datasheet_url && typeof product.datasheet_url === 'object' && 'url' in product.datasheet_url ? (
+            {datasheetUrl ? (
               <a
-                href={sanitizeUrl((product.datasheet_url as any).url)}
+                href={sanitizeUrl(datasheetUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="product-detail-part product-detail-part-link"
@@ -207,6 +216,23 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
             )}
             {'type' in product && product.type && <p className="product-detail-type">Type: {product.type}</p>}
             {'series' in product && product.series && <p className="product-detail-type">Series: {product.series}</p>}
+            {datasheetUrl && pages.length > 0 && (
+              <div className="product-detail-pages">
+                <span className="product-detail-pages-label">Datasheet pages:</span>
+                {pages.map((page) => (
+                  <a
+                    key={page}
+                    href={sanitizeUrl(`${datasheetUrl}#page=${page}`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="product-detail-page-link"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {page}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
           <button className="product-detail-close" onClick={onClose} aria-label="Close">
             ×
