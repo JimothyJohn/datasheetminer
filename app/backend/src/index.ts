@@ -11,6 +11,9 @@ import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
 import subscriptionRouter from './routes/subscription';
+import recommendRouter from './routes/recommend';
+import searchRouter from './routes/search';
+import docsRouter from './routes/docs';
 
 const app: Application = express();
 
@@ -47,10 +50,15 @@ app.get('/health', (_req: Request, res: Response) => {
 // Upload route — available in both public and admin mode (queues only, no data mutation)
 app.use('/api/upload', uploadRouter);
 
+// Recommendation route — read-only LLM-powered product suggestions
+app.use('/api/recommend', recommendRouter);
+
 // API routes
 app.use('/api/products', productsRouter);
 app.use('/api/datasheets', datasheetsRouter);
 app.use('/api/subscription', subscriptionRouter);
+app.use('/api/v1/search', searchRouter);
+app.use('/api', docsRouter);
 
 // Serve frontend static files in production (Docker container)
 if (process.env.NODE_ENV === 'production') {
@@ -73,6 +81,9 @@ app.get('/', (_req: Request, res: Response) => {
       datasheets: '/api/datasheets',
       summary: '/api/products/summary',
       subscription: '/api/subscription',
+      search: '/api/v1/search',
+      openapi: '/api/openapi.json',
+      docs: '/api/docs',
     },
   });
 });

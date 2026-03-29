@@ -1,0 +1,547 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DatasheetMiner API",
+    "version": "1.0.0",
+    "description": "Search and browse industrial product specifications extracted from datasheets. Covers motors, drives, gearheads, and robot arms. Free to use, no authentication required for read operations.",
+    "contact": {
+      "name": "DatasheetMiner",
+      "url": "https://datasheets.advin.io"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://datasheets.advin.io",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "healthy" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "environment": { "type": "string" },
+                    "mode": { "type": "string", "enum": ["public", "admin"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "summary": "Search products",
+        "description": "Powerful search combining text matching, spec filtering, and multi-level sorting. Returns compact product summaries with key specs for each product type.",
+        "operationId": "searchProducts",
+        "tags": ["Search"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Text search query. Matches against part number, product name, manufacturer, series, product family, and type with weighted relevance scoring.",
+            "schema": { "type": "string" },
+            "example": "EC-45"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by product type",
+            "schema": { "type": "string", "enum": ["motor", "drive", "gearhead", "robot_arm"] }
+          },
+          {
+            "name": "manufacturer",
+            "in": "query",
+            "description": "Filter by manufacturer (case-insensitive substring match)",
+            "schema": { "type": "string" },
+            "example": "Maxon"
+          },
+          {
+            "name": "where",
+            "in": "query",
+            "description": "Spec filter expressions. Format: field{operator}value. Operators: >=, <=, !=, >, <, =. Numeric fields use numeric comparison; string fields use substring match. Repeat for multiple filters (AND logic).",
+            "schema": { "type": "array", "items": { "type": "string" } },
+            "style": "form",
+            "explode": true,
+            "examples": {
+              "single": { "value": ["rated_power>=100"] },
+              "multiple": { "value": ["rated_power>=100", "rated_voltage<=48"] }
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sort keys. Format: field or field:desc. Repeat for multi-level sorting. Null values sort last.",
+            "schema": { "type": "array", "items": { "type": "string" } },
+            "style": "form",
+            "explode": true,
+            "examples": {
+              "single": { "value": ["rated_power:desc"] },
+              "multiple": { "value": ["rated_power:desc", "weight:asc"] }
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results (default 20, max 100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ProductSummary" }
+                    },
+                    "count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "summary": "List products",
+        "description": "List all products, optionally filtered by type with a result limit.",
+        "operationId": "listProducts",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Product type to list. Use 'all' or omit to list all types.",
+            "schema": { "type": "string", "enum": ["motor", "drive", "gearhead", "robot_arm", "all"] }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    },
+                    "count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "summary": "Get product by ID",
+        "description": "Retrieve full product details by product ID. Requires the product type as a query parameter.",
+        "operationId": "getProduct",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Product UUID",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "description": "Product type",
+            "schema": { "type": "string", "enum": ["motor", "drive", "gearhead", "robot_arm"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing type parameter",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/summary": {
+      "get": {
+        "summary": "Product summary statistics",
+        "description": "Get aggregated product counts by type.",
+        "operationId": "getProductSummary",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "Summary counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "motor": { "type": "integer" },
+                        "drive": { "type": "integer" },
+                        "gearhead": { "type": "integer" },
+                        "robot_arm": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/categories": {
+      "get": {
+        "summary": "List product categories",
+        "description": "Get all product categories with counts and display names.",
+        "operationId": "getCategories",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "Category list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string" },
+                          "count": { "type": "integer" },
+                          "display_name": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/manufacturers": {
+      "get": {
+        "summary": "List manufacturers",
+        "description": "Get all unique manufacturer names across all product types.",
+        "operationId": "getManufacturers",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "Manufacturer list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/names": {
+      "get": {
+        "summary": "List product names",
+        "description": "Get all unique product names across all product types.",
+        "operationId": "getProductNames",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "Product name list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ValueUnit": {
+        "type": "object",
+        "description": "A single numeric value with its unit of measurement",
+        "properties": {
+          "value": { "type": "number" },
+          "unit": { "type": "string" }
+        },
+        "required": ["value", "unit"],
+        "example": { "value": 24, "unit": "V" }
+      },
+      "MinMaxUnit": {
+        "type": "object",
+        "description": "A numeric range with its unit of measurement",
+        "properties": {
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "unit": { "type": "string" }
+        },
+        "required": ["min", "max", "unit"],
+        "example": { "min": 24, "max": 48, "unit": "V" }
+      },
+      "Product": {
+        "type": "object",
+        "description": "Full product record. Fields vary by product_type. Common fields are listed; type-specific fields are included when present.",
+        "properties": {
+          "product_id": { "type": "string", "format": "uuid" },
+          "product_type": { "type": "string", "enum": ["motor", "drive", "gearhead", "robot_arm"] },
+          "manufacturer": { "type": "string" },
+          "product_name": { "type": "string" },
+          "part_number": { "type": "string" },
+          "product_family": { "type": "string" },
+          "datasheet_url": { "type": "string" },
+          "dimensions": {
+            "type": "object",
+            "properties": {
+              "length": { "$ref": "#/components/schemas/ValueUnit" },
+              "width": { "$ref": "#/components/schemas/ValueUnit" },
+              "height": { "$ref": "#/components/schemas/ValueUnit" }
+            }
+          },
+          "weight": { "$ref": "#/components/schemas/ValueUnit" }
+        },
+        "required": ["product_id", "product_type", "manufacturer"]
+      },
+      "Motor": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Product" },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["brushless dc", "brushed dc", "ac induction", "ac synchronous", "ac servo", "permanent magnet", "hybrid"] },
+              "series": { "type": "string" },
+              "rated_voltage": { "$ref": "#/components/schemas/MinMaxUnit" },
+              "rated_speed": { "$ref": "#/components/schemas/ValueUnit" },
+              "rated_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "peak_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "rated_power": { "$ref": "#/components/schemas/ValueUnit" },
+              "rated_current": { "$ref": "#/components/schemas/ValueUnit" },
+              "peak_current": { "$ref": "#/components/schemas/ValueUnit" },
+              "voltage_constant": { "$ref": "#/components/schemas/ValueUnit" },
+              "torque_constant": { "$ref": "#/components/schemas/ValueUnit" },
+              "resistance": { "$ref": "#/components/schemas/ValueUnit" },
+              "inductance": { "$ref": "#/components/schemas/ValueUnit" },
+              "encoder_feedback_support": { "type": "string" },
+              "poles": { "type": "integer" },
+              "ip_rating": { "type": "integer" },
+              "rotor_inertia": { "$ref": "#/components/schemas/ValueUnit" }
+            }
+          }
+        ]
+      },
+      "Drive": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Product" },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["servo", "variable frequency"] },
+              "series": { "type": "string" },
+              "input_voltage": { "$ref": "#/components/schemas/MinMaxUnit" },
+              "input_voltage_frequency": { "type": "array", "items": { "$ref": "#/components/schemas/ValueUnit" } },
+              "input_voltage_phases": { "type": "array", "items": { "type": "integer" } },
+              "rated_current": { "$ref": "#/components/schemas/ValueUnit" },
+              "peak_current": { "$ref": "#/components/schemas/ValueUnit" },
+              "output_power": { "$ref": "#/components/schemas/ValueUnit" },
+              "switching_frequency": { "type": "array", "items": { "$ref": "#/components/schemas/ValueUnit" } },
+              "fieldbus": { "type": "array", "items": { "type": "string" } },
+              "control_modes": { "type": "array", "items": { "type": "string" } },
+              "encoder_feedback_support": { "type": "array", "items": { "type": "string" } },
+              "ethernet_ports": { "type": "integer" },
+              "digital_inputs": { "type": "integer" },
+              "digital_outputs": { "type": "integer" },
+              "analog_inputs": { "type": "integer" },
+              "analog_outputs": { "type": "integer" },
+              "safety_rating": { "type": "array", "items": { "type": "string" } },
+              "approvals": { "type": "array", "items": { "type": "string" } },
+              "max_humidity": { "type": "number" },
+              "ip_rating": { "type": "integer" },
+              "ambient_temp": { "$ref": "#/components/schemas/MinMaxUnit" }
+            }
+          }
+        ]
+      },
+      "Gearhead": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Product" },
+          {
+            "type": "object",
+            "properties": {
+              "gear_ratio": { "type": "number" },
+              "gear_type": { "type": "string" },
+              "stages": { "type": "integer" },
+              "nominal_input_speed": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_input_speed": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_continuous_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_peak_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "backlash": { "$ref": "#/components/schemas/ValueUnit" },
+              "efficiency": { "type": "number" },
+              "torsional_rigidity": { "$ref": "#/components/schemas/ValueUnit" },
+              "rotor_inertia": { "$ref": "#/components/schemas/ValueUnit" },
+              "noise_level": { "$ref": "#/components/schemas/ValueUnit" },
+              "frame_size": { "type": "string" },
+              "input_shaft_diameter": { "$ref": "#/components/schemas/ValueUnit" },
+              "output_shaft_diameter": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_radial_load": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_axial_load": { "$ref": "#/components/schemas/ValueUnit" },
+              "ip_rating": { "type": "string" },
+              "operating_temp": { "$ref": "#/components/schemas/MinMaxUnit" },
+              "service_life": { "$ref": "#/components/schemas/ValueUnit" },
+              "lubrication_type": { "type": "string" }
+            }
+          }
+        ]
+      },
+      "RobotArm": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Product" },
+          {
+            "type": "object",
+            "properties": {
+              "payload": { "$ref": "#/components/schemas/ValueUnit" },
+              "reach": { "$ref": "#/components/schemas/ValueUnit" },
+              "degrees_of_freedom": { "type": "integer" },
+              "pose_repeatability": { "$ref": "#/components/schemas/ValueUnit" },
+              "max_tcp_speed": { "$ref": "#/components/schemas/ValueUnit" },
+              "ip_rating": { "type": "string" },
+              "cleanroom_class": { "type": "string" },
+              "noise_level": { "$ref": "#/components/schemas/ValueUnit" },
+              "mounting_position": { "type": "string" },
+              "operating_temp": { "$ref": "#/components/schemas/MinMaxUnit" },
+              "materials": { "type": "array", "items": { "type": "string" } },
+              "safety_certifications": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        ]
+      },
+      "ProductSummary": {
+        "type": "object",
+        "description": "Compact product representation with identification fields and key specs for the product type. Returned by the search endpoint.",
+        "properties": {
+          "product_id": { "type": "string" },
+          "product_type": { "type": "string" },
+          "manufacturer": { "type": "string" },
+          "product_name": { "type": "string" },
+          "part_number": { "type": "string" },
+          "relevance": { "type": "integer", "description": "Text search relevance score (0-100). Only present when a text query is provided." }
+        },
+        "additionalProperties": true,
+        "required": ["product_id", "product_type", "manufacturer"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string" }
+        },
+        "required": ["success", "error"]
+      }
+    }
+  },
+  "tags": [
+    { "name": "Search", "description": "Search and filter products by specs" },
+    { "name": "Products", "description": "Browse and retrieve product data" },
+    { "name": "System", "description": "Health and status endpoints" }
+  ]
+}
