@@ -63,6 +63,19 @@ Extract the following metadata from the document:
   Score 0.6 if roughly half the fields can be extracted.
   Score 0.9-1.0 if most or all fields have explicit numeric values with units.
 
+- distinct_product_count: how many distinct product models/variants are documented (integer).
+  A single-product datasheet = 1. A catalog with 50 motor variants = 50.
+- is_multi_category: true if the document covers multiple product types (e.g. motors AND
+  gearheads AND drives in one catalog), false if it covers only one type or variants within
+  one type. A catalog with 50 motor variants is NOT multi-category.
+
+Important distinctions:
+- The manufacturer field should be the MANUFACTURER who makes the product, not a
+  distributor or reseller. If the document is from a distributor (e.g. "Multidimensions"
+  reselling Portescap motors), use the original manufacturer name (e.g. "Portescap").
+- A distributor brochure covering motors, gearheads, and encoders from different
+  manufacturers IS multi-category.
+
 Be conservative: only mark is_valid_datasheet=false if the document clearly has NO
 technical specifications or product data whatsoever (e.g., marketing brochures with
 no specs, instruction manuals, safety notices).
@@ -72,24 +85,62 @@ no specs, instruction manuals, safety notices).
 MIN_SPEC_DENSITY = 0.2
 
 
-def _find_by_content_hash(
-    dynamo_client: Any, content_hash: str
-) -> dict[str, Any] | None:
-    """Check if a Datasheet with this content hash already exists."""
+def _get_datasheet_table():
+    """Return the DynamoDB Table resource for datasheets."""
     import boto3
-    from boto3.dynamodb.conditions import Attr
 
     table_name = os.environ.get("DYNAMODB_TABLE_NAME", "products")
     region = os.environ.get("AWS_REGION", "us-east-1")
     ddb = boto3.resource("dynamodb", region_name=region)
-    table = ddb.Table(table_name)
+    return ddb.Table(table_name)
 
+
+def _find_by_content_hash(
+    dynamo_client: Any, content_hash: str
+) -> dict[str, Any] | None:
+    """Check if a Datasheet with this content hash already exists."""
+    from boto3.dynamodb.conditions import Attr
+
+    table = _get_datasheet_table()
     resp = table.scan(
         FilterExpression=Attr("content_hash").eq(content_hash)
         & Attr("PK").begins_with("DATASHEET#"),
     )
     items = resp.get("Items", [])
     return items[0] if items else None
+
+
+def _find_by_url(url: str) -> dict[str, Any] | None:
+    """Check if a Datasheet with this URL already exists.
+
+    Catches re-submissions of the same external URL even when the content
+    hash hasn't been computed yet (legacy datasheets, URL-based entries).
+    """
+    from boto3.dynamodb.conditions import Attr
+
+    table = _get_datasheet_table()
+    resp = table.scan(
+        FilterExpression=Attr("url").eq(url) & Attr("PK").begins_with("DATASHEET#"),
+    )
+    items = resp.get("Items", [])
+    return items[0] if items else None
+
+
+def _is_url_blacklisted(url: str) -> bool:
+    """Check if any Datasheet with this URL has been blacklisted."""
+    existing = _find_by_url(url)
+    if existing and existing.get("status") == "blacklisted":
+        return True
+    return False
+
+
+def _delete_from_triage(bucket: str, triage_key: str, s3_client: Any) -> None:
+    """Remove a rejected PDF from triage/ so it doesn't get re-scanned."""
+    try:
+        s3_client.delete_object(Bucket=bucket, Key=triage_key)
+        log.info("Deleted rejected PDF from triage: %s", triage_key)
+    except Exception as e:
+        log.warning("Could not delete %s from triage: %s", triage_key, e)
 
 
 class IntakeScanResult(BaseModel):
@@ -118,6 +169,13 @@ class IntakeScanResult(BaseModel):
     )
     rejection_reason: str | None = Field(
         None, description="Why the PDF was rejected (if not valid)"
+    )
+    distinct_product_count: int | None = Field(
+        None, description="Number of distinct products described in the document"
+    )
+    is_multi_category: bool = Field(
+        False,
+        description="Whether document spans multiple product types (e.g. motors AND gearheads)",
     )
 
 
@@ -260,7 +318,11 @@ def intake_single(
     s3_client: Any = None,
     dynamo_client: Any = None,
 ) -> dict[str, Any]:
-    """Full intake flow for one PDF: download → scan → promote or reject."""
+    """Full intake flow for one PDF: download → scan → promote or reject.
+
+    Rejected PDFs are deleted from triage/ so they don't get re-scanned.
+    Duplicate PDFs (by content hash or URL) are also cleaned up.
+    """
     if s3_client is None:
         import boto3
 
@@ -274,10 +336,24 @@ def intake_single(
         table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
         dynamo_client = DynamoDBClient(table_name=table)
 
+    def _reject(reason: str, **extra: Any) -> dict[str, Any]:
+        """Return a rejection result and delete the PDF from triage/."""
+        _delete_from_triage(bucket, triage_key, s3_client)
+        return {"s3_key": triage_key, "status": "rejected", "reason": reason, **extra}
+
     # Download
     log.info("Downloading s3://%s/%s", bucket, triage_key)
     resp = s3_client.get_object(Bucket=bucket, Key=triage_key)
     pdf_bytes: bytes = resp["Body"].read()
+
+    # Pre-scan file integrity check — catches HTML error pages, corrupt
+    # files, and truncated downloads before spending Gemini API tokens
+    from cli.intake_guards import check_file_integrity
+
+    integrity = check_file_integrity(pdf_bytes)
+    if not integrity.passed:
+        log.warning("File integrity FAIL for %s: %s", triage_key, integrity.reason)
+        return _reject(integrity.reason, guard=integrity.guard_name)
 
     # Content hash dedup — skip if this exact PDF was already ingested
     content_hash = hashlib.sha256(pdf_bytes).hexdigest()
@@ -289,6 +365,7 @@ def intake_single(
             existing.get("datasheet_id"),
             existing.get("status"),
         )
+        _delete_from_triage(bucket, triage_key, s3_client)
         return {
             "s3_key": triage_key,
             "status": "skipped",
@@ -307,32 +384,33 @@ def intake_single(
             triage_key,
             scan.rejection_reason or "not a valid datasheet",
         )
-        return {
-            "s3_key": triage_key,
-            "status": "rejected",
-            "reason": scan.rejection_reason or "no specification data found",
-            "has_toc": scan.has_table_of_contents,
-            "has_spec_tables": scan.has_specification_tables,
-            "spec_density": scan.spec_density,
-        }
-
-    # Reject low spec density even if marked valid
-    density = scan.spec_density or 0.0
-    if density < MIN_SPEC_DENSITY:
-        log.warning(
-            "Rejected %s: spec_density=%.2f below threshold %.2f",
-            triage_key,
-            density,
-            MIN_SPEC_DENSITY,
+        return _reject(
+            scan.rejection_reason or "no specification data found",
+            has_toc=scan.has_table_of_contents,
+            has_spec_tables=scan.has_specification_tables,
+            spec_density=scan.spec_density,
         )
-        return {
-            "s3_key": triage_key,
-            "status": "rejected",
-            "reason": f"spec density too low ({density:.2f} < {MIN_SPEC_DENSITY})",
-            "spec_density": density,
-            "has_toc": scan.has_table_of_contents,
-            "has_spec_tables": scan.has_specification_tables,
-        }
+
+    # Post-scan guards — manufacturer identity, document scope,
+    # extraction feasibility, and calibrated spec density
+    from cli.intake_guards import any_blocking, run_guards
+
+    verdicts = run_guards(scan, pdf_bytes)
+    blocker = any_blocking(verdicts)
+    if blocker:
+        log.warning(
+            "Guard '%s' blocked %s: %s",
+            blocker.guard_name,
+            triage_key,
+            blocker.reason,
+        )
+        return _reject(
+            blocker.reason,
+            guard=blocker.guard_name,
+            spec_density=scan.spec_density,
+            has_toc=scan.has_table_of_contents,
+            has_spec_tables=scan.has_specification_tables,
+        )
 
     # Promote
     result = promote_pdf(

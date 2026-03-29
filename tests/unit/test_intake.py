@@ -11,6 +11,9 @@ from cli.intake import (
     intake_single,
 )
 
+# Fake PDF bytes large enough to pass the file integrity guard
+_FAKE_PDF = b"%PDF-1.4 fake-content" + b"\x00" * 2000
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -239,7 +242,7 @@ class TestIntakeSingle:
 
         s3 = MagicMock()
         body = MagicMock()
-        body.read.return_value = b"%PDF-fake-content"
+        body.read.return_value = _FAKE_PDF
         s3.get_object.return_value = {"Body": body}
 
         dynamo = MagicMock()
@@ -255,7 +258,7 @@ class TestIntakeSingle:
 
         assert result["status"] == "approved"
         assert "datasheet_id" in result
-        mock_scan.assert_called_once_with(b"%PDF-fake-content", "fake-api-key")
+        mock_scan.assert_called_once_with(_FAKE_PDF, "fake-api-key")
 
     @patch("cli.intake._find_by_content_hash")
     @patch("cli.intake.scan_pdf")
@@ -267,7 +270,7 @@ class TestIntakeSingle:
 
         s3 = MagicMock()
         body = MagicMock()
-        body.read.return_value = b"%PDF-fake-content"
+        body.read.return_value = _FAKE_PDF
         s3.get_object.return_value = {"Body": body}
 
         dynamo = MagicMock()
@@ -294,7 +297,7 @@ class TestIntakeSingle:
 
         s3 = MagicMock()
         body = MagicMock()
-        body.read.return_value = b"%PDF-fake"
+        body.read.return_value = _FAKE_PDF
         s3.get_object.return_value = {"Body": body}
 
         result = intake_single(
