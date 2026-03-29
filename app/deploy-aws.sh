@@ -71,6 +71,9 @@ check_prereqs() {
   export CDK_DEFAULT_ACCOUNT="$AWS_ACCOUNT_ID"
   export CDK_DEFAULT_REGION="$AWS_REGION"
 
+  # All environments share one DynamoDB table
+  export DYNAMODB_TABLE_NAME="${DYNAMODB_TABLE_NAME:-products}"
+
   # Stage controls resource naming (dev/staging/prod)
   export STAGE="${STAGE:-dev}"
   if [[ "$STAGE" == "dev" ]]; then
@@ -106,8 +109,56 @@ deploy_stacks() {
   log "Deploying all stacks..."
   npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json 2>&1
 
-  ok "Deployment complete!"
+  ok "CDK stacks deployed"
   cd "$SCRIPT_DIR"
+}
+
+# Invalidate CloudFront cache explicitly — belt-and-suspenders alongside
+# the CDK BucketDeployment invalidation. Waits for completion so the
+# deploy script doesn't report success while stale content is still served.
+invalidate_cache() {
+  local outputs_file="$SCRIPT_DIR/infrastructure/cdk-outputs.json"
+  if [ ! -f "$outputs_file" ]; then
+    warn "No cdk-outputs.json — skipping cache invalidation"
+    return
+  fi
+
+  local dist_id
+  dist_id=$(python3 -c "
+import json
+with open('$outputs_file') as f:
+    data = json.load(f)
+for stack in data.values():
+    for key, val in stack.items():
+        if 'DistributionId' in key:
+            print(val)
+            break
+" 2>/dev/null || echo "")
+
+  if [ -z "$dist_id" ]; then
+    warn "Could not find CloudFront Distribution ID — skipping invalidation"
+    return
+  fi
+
+  log "Invalidating CloudFront cache (distribution: $dist_id)..."
+  local inv_id
+  inv_id=$(aws cloudfront create-invalidation \
+    --distribution-id "$dist_id" \
+    --paths "/*" \
+    --query 'Invalidation.Id' \
+    --output text 2>&1)
+
+  if [ $? -ne 0 ]; then
+    warn "Cache invalidation request failed: $inv_id"
+    return
+  fi
+
+  log "Waiting for invalidation $inv_id to complete..."
+  aws cloudfront wait invalidation-completed \
+    --distribution-id "$dist_id" \
+    --id "$inv_id" 2>&1
+
+  ok "CloudFront cache invalidated"
 }
 
 # Print access info
@@ -185,6 +236,7 @@ main() {
   install_deps
   build_frontend
   deploy_stacks
+  invalidate_cache
   print_info
 }
 
