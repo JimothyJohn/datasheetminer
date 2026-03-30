@@ -149,4 +149,4 @@ class TestGenerateContent:
 
         call_args = mock_client.models.generate_content.call_args
         model_arg = call_args.kwargs.get("model") or call_args[1].get("model")
-        assert model_arg == "gemini-2.5-flash"
+        assert model_arg == "gemini-3-flash-preview"

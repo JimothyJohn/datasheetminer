@@ -215,6 +215,7 @@ describe('DynamoDBService', () => {
       const products: Product[] = Array.from({ length: 30 }, (_, i) => ({
         product_id: `id-${i}`,
         product_type: 'motor' as const,
+        manufacturer: 'TestCorp',
         PK: 'PRODUCT#MOTOR',
         SK: `PRODUCT#id-${i}`,
       }));

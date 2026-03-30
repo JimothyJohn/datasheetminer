@@ -230,55 +230,55 @@ class TestPydanticIntegration:
     def test_motor_torque_mNm_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rated_torque="500;mNm")
+        motor = Motor(product_name="Test", manufacturer="Test", rated_torque="500;mNm")
         assert motor.rated_torque == "0.5;Nm"
 
     def test_motor_torque_Nm_unchanged(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rated_torque="2.5;Nm")
+        motor = Motor(product_name="Test", manufacturer="Test", rated_torque="2.5;Nm")
         assert motor.rated_torque == "2.5;Nm"
 
     def test_motor_power_kW_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rated_power="1.5;kW")
+        motor = Motor(product_name="Test", manufacturer="Test", rated_power="1.5;kW")
         assert motor.rated_power == "1500;W"
 
     def test_motor_current_mA_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rated_current="500;mA")
+        motor = Motor(product_name="Test", manufacturer="Test", rated_current="500;mA")
         assert motor.rated_current == "0.5;A"
 
     def test_motor_resistance_ohm_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", resistance="4.7;ohm")
+        motor = Motor(product_name="Test", manufacturer="Test", resistance="4.7;ohm")
         assert motor.resistance == "4.7;Ω"
 
     def test_motor_inductance_uH_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", inductance="100;uH")
+        motor = Motor(product_name="Test", manufacturer="Test", inductance="100;uH")
         assert motor.inductance == "0.1;mH"
 
     def test_motor_inertia_gcm2_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rotor_inertia="500;g·cm²")
+        motor = Motor(product_name="Test", manufacturer="Test", rotor_inertia="500;g·cm²")
         assert motor.rotor_inertia == "0.5;kg·cm²"
 
     def test_drive_current_mA_normalized(self):
         from datasheetminer.models.drive import Drive
 
-        drive = Drive(product_name="Test", rated_current="500;mA")
+        drive = Drive(product_name="Test", manufacturer="Test", rated_current="500;mA")
         assert drive.rated_current == "0.5;A"
 
     def test_drive_power_kW_normalized(self):
         from datasheetminer.models.drive import Drive
 
-        drive = Drive(product_name="Test", output_power="2;kW")
+        drive = Drive(product_name="Test", manufacturer="Test", output_power="2;kW")
         assert drive.output_power == "2000;W"
 
     def test_gearhead_torque_oz_in_normalized(self):
@@ -286,6 +286,7 @@ class TestPydanticIntegration:
 
         gh = Gearhead(
             product_name="Test",
+            manufacturer="Test",
             product_type="gearhead",
             max_continuous_torque="100;oz-in",
         )
@@ -298,6 +299,7 @@ class TestPydanticIntegration:
 
         gh = Gearhead(
             product_name="Test",
+            manufacturer="Test",
             product_type="gearhead",
             max_radial_load="5;kN",
         )
@@ -308,6 +310,7 @@ class TestPydanticIntegration:
 
         motor = Motor(
             product_name="Test",
+            manufacturer="Test",
             rated_torque={"value": "500", "unit": "mNm"},
         )
         assert motor.rated_torque == "0.5;Nm"
@@ -315,13 +318,13 @@ class TestPydanticIntegration:
     def test_space_separated_input_with_conversion(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", rated_torque="500 mNm")
+        motor = Motor(product_name="Test", manufacturer="Test", rated_torque="500 mNm")
         assert motor.rated_torque == "0.5;Nm"
 
     def test_none_still_works(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test")
+        motor = Motor(product_name="Test", manufacturer="Test")
         assert motor.rated_torque is None
 
     def test_non_numeric_value_preserved(self):
@@ -330,5 +333,5 @@ class TestPydanticIntegration:
 
         # BeforeValidator strips '+' so value becomes "2", but "Years" is
         # not in the conversion map so unit stays unchanged
-        motor = Motor(product_name="Test", warranty="2;Years")
+        motor = Motor(product_name="Test", manufacturer="Test", warranty="2;Years")
         assert motor.warranty == "2;Years"

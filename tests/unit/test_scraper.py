@@ -281,11 +281,11 @@ class TestProcessDatasheet:
         mock_response.text = "{}"
         mock_generate.return_value = mock_response
 
-        # Motor with no manufacturer and no part_number -- cannot generate robust ID
+        # Motor with empty manufacturer and no part_number -- cannot generate robust ID
         motor = Motor(
             product_type="motor",
             product_name="Orphan",
-            manufacturer=None,
+            manufacturer="",
             part_number=None,
         )
         mock_parse.return_value = [motor]

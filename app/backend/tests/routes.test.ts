@@ -226,6 +226,7 @@ describe('API Routes', () => {
       const response = await request(app).post('/api/products').send({
         product_type: 'motor',
         product_name: 'Auto ID Motor',
+        manufacturer: 'TestCorp',
       });
 
       expect(response.status).toBe(201);
