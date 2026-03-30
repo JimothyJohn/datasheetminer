@@ -119,6 +119,28 @@ jobs:
         working-directory: app/frontend
         run: VITE_API_URL="" VITE_APP_MODE=public npm run build
 
+      - name: Provision SSM secrets
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+        run: |
+          SSM_PREFIX="/datasheetminer/prod"
+
+          # Gemini API key (SecureString)
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            aws ssm put-parameter \
+              --name "${SSM_PREFIX}/gemini-api-key" \
+              --type SecureString \
+              --value "${{ secrets.GEMINI_API_KEY }}" \
+              --overwrite
+          fi
+
+          # Stripe Lambda URL (String — not a secret)
+          aws ssm put-parameter \
+            --name "${SSM_PREFIX}/stripe-lambda-url" \
+            --type String \
+            --value "${{ secrets.STRIPE_LAMBDA_URL || '' }}" \
+            --overwrite
+
       - name: CDK Deploy (staging)
         working-directory: app/infrastructure
         env:
