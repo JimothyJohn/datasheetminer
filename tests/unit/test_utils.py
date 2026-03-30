@@ -13,9 +13,7 @@ import pytest
 from datasheetminer.utils import (
     PageRangeError,
     UUIDEncoder,
-    extract_json_from_string,
     extract_pdf_pages,
-    format_response,
     get_document,
     get_product_info_from_json,
     get_web_content,
@@ -23,8 +21,6 @@ from datasheetminer.utils import (
     parse_gemini_response,
     parse_page_ranges,
     validate_api_key,
-    validate_page_ranges,
-    validate_url,
 )
 from datasheetminer.models.motor import Motor
 
@@ -75,67 +71,6 @@ class TestParsePageRanges:
 
 
 # ---------------------------------------------------------------------------
-# TestExtractJsonFromString
-# ---------------------------------------------------------------------------
-@pytest.mark.unit
-class TestExtractJsonFromString:
-    def test_clean_json(self):
-        assert extract_json_from_string('{"key": "value"}') == '{"key": "value"}'
-
-    def test_json_with_surrounding_text(self):
-        text = 'Here is the result: {"key": "value"} done.'
-        assert extract_json_from_string(text) == '{"key": "value"}'
-
-    def test_nested_json(self):
-        nested = '{"a": {"b": "c"}}'
-        result = extract_json_from_string(nested)
-        assert json.loads(result) == {"a": {"b": "c"}}
-
-    def test_no_json_raises(self):
-        with pytest.raises(ValueError):
-            extract_json_from_string("no json here")
-
-    def test_invalid_json_raises(self):
-        with pytest.raises(ValueError):
-            extract_json_from_string("{invalid json}")
-
-    def test_no_braces_raises(self):
-        with pytest.raises(ValueError):
-            extract_json_from_string("just text")
-
-
-# ---------------------------------------------------------------------------
-# TestValidateUrl
-# ---------------------------------------------------------------------------
-@pytest.mark.unit
-class TestValidateUrl:
-    def test_https_url(self):
-        url = "https://example.com/doc.pdf"
-        assert validate_url(url) == url
-
-    def test_http_url(self):
-        url = "http://example.com/doc.pdf"
-        assert validate_url(url) == url
-
-    def test_empty_returns_empty(self):
-        assert validate_url("") == ""
-
-    def test_local_file_exists(self, tmp_path):
-        f = tmp_path / "sample.pdf"
-        f.write_bytes(b"%PDF-1.4 fake")
-        result = validate_url(str(f))
-        assert result == str(f.absolute())
-
-    def test_local_file_not_found(self):
-        with pytest.raises(argparse.ArgumentTypeError):
-            validate_url("/nonexistent/file.pdf")
-
-    def test_local_not_a_file(self, tmp_path):
-        with pytest.raises(argparse.ArgumentTypeError):
-            validate_url(str(tmp_path))
-
-
-# ---------------------------------------------------------------------------
 # TestValidateApiKey
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
@@ -158,44 +93,6 @@ class TestValidateApiKey:
 
     def test_strips_whitespace(self):
         assert validate_api_key("  validlongkey123  ") == "validlongkey123"
-
-
-# ---------------------------------------------------------------------------
-# TestValidatePageRanges
-# ---------------------------------------------------------------------------
-@pytest.mark.unit
-class TestValidatePageRanges:
-    def test_valid_string(self):
-        assert validate_page_ranges("1,3-5,7") == "1,3-5,7"
-
-    def test_invalid_chars(self):
-        with pytest.raises(argparse.ArgumentTypeError):
-            validate_page_ranges("1,3;5")
-
-    def test_empty_raises(self):
-        with pytest.raises(argparse.ArgumentTypeError):
-            validate_page_ranges("")
-
-
-# ---------------------------------------------------------------------------
-# TestFormatResponse
-# ---------------------------------------------------------------------------
-@pytest.mark.unit
-class TestFormatResponse:
-    def test_text_format(self):
-        resp = "Some analysis text."
-        assert format_response(resp, "text") == resp
-
-    def test_json_format(self):
-        result = format_response("hello", "json")
-        parsed = json.loads(result)
-        assert parsed["response"] == "hello"
-        assert parsed["status"] == "success"
-        assert "timestamp" in parsed
-
-    def test_markdown_format(self):
-        result = format_response("hello", "markdown")
-        assert result.startswith("# Document Analysis Response")
 
 
 # ---------------------------------------------------------------------------

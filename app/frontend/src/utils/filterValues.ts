@@ -106,17 +106,3 @@ export function numericFromValue(val: any): number | null {
   return null;
 }
 
-/**
- * Format a value for display
- */
-export function formatValueForDisplay(value: string | number): string {
-  if (typeof value === 'number') {
-    // Format numbers with appropriate precision
-    if (Number.isInteger(value)) {
-      return value.toString();
-    }
-    // Show up to 2 decimal places for floats
-    return value.toFixed(2).replace(/\.?0+$/, '');
-  }
-  return String(value);
-}

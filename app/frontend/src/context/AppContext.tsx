@@ -134,8 +134,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // ===== CACHE CHECK =====
+    // Empty arrays are valid cache entries — a type with 0 products is still "loaded".
+    // Without this, empty types cause an infinite refetch loop because the cache miss
+    // path creates a new Map reference, which recreates this callback, which re-triggers
+    // the useEffect in ProductList, which calls loadProducts again.
     const cached = productCache.get(type);
-    if (cached && cached.length > 0) {
+    if (cached !== undefined) {
       console.log(`[AppContext] Cache HIT for ${type}, found ${cached.length} products`);
 
       // Immediately show cached data (instant UI response)

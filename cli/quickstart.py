@@ -285,6 +285,23 @@ def cmd_staging(args: argparse.Namespace) -> None:
     info("Staging tests passed")
 
 
+def _load_env_file(stage: str) -> dict[str, str]:
+    """Load app/.env.{stage} if it exists. Returns key-value pairs."""
+    env_file = APP / f".env.{stage}"
+    if not env_file.exists():
+        return {}
+    info(f"Loading {env_file.relative_to(ROOT)}")
+    result: dict[str, str] = {}
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        if key and value:
+            result[key.strip()] = value.strip()
+    return result
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Deploy to AWS via CDK."""
     stage = args.stage
@@ -293,6 +310,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     check_node_version()
     require_cmd("npm")
     require_cmd("aws")
+
+    # Load stage-specific env file (os.environ takes precedence)
+    stage_env = _load_env_file(stage)
 
     # Validate AWS credentials
     result = subprocess.run(
@@ -303,7 +323,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if result.returncode != 0:
         fail("AWS credentials not configured. Run: aws configure")
 
-    account_id = os.environ.get("AWS_ACCOUNT_ID")
+    account_id = os.environ.get("AWS_ACCOUNT_ID") or stage_env.get("AWS_ACCOUNT_ID")
     if not account_id:
         account_id = run_quiet(
             [
@@ -320,10 +340,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             fail("AWS_ACCOUNT_ID not set. Export it or configure AWS CLI.")
         info(f"Auto-detected AWS_ACCOUNT_ID: {account_id}")
 
-    region = os.environ.get("AWS_REGION", "us-east-1")
-
     if stage == "dev":
         warn("STAGE=dev (default). Use --stage prod for production deployments.")
+
+    region = os.environ.get("AWS_REGION") or stage_env.get("AWS_REGION", "us-east-1")
 
     deploy_env = {
         "STAGE": stage,
@@ -333,14 +353,25 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         "CDK_DEFAULT_ACCOUNT": account_id,
         "CDK_DEFAULT_REGION": region,
         "DYNAMODB_TABLE_NAME": os.environ.get(
-            "DYNAMODB_TABLE_NAME", f"products-{stage}"
+            "DYNAMODB_TABLE_NAME",
+            stage_env.get("DYNAMODB_TABLE_NAME", f"products-{stage}"),
         ),
     }
-    # Pass through optional domain config
-    for key in ("DOMAIN_NAME", "CERTIFICATE_ARN", "HOSTED_ZONE_ID"):
-        val = os.environ.get(key)
+    # Domain config: os.environ > stage env file
+    domain_keys = ("DOMAIN_NAME", "CERTIFICATE_ARN", "HOSTED_ZONE_ID")
+    for key in domain_keys:
+        val = os.environ.get(key) or stage_env.get(key)
         if val:
             deploy_env[key] = val
+
+    # Prod must have domain config — refuse to deploy without it
+    if stage == "prod":
+        missing = [k for k in domain_keys if k not in deploy_env]
+        if missing:
+            fail(
+                f"Production deploy requires domain config: {', '.join(missing)}. "
+                f"Set them in app/.env.prod or export as environment variables."
+            )
 
     info("Installing workspace dependencies")
     run(["npm", "install", "--silent"], cwd=APP)

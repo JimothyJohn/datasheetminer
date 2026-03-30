@@ -37,7 +37,7 @@ const isAdmin = APP_MODE === 'admin';
 
 // ========== Eager Imports ==========
 import ProductList from './components/ProductList';
-import UploadDatasheet from './components/UploadDatasheet';
+
 
 // ========== Lazy Imports (public, code-split for smaller initial bundle) ==========
 const RecommendationChat = lazy(() => import('./components/RecommendationChat'));
@@ -99,10 +99,7 @@ function App() {
                 {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
               </nav>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <UploadDatasheet />
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </header>
 
           {/* ===== ROUTES WITH SUSPENSE + ERROR BOUNDARY ===== */}

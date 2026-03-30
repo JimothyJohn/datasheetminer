@@ -79,16 +79,8 @@ export default function FilterChip({
   const [filteredSuggestions, setFilteredSuggestions] = useState(suggestedValues);
   const [localSliderValue, setLocalSliderValue] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Sync local slider value with filter value
-  useEffect(() => {
-    if (typeof filter.value === 'number') {
-      setLocalSliderValue(filter.value);
-    } else {
-      setLocalSliderValue(0);
-    }
-  }, [filter.value]);
 
   // Get available operators based on actual data values
   const availableOperators = useMemo(
@@ -144,11 +136,33 @@ export default function FilterChip({
     return null;
   }, [products, allProducts, filter.attribute, attributeType, attributeMetadata]);
 
+  // Sync local slider value with filter value, defaulting to range minimum
+  useEffect(() => {
+    if (typeof filter.value === 'number') {
+      setLocalSliderValue(filter.value);
+    } else if (rangeInfo) {
+      setLocalSliderValue(rangeInfo.min);
+    } else {
+      setLocalSliderValue(0);
+    }
+  }, [filter.value, rangeInfo]);
+
   // Determine if we should show a slider (must be stable)
   const showSlider = useMemo(() => {
     // Show slider for 'object' and 'range' types that have numeric values
     return (attributeType === 'object' || attributeType === 'range') && rangeInfo !== null;
   }, [attributeType, rangeInfo]);
+
+  // Auto-initialize slider filter value when slider first becomes available
+  useEffect(() => {
+    if (showSlider && rangeInfo && filter.value === undefined) {
+      onUpdate({
+        ...filter,
+        value: rangeInfo.min,
+        operator: filter.operator || '>='
+      });
+    }
+  }, [showSlider, rangeInfo]);
 
   // Determine if this is a multi-select string field
   // String fields have only '=' and '!=' operators (or just '=')
@@ -445,7 +459,7 @@ export default function FilterChip({
           </div>
         ) : (
           // Render text input for non-slider fields
-          <div className="filter-input-wrapper">
+          <div className="filter-input-wrapper" ref={wrapperRef}>
             <input
               ref={inputRef}
               type="text"
@@ -457,19 +471,28 @@ export default function FilterChip({
               autoFocus={!filter.value}
             />
 
-            {showDropdown && filteredSuggestions.length > 0 && (
-              <div ref={dropdownRef} className="filter-dropdown">
-                {filteredSuggestions.slice(0, 10).map((value, index) => (
-                  <div
-                    key={index}
-                    className="filter-dropdown-item"
-                    onClick={() => handleSelectSuggestion(value)}
-                  >
-                    {String(value)}
-                  </div>
-                ))}
-              </div>
-            )}
+            {showDropdown && filteredSuggestions.length > 0 && (() => {
+              const rect = wrapperRef.current?.getBoundingClientRect();
+              const style: React.CSSProperties = rect ? {
+                position: 'fixed',
+                top: rect.bottom + 4,
+                left: rect.left,
+                width: rect.width,
+              } : {};
+              return (
+                <div ref={dropdownRef} className="filter-dropdown" style={style}>
+                  {filteredSuggestions.slice(0, 10).map((value, index) => (
+                    <div
+                      key={index}
+                      className="filter-dropdown-item"
+                      onClick={() => handleSelectSuggestion(value)}
+                    >
+                      {String(value)}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

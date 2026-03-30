@@ -1,0 +1,183 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFormationStacks",
+      "Effect": "Allow",
+      "Action": "cloudformation:*",
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:ACCOUNT_ID:stack/DatasheetMiner-*",
+        "arn:aws:cloudformation:us-east-1:ACCOUNT_ID:stack/CDKToolkit/*"
+      ]
+    },
+    {
+      "Sid": "CloudFormationDescribe",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ListStacks",
+        "cloudformation:ListExports",
+        "cloudformation:GetTemplate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3CDKBootstrap",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::cdk-hnb659fds-assets-ACCOUNT_ID-us-east-1",
+        "arn:aws:s3:::cdk-hnb659fds-assets-ACCOUNT_ID-us-east-1/*"
+      ]
+    },
+    {
+      "Sid": "S3AppBuckets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::datasheetminer-*",
+        "arn:aws:s3:::datasheetminer-*/*"
+      ]
+    },
+    {
+      "Sid": "S3FrontendBuckets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::datasheetminer-*-frontend*",
+        "arn:aws:s3:::datasheetminer-*-frontend*/*"
+      ]
+    },
+    {
+      "Sid": "S3ListAll",
+      "Effect": "Allow",
+      "Action": "s3:ListAllMyBuckets",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDB",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/products-*",
+        "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/products-*/index/*"
+      ]
+    },
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:DatasheetMiner-*"
+    },
+    {
+      "Sid": "APIGateway",
+      "Effect": "Allow",
+      "Action": "apigateway:*",
+      "Resource": [
+        "arn:aws:apigateway:us-east-1::/restapis",
+        "arn:aws:apigateway:us-east-1::/restapis/*"
+      ]
+    },
+    {
+      "Sid": "CloudFront",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": "arn:aws:cloudfront::ACCOUNT_ID:distribution/*"
+    },
+    {
+      "Sid": "CloudFrontOAC",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:UpdateOriginAccessControl",
+        "cloudfront:ListOriginAccessControls"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:GetHostedZone",
+        "route53:ListResourceRecordSets"
+      ],
+      "Resource": "arn:aws:route53:::hostedzone/HOSTED_ZONE_ID"
+    },
+    {
+      "Sid": "Route53List",
+      "Effect": "Allow",
+      "Action": "route53:ListHostedZones",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ACMReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:GetCertificate"
+      ],
+      "Resource": "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/*"
+    },
+    {
+      "Sid": "IAMRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:PassRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole"
+      ],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/DatasheetMiner-*"
+    },
+    {
+      "Sid": "IAMCDKRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/cdk-*"
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": "logs:*",
+      "Resource": [
+        "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/aws/lambda/DatasheetMiner-*",
+        "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/aws/lambda/DatasheetMiner-*:*"
+      ]
+    },
+    {
+      "Sid": "STS",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SSMCDKBootstrap",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
+      "Resource": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/cdk-bootstrap/*"
+    }
+  ]
+}

@@ -255,6 +255,7 @@ $RECYCLE.BIN/
 *.aws-sam/
 *venv
 *.env
+.env.*
 .ruff_cache/
 *.pdf
 *.log

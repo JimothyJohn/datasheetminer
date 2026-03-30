@@ -694,17 +694,56 @@ export class DynamoDBService {
   }
 
   /**
+   * Parse Python compact "value;unit" and "min-max;unit" strings into
+   * structured {value, unit} / {min, max, unit} objects.
+   * Mirrors datasheetminer/db/dynamo.py _parse_compact_units().
+   */
+  private parseCompactUnits(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.parseCompactUnits(item));
+    }
+
+    if (typeof obj === 'object') {
+      const result: any = {};
+      for (const [key, val] of Object.entries(obj)) {
+        result[key] = this.parseCompactUnits(val);
+      }
+      return result;
+    }
+
+    if (typeof obj === 'string' && obj.includes(';')) {
+      // Regex matches: "20;C", "20-40;C", "-20-40;C", "1,500;W"
+      const match = obj.match(/^(-?[\d,.]+)(?:-(-?[\d,.]+))?;(.*)$/);
+      if (match) {
+        const [, val1Str, val2Str, unit] = match;
+        const val1 = parseFloat(val1Str.replace(/,/g, ''));
+        if (isNaN(val1)) return obj;
+
+        if (val2Str !== undefined) {
+          const val2 = parseFloat(val2Str.replace(/,/g, ''));
+          if (isNaN(val2)) return obj;
+          return { min: val1, max: val2, unit };
+        }
+        return { value: val1, unit };
+      }
+    }
+
+    return obj;
+  }
+
+  /**
    * Deserialize product from DynamoDB
    */
   private deserializeProduct(item: any): Product {
     // Handle datasheet mapping for frontend compatibility
     if (item.product_type === 'datasheet' && item.datasheet_id && !item.product_id) {
       return {
-        ...item,
+        ...this.parseCompactUnits(item),
         product_id: item.datasheet_id,
       } as Product;
     }
-    // Type assertion based on product_type
-    return item as Product;
+    return this.parseCompactUnits(item) as Product;
   }
 }

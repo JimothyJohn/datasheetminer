@@ -97,7 +97,10 @@ class TestSecurityHygiene:
 
     def test_no_x_powered_by_header(self, api_get):
         """Express x-powered-by should be disabled in production."""
-        _, _, headers = api_get("/health")
+        status, body, headers = api_get("/health")
+        env = body.get("environment", "")
+        if env == "development":
+            pytest.skip("x-powered-by check only applies to production builds")
         assert "x-powered-by" not in headers
 
     def test_404_returns_json(self, base_url):

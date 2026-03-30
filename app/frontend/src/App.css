@@ -1392,7 +1392,7 @@ button.secondary:hover {
 
 /* Setpoint value with operator prefix */
 .filter-slider-value {
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
   text-align: center;
   font-weight: 700;
@@ -1401,6 +1401,8 @@ button.secondary:hover {
   background: var(--bg-tertiary);
   border-radius: 3px;
   border: 1px solid var(--border-color);
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .filter-slider-operator {
@@ -1410,17 +1412,14 @@ button.secondary:hover {
 }
 
 .filter-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  position: fixed;
   background: var(--card-bg);
   border: 1px solid var(--accent-primary);
   border-radius: 4px;
-  box-shadow: 0 2px 8px var(--shadow-lg);
+  box-shadow: 0 4px 16px var(--shadow-lg);
   max-height: 180px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 9999;
   animation: dropdownSlideIn 0.15s ease-out;
 }
 
@@ -1843,6 +1842,113 @@ button.secondary:hover {
 .gear-ratio-cell {
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+/* Application type selector (Rotary / Linear / Z-Axis) */
+.transmission-type-row {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.6rem;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+.transmission-type-btn {
+  flex: 1;
+  padding: 0.3rem 0;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.transmission-type-btn:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+.transmission-type-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.transmission-type-btn.transmission-type-active {
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  color: white;
+}
+
+/* Transmission parameter inputs */
+.transmission-param {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.transmission-param-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.3rem;
+}
+.transmission-param-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.transmission-param-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.transmission-param-input::-webkit-outer-spin-button,
+.transmission-param-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.transmission-param-input:focus {
+  border-color: var(--accent-primary);
+}
+.transmission-param-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.transmission-param-hint {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+  margin-top: 0.2rem;
+}
+.transmission-efficiency-slider {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+/* Computed column styles */
+.computed-col {
+  background: rgba(52, 152, 219, 0.06);
+}
+.computed-cell {
+  background: rgba(52, 152, 219, 0.04);
+  font-variant-numeric: tabular-nums;
+}
+.computed-cell-warning {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
 }
 
 .results-count {

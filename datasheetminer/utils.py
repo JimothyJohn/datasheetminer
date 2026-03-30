@@ -143,32 +143,6 @@ def parse_page_ranges(page_ranges_str: str) -> List[int]:
     return sorted(list(pages_set))
 
 
-def extract_json_from_string(text: str) -> str:
-    """
-    Extracts a JSON object from a string by finding the first '{' and the last '}'.
-
-    Args:
-        text (str): The string containing the JSON object, possibly with surrounding text.
-
-    Returns:
-        str: The extracted and validated JSON string.
-
-    Raises:
-        ValueError: If a JSON object cannot be found or the extracted string is not valid JSON.
-    """
-    try:
-        start_index: int = text.find("{")
-        end_index: int = text.rfind("}")
-        if start_index == -1 or end_index == -1 or start_index > end_index:
-            raise ValueError("Could not find a valid JSON object in the response.")
-
-        json_str: str = text[start_index : end_index + 1]
-        json.loads(json_str)  # Validate that the string is valid JSON
-        return json_str
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Extracted string is not valid JSON: {e}") from e
-
-
 def download_pdf(url: str, destination: Path) -> None:
     """
     Retrieves a PDF document and saves it to a local file.
@@ -249,47 +223,6 @@ def extract_pdf_pages(
             f"An unexpected error occurred during PDF extraction: {e}", exc_info=True
         )
         raise
-
-
-def process_pdf_from_url(url: str, page_ranges_str: str) -> Path | None:
-    """
-    Retrieves, processes, and returns the path to a temporary PDF file.
-
-    This function orchestrates the retrieval and page extraction process,
-    returning the path to a new temporary file containing only the
-    specified pages. It is the primary API for this module.
-
-    Args:
-        url (str): The location of the PDF document.
-        page_ranges_str (str): The page selection string (e.g., '1,3').
-
-    Returns:
-        Optional[Path]: The path to the temporary file with extracted
-                        pages, or None if an error occurs.
-    """
-    try:
-        page_numbers: List[int] = parse_page_ranges(page_ranges_str)
-    except PageRangeError as e:
-        logger.error(f"Error parsing pages argument: {e}")
-        return None
-
-    # AI-generated comment: Create a persistent temporary file to store the result.
-    # It will be the caller's responsibility to delete this file.
-    output_temp_file: Any = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    output_path: Path = Path(output_temp_file.name)
-    output_temp_file.close()  # Close the file so it can be written to
-
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as temp_pdf:
-        try:
-            download_pdf(url, Path(temp_pdf.name))
-            extract_pdf_pages(Path(temp_pdf.name), output_path, page_numbers)
-            return output_path
-        except (HTTPError, URLError):
-            logger.error("Could not process the PDF due to a retrieval error.")
-            return None
-        except Exception as e:
-            logger.error(f"A general error occurred: {e}", exc_info=True)
-            return None
 
 
 def get_web_content(url: str) -> str | None:
@@ -470,65 +403,6 @@ def get_document(
     return doc_data
 
 
-def validate_page_ranges(value: str) -> str:
-    """
-    Validates the page range string format. It doesn't parse it into a list,
-    as the processing function will handle that. This is just for basic validation.
-    e.g., "1,3-5,7"
-
-    Args:
-        value: The string containing page ranges.
-
-    Returns:
-        The original string if valid.
-
-    Raises:
-        argparse.ArgumentTypeError: If the format is invalid.
-    """
-    if not value:
-        raise argparse.ArgumentTypeError("Pages argument cannot be empty.")
-
-    # A simple regex could be used here for stricter validation,
-    # but for now we'll just check for invalid characters.
-    valid_chars: Set[str] = set("0123456789,-:")
-    if not all(char in valid_chars for char in value):
-        raise argparse.ArgumentTypeError(
-            f"Invalid characters in page range string: '{value}'"
-        )
-    return value
-
-
-def validate_url(value: str) -> str:
-    """
-    Validate that the provided file path or URL is valid.
-
-    AI-generated comment: This validator ensures the file path exists or the URL
-    is properly formatted before proceeding with the analysis.
-
-    Args:
-        value: The file path or URL value to validate
-
-    Returns:
-        The validated file path or URL string
-
-    Raises:
-        argparse.ArgumentTypeError: If the path/URL is invalid or inaccessible
-    """
-    if not value:
-        return value
-
-    # Check if it's a file path
-    if not value.startswith(("http://", "https://")):
-        file_path: Path = Path(value)
-        if not file_path.exists():
-            raise argparse.ArgumentTypeError(f"File not found: {value}")
-        if not file_path.is_file():
-            raise argparse.ArgumentTypeError(f"Not a file: {value}")
-        return str(file_path.absolute())
-
-    return value
-
-
 def validate_api_key(value: Optional[str]) -> str:
     """
     Validate that the API key is provided and not empty.
@@ -554,31 +428,6 @@ def validate_api_key(value: Optional[str]) -> str:
         raise argparse.ArgumentTypeError("API key appears to be too short")
 
     return value.strip()
-
-
-def format_response(response: str, format_type: str) -> str:
-    """
-    Format the response according to the specified output format.
-
-    AI-generated comment: This function provides multiple output formats to make
-    the CLI output more flexible and useful for different use cases, including
-    integration with other tools and systems.
-    """
-    if format_type == "json":
-        # AI-generated comment: This part of the function is now primarily for
-        # non-Pydantic model responses. The main logic handles the parsed models directly.
-        return json.dumps(
-            {"response": response, "status": "success", "timestamp": str(Path().cwd())},
-            indent=2,
-        )
-
-    elif format_type == "markdown":
-        # AI-generated comment: Convert the response to markdown format for
-        # better readability and integration with markdown processors.
-        return f"# Document Analysis Response\n\n{response}\n\n---\n*Generated by Datasheetminer CLI*"
-
-    else:  # text format (default)
-        return response
 
 
 def parse_gemini_response(

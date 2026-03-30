@@ -28,6 +28,10 @@ export default function ProductList() {
   const [gearRatio, setGearRatio] = useState<number>(1);
   const [autoGear, setAutoGear] = useState<boolean>(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [appType, setAppType] = useState<'rotary' | 'linear' | 'z-axis'>('rotary');
+  const [linearTravel, setLinearTravel] = useState<number>(0); // mm/rev
+  const [screwEfficiency, setScrewEfficiency] = useState<number>(90); // % (ball screw ~90, lead screw ~30-50)
+  const [loadMass, setLoadMass] = useState<number>(0); // kg (for Z-axis gravity calc)
 
   // Default column widths (px): part number + spec columns
   const defaultPartWidth = 120;
@@ -78,6 +82,10 @@ export default function ProductList() {
     setFilters([]);
     setSorts([]);
     setGearRatio(1);
+    setAppType('rotary');
+    setLinearTravel(0);
+    setScrewEfficiency(90);
+    setLoadMass(0);
   };
 
   // Gear ratio keys — torque is multiplied, speed is divided at the output
@@ -111,6 +119,45 @@ export default function ProductList() {
         ...value,
         min: value.min != null ? parseFloat((value.min * factor).toPrecision(4)) : value.min,
         max: value.max != null ? parseFloat((value.max * factor).toPrecision(4)) : value.max,
+      };
+    }
+    return value;
+  };
+
+  // Linear motion conversion helpers
+  const isLinearMode = (appType === 'linear' || appType === 'z-axis') && linearTravel > 0;
+  const GRAVITY = 9.81; // m/s²
+
+  // Convert RPM ValueUnit to linear speed (mm/s)
+  const rpmToLinearSpeed = (value: any): any => {
+    if (!value || !linearTravel) return value;
+    if (typeof value === 'object' && 'value' in value && typeof value.value === 'number') {
+      return { value: parseFloat(((value.value / 60) * linearTravel).toPrecision(4)), unit: 'mm/s' };
+    }
+    if (typeof value === 'object' && 'min' in value && 'max' in value) {
+      return {
+        min: value.min != null ? parseFloat(((value.min / 60) * linearTravel).toPrecision(4)) : value.min,
+        max: value.max != null ? parseFloat(((value.max / 60) * linearTravel).toPrecision(4)) : value.max,
+        unit: 'mm/s'
+      };
+    }
+    return value;
+  };
+
+  // Convert torque (Nm) ValueUnit to thrust force (N)
+  // F = T * 2π * η / lead   (lead in meters, η = efficiency 0-1)
+  const torqueToThrust = (value: any): any => {
+    if (!value || !linearTravel) return value;
+    const eta = screwEfficiency / 100;
+    const factor = (2 * Math.PI * eta) / (linearTravel * 0.001);
+    if (typeof value === 'object' && 'value' in value && typeof value.value === 'number') {
+      return { value: parseFloat((value.value * factor).toPrecision(4)), unit: 'N' };
+    }
+    if (typeof value === 'object' && 'min' in value && 'max' in value) {
+      return {
+        min: value.min != null ? parseFloat((value.min * factor).toPrecision(4)) : value.min,
+        max: value.max != null ? parseFloat((value.max * factor).toPrecision(4)) : value.max,
+        unit: 'N'
       };
     }
     return value;
@@ -234,34 +281,50 @@ export default function ProductList() {
     [filteredProducts, sorts]
   );
 
-  // Transform display values: per-motor ratio (auto) or global ratio (manual)
+  // Transform display values: gear ratio + linear conversion if applicable
   const gearedProducts = useMemo(() => {
+    const applyLinearConversions = (copy: any) => {
+      if (!isLinearMode) return;
+      for (const key of SPEED_KEYS) {
+        if (copy[key]) copy[key] = rpmToLinearSpeed(copy[key]);
+      }
+      for (const key of TORQUE_KEYS) {
+        if (copy[key]) copy[key] = torqueToThrust(copy[key]);
+      }
+    };
+
     if (autoGearActive) {
       return sortedProducts.map(p => {
         const ratio = (p as any)._computedGearRatio ?? 1;
-        if (ratio === 1) return p;
         const copy = { ...p } as any;
-        for (const key of TORQUE_KEYS) {
-          if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, true);
+        if (ratio !== 1) {
+          for (const key of TORQUE_KEYS) {
+            if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, true);
+          }
+          for (const key of SPEED_KEYS) {
+            if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, false);
+          }
         }
-        for (const key of SPEED_KEYS) {
-          if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, false);
-        }
+        applyLinearConversions(copy);
         return copy as Product;
       });
     }
-    if (gearRatio === 1 || productType !== 'motor') return sortedProducts;
+    const needsGear = gearRatio !== 1 && productType === 'motor';
+    if (!needsGear && !isLinearMode) return sortedProducts;
     return sortedProducts.map(p => {
       const copy = { ...p } as any;
-      for (const key of TORQUE_KEYS) {
-        if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, true);
+      if (needsGear) {
+        for (const key of TORQUE_KEYS) {
+          if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, true);
+        }
+        for (const key of SPEED_KEYS) {
+          if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, false);
+        }
       }
-      for (const key of SPEED_KEYS) {
-        if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, false);
-      }
+      applyLinearConversions(copy);
       return copy as Product;
     });
-  }, [sortedProducts, gearRatio, productType, autoGearActive]);
+  }, [sortedProducts, gearRatio, productType, autoGearActive, isLinearMode, linearTravel, screwEfficiency]);
 
   // Paginate products
   const paginatedProducts = useMemo(() => {
@@ -283,6 +346,10 @@ export default function ProductList() {
       return ['rated_power', 'rated_voltage', 'rated_current', 'rated_speed', 'rated_torque', 'peak_torque'];
     } else if (productType === 'drive') {
       return ['output_power', 'input_voltage', 'rated_current', 'peak_current', 'input_voltage_phases', 'ip_rating'];
+    } else if (productType === 'robot_arm') {
+      return ['payload', 'reach', 'degrees_of_freedom', 'max_tcp_speed', 'ip_rating', 'weight'];
+    } else if (productType === 'gearhead') {
+      return ['gear_ratio', 'gear_type', 'max_continuous_torque', 'max_peak_torque', 'backlash', 'efficiency'];
     }
     return [];
   };
@@ -296,11 +363,21 @@ export default function ProductList() {
 
     return displayedKeys.map(key => {
       const attr = allAttributes.find(a => a.key === key);
-      return {
-        key: key,
-        label: attr ? attr.displayName : key,
-        unit: attr ? attr.unit || null : null
-      };
+      let label = attr ? attr.displayName : key;
+      let unit = attr ? attr.unit || null : null;
+
+      // Override labels/units in linear mode
+      if (isLinearMode) {
+        if (SPEED_KEYS.includes(key)) {
+          label = 'Linear Speed';
+          unit = 'mm/s';
+        } else if (TORQUE_KEYS.includes(key)) {
+          label = key === 'peak_torque' ? 'Peak Thrust' : 'Rated Thrust';
+          unit = 'N';
+        }
+      }
+
+      return { key, label, unit };
     });
   };
 
@@ -608,6 +685,30 @@ export default function ProductList() {
                   </div>
                 );
               })}
+              {/* Computed columns for Z-axis */}
+              {appType === 'z-axis' && isLinearMode && loadMass > 0 && (
+                <>
+                  <div className="product-grid-header-item computed-col" style={{ width: 70 }}>
+                    <div className="product-grid-header-label">Gravity</div>
+                    <div className="product-grid-header-unit">(N)</div>
+                  </div>
+                  <div className="product-grid-header-item computed-col" style={{ width: 80 }}>
+                    <div className="product-grid-header-label">Net Thrust</div>
+                    <div className="product-grid-header-unit">(N)</div>
+                  </div>
+                  <div className="product-grid-header-item computed-col" style={{ width: 80 }}>
+                    <div className="product-grid-header-label">Brake Hold</div>
+                    <div className="product-grid-header-unit">(N)</div>
+                  </div>
+                </>
+              )}
+              {/* Computed inertia column for rotary */}
+              {appType === 'rotary' && productType === 'motor' && (autoGearActive || gearRatio > 1) && (
+                <div className="product-grid-header-item computed-col" style={{ width: 90 }}>
+                  <div className="product-grid-header-label">Refl. Inertia</div>
+                  <div className="product-grid-header-unit">(kg·cm²)</div>
+                </div>
+              )}
               {/* Add spec button */}
               <button
                 ref={(el) => setAddColumnBtnRef(el)}
@@ -698,6 +799,43 @@ export default function ProductList() {
                       </div>
                     );
                   })}
+
+                  {/* Z-axis computed values */}
+                  {appType === 'z-axis' && isLinearMode && loadMass > 0 && (() => {
+                    const gravityForce = parseFloat((loadMass * GRAVITY).toPrecision(4));
+                    const ratedThrustVal = (product as any).rated_torque;
+                    const thrustNum = ratedThrustVal && typeof ratedThrustVal === 'object' && 'value' in ratedThrustVal
+                      ? ratedThrustVal.value : null;
+                    const netThrust = thrustNum !== null ? parseFloat((thrustNum - gravityForce).toPrecision(4)) : null;
+                    return (
+                      <>
+                        <div className="spec-header-item computed-cell">
+                          <div className="spec-header-value">{gravityForce.toFixed(1)}</div>
+                        </div>
+                        <div className={`spec-header-item computed-cell ${netThrust !== null && netThrust < 0 ? 'computed-cell-warning' : ''}`}>
+                          <div className="spec-header-value">{netThrust !== null ? netThrust.toFixed(1) : '-'}</div>
+                        </div>
+                        <div className="spec-header-item computed-cell">
+                          <div className="spec-header-value">{gravityForce.toFixed(1)}</div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* Rotary reflected inertia */}
+                  {appType === 'rotary' && productType === 'motor' && (autoGearActive || gearRatio > 1) && (() => {
+                    const ratio = autoGearActive ? ((product as any)._computedGearRatio ?? gearRatio) : gearRatio;
+                    const rotorInertia = (product as any).rotor_inertia;
+                    const inertiaVal = rotorInertia && typeof rotorInertia === 'object' && 'value' in rotorInertia
+                      ? rotorInertia.value : null;
+                    // Reflected inertia at output = J_motor * ratio²
+                    const reflected = inertiaVal !== null ? parseFloat((inertiaVal * ratio * ratio).toPrecision(4)) : null;
+                    return (
+                      <div className="spec-header-item computed-cell">
+                        <div className="spec-header-value">{reflected !== null ? reflected.toFixed(2) : '-'}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -749,6 +887,24 @@ export default function ProductList() {
         <div className={`filter-sidebar-body${mobileFiltersOpen ? ' mobile-expanded' : ''}`}>
         {productType === 'motor' && (
           <div className="gear-ratio-control">
+            {/* Application type selector */}
+            <div className="transmission-type-row">
+              {(['rotary', 'linear', 'z-axis'] as const).map(t => (
+                <button
+                  key={t}
+                  className={`transmission-type-btn ${appType === t ? 'transmission-type-active' : ''}`}
+                  onClick={() => {
+                    setAppType(t);
+                    if (t === 'rotary') { setLinearTravel(0); setLoadMass(0); }
+                    if (t === 'linear') setLoadMass(0);
+                  }}
+                >
+                  {t === 'z-axis' ? 'Z-Axis' : t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Gear ratio header */}
             <div className="gear-ratio-header">
               <span className="gear-ratio-icon">⚙</span>
               <span className="gear-ratio-label">Gear Ratio</span>
@@ -831,6 +987,83 @@ export default function ProductList() {
             {autoGear && !autoGearActive && (
               <div className="gear-auto-hint">
                 Add a torque or speed filter to auto-compute ratios
+              </div>
+            )}
+
+            {/* Linear Travel / Rev — shown for linear and z-axis */}
+            {(appType === 'linear' || appType === 'z-axis') && (
+              <div className="transmission-param">
+                <label className="transmission-param-label">Linear Travel / Rev</label>
+                <div className="transmission-param-input-row">
+                  <input
+                    type="number"
+                    className="transmission-param-input"
+                    min={0}
+                    step={0.1}
+                    value={linearTravel || ''}
+                    placeholder="0"
+                    onChange={(e) => setLinearTravel(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <span className="transmission-param-unit">mm/rev</span>
+                </div>
+                {linearTravel > 0 && (
+                  <div className="transmission-param-hint">
+                    RPM → mm/s, Torque → Thrust (N)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Screw efficiency — shown when linear travel is set */}
+            {(appType === 'linear' || appType === 'z-axis') && linearTravel > 0 && (
+              <div className="transmission-param">
+                <label className="transmission-param-label">Screw Efficiency</label>
+                <div className="transmission-param-input-row">
+                  <input
+                    type="range"
+                    className="transmission-efficiency-slider"
+                    min={10}
+                    max={100}
+                    step={1}
+                    value={screwEfficiency}
+                    onChange={(e) => setScrewEfficiency(Number(e.target.value))}
+                  />
+                  <span className="transmission-param-unit">{screwEfficiency}%</span>
+                </div>
+                <div className="transmission-param-hint">
+                  Ball screw ~90%, Lead screw ~30-50%
+                </div>
+              </div>
+            )}
+
+            {/* Load Mass — shown for z-axis */}
+            {appType === 'z-axis' && (
+              <div className="transmission-param">
+                <label className="transmission-param-label">Load Mass</label>
+                <div className="transmission-param-input-row">
+                  <input
+                    type="number"
+                    className="transmission-param-input"
+                    min={0}
+                    step={0.1}
+                    value={loadMass || ''}
+                    placeholder="0"
+                    onChange={(e) => setLoadMass(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <span className="transmission-param-unit">kg</span>
+                </div>
+                {loadMass > 0 && (
+                  <div className="transmission-param-hint">
+                    Gravity: {(loadMass * GRAVITY).toFixed(1)} N — Brake must hold this
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Rotary inertia info */}
+            {appType === 'rotary' && (autoGearActive || gearRatio > 1) && (
+              <div className="transmission-param-hint" style={{ marginTop: '0.4rem' }}>
+                Reflected inertia at output = J_rotor × R²
               </div>
             )}
           </div>
