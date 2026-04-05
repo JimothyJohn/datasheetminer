@@ -108,7 +108,9 @@ class TestGenerateContent:
         contents = call_args.kwargs.get("contents") or call_args[1].get("contents")
         prompt_text = contents[1]
         assert "Product Name:" not in prompt_text
-        assert "Identify the individual versions" in prompt_text
+        assert "extracting product specifications" in prompt_text
+        # Header row for CSV extraction must be embedded in the prompt.
+        assert "part_number" in prompt_text
 
     @patch("datasheetminer.llm.genai")
     def test_invalid_content_type(self, mock_genai: MagicMock) -> None:
@@ -139,7 +141,7 @@ class TestGenerateContent:
 
     @patch("datasheetminer.llm.genai")
     def test_uses_correct_model(self, mock_genai: MagicMock) -> None:
-        """Verify the call uses model='gemini-2.5-flash'."""
+        """Verify the call uses the configured MODEL constant."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_client.models.generate_content.return_value = Mock()

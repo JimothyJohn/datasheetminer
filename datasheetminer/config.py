@@ -24,16 +24,15 @@ Extract the products and their specifications from this technical catalog.
 GUARDRAILS: str = """
 IMPORTANT EXTRACTION RULES:
 - Extract EVERY specification that appears in the document for each product variant.
-- If a value exists in the document, you MUST include it. Do NOT leave a field null when the data is present.
-- Only leave a field null when the specification is genuinely absent from the document.
-- For fields with units, always include the unit exactly as shown (e.g., "2.5;A", "3000;rpm", "0.47;Nm").
-- If a spec is listed in a table, extract the exact numeric value and unit from the table cell.
+- If a value exists in the document, you MUST include it. Do NOT leave a cell empty when the data is present.
+- Only leave a cell empty when the specification is genuinely absent from the document.
+- Numeric cells must contain plain numbers only. The unit is already encoded in the column header — do not repeat it.
+- If a spec is listed in a table, convert the exact numeric value into the unit shown in the column header.
 - Pay close attention to footnotes, headers, and sub-tables that may contain additional specs.
-- Each row or variant in a selection table is a separate product — extract them all.
+- Each row or variant in a selection table is a separate product — emit one CSV row per variant.
 """
 
 MODEL: str = "gemini-3-flash-preview"  # Explicitly define model for clarity
-
 
 
 def _discover_schema_models() -> Dict[str, Type[ProductBase]]:

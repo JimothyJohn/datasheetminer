@@ -1,3 +1,5 @@
+import csv
+import io
 import tempfile
 from pathlib import Path
 from typing import Any, List, Optional, Set, Dict, Union
@@ -430,61 +432,81 @@ def validate_api_key(value: Optional[str]) -> str:
     return value.strip()
 
 
+def _strip_csv_fences(text: str) -> str:
+    """Remove markdown code fences if the LLM wrapped the CSV in them."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        # drop first fence line
+        lines = lines[1:]
+        # drop trailing fence if present
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines)
+    return text.strip()
+
+
 def parse_gemini_response(
     response: Any,
     schema_type: type,
     product_type: str,
     context: Optional[Dict[str, Any]] = None,
 ) -> List[Any]:
-    """
-    Parse Gemini API response using a two-step validation process.
-    """
-    parsed_json = []
+    """Parse a CSV response from Gemini into validated Pydantic models.
 
-    # Step 1: Get raw JSON from response, handling pre-parsed and raw text
-    if response and hasattr(response, "parsed") and response.parsed:
-        logger.info(f"Using pre-parsed response with {len(response.parsed)} items")
-        parsed_json = [item.model_dump() for item in response.parsed]
-    elif response and hasattr(response, "text"):
-        logger.warning("Attempting manual parse of raw response text.")
-        raw_text = response.text.strip() if response.text else ""
-        # Simple JSON load, assuming the fallback logic for truncated JSON
-        # will populate parsed_json if the direct load fails.
-        try:
-            loaded_json = json.loads(raw_text)
-            if isinstance(loaded_json, list):
-                parsed_json = loaded_json
-            elif isinstance(loaded_json, dict):
-                parsed_json = [loaded_json]
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from response text: {e}")
-            # Here you might add your existing brace-depth parsing logic
-            # to handle truncated JSON and populate `parsed_json`
-            pass
+    Expects the first row of the response to be the header emitted by
+    datasheetminer.models.csv_schema.header_row. Each subsequent row is
+    reconstructed into `value;unit` strings (for unit-bearing fields)
+    and then fed into the full Pydantic model so the existing
+    ValueUnit / MinMaxUnit validators and spec_rules unit checks remain
+    authoritative.
+    """
+    from datasheetminer.models.csv_schema import build_columns, reconstruct_row
+
+    # Step 1: extract raw CSV text from the response envelope.
+    raw_text: str = ""
+    if response and hasattr(response, "text") and response.text:
+        raw_text = _strip_csv_fences(response.text)
     else:
         raise ValueError("Response object is invalid or has no text to parse.")
 
-    if not parsed_json:
-        raise ValueError("Could not extract any JSON objects from the response.")
+    if not raw_text:
+        raise ValueError("Empty response text; cannot parse CSV.")
 
-    # Step 2: Validate against the full schema after merging with context
-    validated_models = []
-    for item in parsed_json:
-        # Merge LLM-extracted data with the provided context
-        full_data = {**item}
+    # Step 2: parse the CSV body.
+    columns = build_columns(schema_type)
+    expected_headers = [c.header for c in columns]
+
+    reader = csv.DictReader(io.StringIO(raw_text))
+    actual_headers = reader.fieldnames or []
+    if not actual_headers:
+        raise ValueError("CSV response has no header row.")
+
+    missing = [h for h in expected_headers if h not in actual_headers]
+    if missing:
+        logger.warning(
+            "CSV header missing %d expected column(s): %s",
+            len(missing),
+            missing[:5],
+        )
+
+    # Step 3: reconstruct each row and validate against the full model.
+    validated_models: List[Any] = []
+    for row in reader:
+        if not any((v or "").strip() for v in row.values()):
+            continue  # skip blank lines
+
+        full_data = reconstruct_row(row, columns)
         if context:
             full_data.update(context)
-
-        # Always set the product_type from the function argument
         full_data["product_type"] = product_type
 
         try:
-            # Validate the combined data against the final, strict model
             full_model = schema_type(**full_data)
             validated_models.append(full_model)
         except Exception as e:
             logger.error(
-                f"Failed to validate merged data for '{item.get('part_number', 'unknown')}': {e}"
+                f"Failed to validate row for '{full_data.get('part_number', 'unknown')}': {e}"
             )
             continue
 
