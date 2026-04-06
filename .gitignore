@@ -280,3 +280,6 @@ outputs/
 !app/backend/tests/**
 !app/frontend/src/**/*.test.*
 .logs/
+output_*.json
+**/cdk-outputs.json
+package-lock.json
