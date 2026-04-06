@@ -26,6 +26,7 @@ from datasheetminer.config import SCHEMA_CHOICES
 from datasheetminer.db.dynamo import DynamoDBClient
 from datasheetminer.models.product import ProductBase
 from datasheetminer.utils import (
+    extract_pdf_pages,
     get_document,
     get_web_content,
     is_pdf_url,
@@ -35,6 +36,7 @@ from datasheetminer.utils import (
     parse_gemini_response,
 )
 from datasheetminer.llm import generate_content
+from datasheetminer.page_finder import find_spec_pages_by_text  # noqa: E402
 
 
 class ElapsedTimeFormatter(logging.Formatter):
@@ -448,10 +450,37 @@ def process_datasheet(
         doc_data: Optional[bytes | str] = None
 
         if is_pdf:
-            doc_data = get_document(url, pages)
-            if doc_data is None:
+            # Download the full PDF once
+            full_pdf = get_document(url)
+            if full_pdf is None:
                 logger.error("Could not retrieve PDF document.")
                 return "failed"
+
+            # Auto-detect spec pages when none specified
+            if not pages:
+                detected = find_spec_pages_by_text(full_pdf)
+                if detected:
+                    pages = detected
+                    logger.info(f"Auto-detected {len(pages)} spec pages: {pages}")
+                    context["pages"] = pages
+
+            # Extract specific pages if we have them, otherwise use full PDF
+            if pages:
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_in:
+                    tmp_in.write(full_pdf)
+                    tmp_in_path = Path(tmp_in.name)
+                with tempfile.NamedTemporaryFile(
+                    suffix=".pdf", delete=False
+                ) as tmp_out:
+                    tmp_out_path = Path(tmp_out.name)
+                extract_pdf_pages(tmp_in_path, tmp_out_path, pages)
+                doc_data = tmp_out_path.read_bytes()
+                tmp_in_path.unlink()
+                tmp_out_path.unlink()
+            else:
+                doc_data = full_pdf
         else:
             if pages:
                 logger.warning("Pages parameter is ignored for web content")

@@ -39,9 +39,6 @@ const isAdmin = APP_MODE === 'admin';
 import ProductList from './components/ProductList';
 
 
-// ========== Lazy Imports (public, code-split for smaller initial bundle) ==========
-const RecommendationChat = lazy(() => import('./components/RecommendationChat'));
-
 // ========== Lazy Imports (admin-only, tree-shaken in public builds) ==========
 const ProductManagement = isAdmin
   ? lazy(() => import('./components/ProductManagement'))
@@ -94,8 +91,7 @@ function App() {
               <h1>Product Search</h1>
               <nav className="nav-inline">
                 <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
-                <NavLink to="/recommend" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Recommendation</NavLink>
-                {isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
+{isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
                 {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
               </nav>
             </div>
@@ -108,9 +104,6 @@ function App() {
               <Routes>
                 {/* ProductList: Eager loaded (default view, always available) */}
                 <Route path="/" element={<ProductList />} />
-
-                {/* Recommendation: Lazy loaded chat interface */}
-                <Route path="/recommend" element={<RecommendationChat />} />
 
                 {/* Admin-only routes (hidden in public mode) */}
                 {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}

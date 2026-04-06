@@ -22,6 +22,7 @@ datasheetminer = "datasheetminer.scraper:main"
 page-finder = "datasheetminer.page_finder:main"
 dsm-agent = "cli.agent:main"
 dsm = "cli.query:main"
+web-scraper = "webscraper.scraper:main"
 
 [dependency-groups]
 dev = [
@@ -35,7 +36,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["datasheetminer", "cli"]
+packages = ["datasheetminer", "cli", "webscraper"]
 
 [tool.uv]
 package = true

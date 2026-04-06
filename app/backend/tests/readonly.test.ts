@@ -104,19 +104,6 @@ describe('readonlyGuard', () => {
       expect(nextCalled).toBe(true);
     });
 
-    it('POST /recommend passes through', () => {
-      const req = mockReq('POST', '/recommend');
-      const res = mockRes();
-      readonlyGuard(req as Request, res as Response, next);
-      expect(nextCalled).toBe(true);
-    });
-
-    it('POST /recommend/ passes through', () => {
-      const req = mockReq('POST', '/recommend/');
-      const res = mockRes();
-      readonlyGuard(req as Request, res as Response, next);
-      expect(nextCalled).toBe(true);
-    });
   });
 
   // =================== Edge Cases ===================

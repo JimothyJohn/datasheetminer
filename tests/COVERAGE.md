@@ -1,6 +1,6 @@
 # Test Coverage Report
 
-Generated: 2026-03-29
+Generated: 2026-04-05
 
 ## Summary
 
@@ -71,13 +71,11 @@ Source: `npx jest --coverage`
 | `routes/datasheets.ts` | 70.7% | 73.7% | 71.4% | 70.3% |
 | `routes/docs.ts` | 100% | 100% | 100% | 100% |
 | `routes/products.ts` | 74.6% | 64.1% | 92.8% | 74.6% |
-| `routes/recommend.ts` | **93.9%** | **87.5%** | **100%** | **93.9%** |
 | `routes/search.ts` | 100% | 93.8% | 100% | 100% |
 | `routes/subscription.ts` | **84.6%** | **66.7%** | **100%** | **84.6%** |
 | `routes/upload.ts` | **100%** | **100%** | **100%** | **100%** |
 | `services/search.ts` | 89.9% | 83.3% | 95.0% | 94.0% |
 | `services/gemini.ts` | 12.3% | 2.2% | 11.1% | 12.9% |
-| `services/recommendation.ts` | 18.4% | 3.7% | 7.7% | 19.6% |
 | `services/scraper.ts` | 5.3% | 0.0% | 0.0% | 5.7% |
 | `services/stripe.ts` | 8.1% | 0.0% | 14.3% | 9.4% |
 | **ALL FILES** | **45.0%** | **39.8%** | **38.5%** | **46.0%** |
@@ -87,7 +85,6 @@ Source: `npx jest --coverage`
 - `db/dynamodb.ts` (1.9%) -- fully mocked at unit level; real calls tested via staging/post-deploy
 - `services/gemini.ts`, `scraper.ts` -- LLM integrations, require Gemini API key
 - `services/stripe.ts` -- Stripe Lambda proxy, requires live endpoint
-- `services/recommendation.ts` -- wraps Gemini, tested indirectly via recommend route
 
 ---
 
@@ -124,6 +121,20 @@ No line-level coverage collected (`@vitest/coverage-v8` not installed).
 | Backend unit (Jest) | 194 | Routes, DB, search, upload, subscription, recommend, resilience, edge cases |
 | Frontend unit (Vitest) | 127 | Filters, sorting, formatting, hooks, components, API client resilience |
 | **Total** | **1,048** | |
+
+---
+
+## Web Scraper Tests (webscraper/)
+
+Source: `uv run pytest tests/unit/test_webscraper.py -v`
+
+| Test Class | Tests | Description |
+|---|---:|---|
+| `TestCleanHtml` | 10 | HTML tag stripping, whitespace collapse, truncation, content preservation |
+| `TestExtractJsonLd` | 6 | JSON-LD extraction, multi-block, malformed handling, array support |
+| `TestExtractMeta` | 5 | Title, canonical URL, description, breadcrumb extraction |
+| `TestPageContent` | 2 | Dataclass defaults and construction |
+| **Total** | **23** | |
 
 ---
 

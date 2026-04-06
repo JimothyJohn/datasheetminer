@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Union
 
 from google import genai
 from tenacity import (
@@ -42,14 +42,31 @@ def generate_content(
     columns = build_columns(full_schema_type)
     csv_header = header_row(columns)
 
-    # Build a terse per-column hint so the LLM understands list/numeric
+    # Build a terse per-column hint so the LLM understands list/numeric/enum
     # semantics without us having to repeat instructions in prose.
+    from typing import Literal, get_args, get_origin
+
     hint_lines = []
     for col in columns:
         if col.kind == "list":
             hint_lines.append(f"- {col.header}: pipe-separated list (e.g. A|B|C)")
         elif col.kind in ("value", "min", "max"):
             hint_lines.append(f"- {col.header}: plain number, unit is {col.unit}")
+
+    # Add enum hints for Literal fields so the LLM uses exact valid values.
+    for name, field_info in full_schema_type.model_fields.items():
+        annotation = field_info.annotation
+        # Unwrap Optional[Literal[...]]
+        if get_origin(annotation) is Union:
+            for arg in get_args(annotation):
+                if get_origin(arg) is Literal:
+                    annotation = arg
+                    break
+        if get_origin(annotation) is Literal:
+            choices = get_args(annotation)
+            hint_lines.append(
+                f"- {name}: must be one of: {', '.join(repr(c) for c in choices)}"
+            )
     hints = "\n".join(hint_lines)
 
     context_block = ""

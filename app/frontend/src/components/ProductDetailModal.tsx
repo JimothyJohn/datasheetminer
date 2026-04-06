@@ -179,10 +179,6 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
     ? product.datasheet_url
     : (product.datasheet_url as any)?.url ?? null;
   const datasheetUrl = rawDatasheetUrl?.startsWith('http') ? rawDatasheetUrl : null;
-  const pages: number[] = ('pages' in product && Array.isArray((product as any).pages))
-    ? (product as any).pages
-    : [];
-
   return (
     <div className="product-detail-overlay">
       <div
@@ -216,23 +212,6 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
             )}
             {'type' in product && product.type && <p className="product-detail-type">Type: {product.type}</p>}
             {'series' in product && product.series && <p className="product-detail-type">Series: {product.series}</p>}
-            {datasheetUrl && pages.length > 0 && (
-              <div className="product-detail-pages">
-                <span className="product-detail-pages-label">Datasheet pages:</span>
-                {pages.map((page) => (
-                  <a
-                    key={page}
-                    href={sanitizeUrl(`${datasheetUrl}#page=${page}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="product-detail-page-link"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {page}
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
           <button className="product-detail-close" onClick={onClose} aria-label="Close">
             ×

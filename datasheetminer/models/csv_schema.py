@@ -20,7 +20,7 @@ from typing import Any, List, Literal, Optional, Type, Union, get_args, get_orig
 
 from pydantic import BaseModel
 
-from datasheetminer.models.common import IpRating, MinMaxUnit, ValueUnit
+from datasheetminer.models.common import MinMaxUnit, ValueUnit
 
 
 # Canonical unit per ValueUnit/MinMaxUnit field. The string on the right
@@ -125,7 +125,7 @@ def _unwrap_optional(annotation: Any) -> Any:
     """Strip outer Optional / Union[X, None] wrappers recursively.
 
     Keeps Annotated[...] aliases intact so they can be matched by identity
-    against ValueUnit / MinMaxUnit / IpRating.
+    against ValueUnit / MinMaxUnit.
     """
     while True:
         origin = get_origin(annotation)
@@ -152,17 +152,11 @@ def _scalar_kind(annotation: Any) -> Optional[str]:
     """Classify a scalar annotation. Returns the ColumnSpec.kind or None."""
     inner = _unwrap_optional(annotation)
 
-    # IpRating is Annotated[Optional[str], ...] — render as plain string column.
-    # Check this before unwrapping the Annotated wrapper.
-    if inner is IpRating:
-        return "str"
-
     # Literal[...] → treat as str
     if get_origin(inner) is Literal:
         return "str"
 
-    # Strip Annotated[...] to reveal the underlying type (e.g. str for IpRating
-    # fallback, though IpRating itself is caught above).
+    # Strip Annotated[...] to reveal the underlying type.
     if get_origin(inner) is not None and hasattr(inner, "__metadata__"):
         inner = get_args(inner)[0]
         inner = _unwrap_optional(inner)
@@ -246,7 +240,7 @@ def build_columns(model_class: Type[BaseModel]) -> List[ColumnSpec]:
             )
             continue
 
-        # Plain scalar (str / int / float / bool / Literal / IpRating)
+        # Plain scalar (str / int / float / bool / Literal)
         kind = _scalar_kind(annotation)
         if kind is not None:
             columns.append(
@@ -294,6 +288,11 @@ def reconstruct_row(
             else:
                 out.setdefault(col.field_name, None)
             continue
+
+        # Strip thousand-separator commas from numeric fields so "1,500"
+        # doesn't poison the value;unit compact string downstream.
+        if col.kind in ("value", "min", "max", "int", "float"):
+            raw = raw.replace(",", "")
 
         if col.kind == "str":
             out[col.field_name] = raw

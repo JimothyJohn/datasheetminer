@@ -520,27 +520,6 @@ class ApiClient {
     });
   }
 
-  // ========== Recommendation Methods ==========
-
-  /**
-   * Get AI-powered product recommendations based on user requirements.
-   * Uses Gemini on the backend with the full product catalog as context.
-   */
-  async recommend(
-    message: string,
-    history: Array<{ role: string; content: string }> = [],
-  ): Promise<{ response: string; products: Product[] }> {
-    console.log(`[ApiClient] Requesting recommendation`);
-    const result = await this.request<{ response: string; products: Product[] }>(
-      '/api/recommend',
-      {
-        method: 'POST',
-        body: JSON.stringify({ message, history }),
-        timeout: 60000,
-      },
-    );
-    return result.data || { response: 'No response received', products: [] };
-  }
 }
 
 // ========== Singleton Export ==========

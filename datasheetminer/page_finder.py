@@ -12,18 +12,14 @@ Usage:
 """
 
 import argparse
-import io
 import json
 import logging
 import os
-import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from google import genai
 
-from datasheetminer.config import TABLE_NAME
 from datasheetminer.utils import get_document
 
 logging.basicConfig(
@@ -34,6 +30,54 @@ logger = logging.getLogger(__name__)
 
 # Use a cheap fast model for page classification
 PAGE_FINDER_MODEL = "gemini-2.0-flash"
+
+
+# Keywords that indicate a spec table. A page must match at least
+# SPEC_KEYWORD_THRESHOLD of these to be considered a spec page.
+SPEC_KEYWORDS: list[list[str]] = [
+    # Each inner list is an OR group — matching any one string counts.
+    ["rated torque", "rated output", "rated power"],
+    ["rated speed", "max speed", "maximum speed"],
+    ["rated voltage", "supply voltage", "voltage range"],
+    ["rated current", "continuous current"],
+    ["rotor inertia", "moment of inertia", "inertia"],
+    ["torque constant", "voltage constant", "back emf"],
+    ["encoder", "resolver", "feedback"],
+    ["frame size", "flange size", "mounting"],
+]
+SPEC_KEYWORD_THRESHOLD = 3  # Must match at least 3 groups
+
+
+def find_spec_pages_by_text(pdf_bytes: bytes) -> list[int]:
+    """Find spec-table pages using text search — free, no API calls.
+
+    Returns 0-indexed page numbers matching spec keyword heuristics.
+    Falls back to empty list if PyMuPDF is unavailable or PDF has no text.
+    """
+    try:
+        import fitz
+    except ImportError:
+        logger.warning("PyMuPDF not installed, skipping text-based page detection")
+        return []
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total_pages = len(doc)
+    spec_pages: list[int] = []
+
+    for i in range(total_pages):
+        text = doc[i].get_text().lower()
+        if not text.strip():
+            continue
+        matches = sum(1 for group in SPEC_KEYWORDS if any(kw in text for kw in group))
+        if matches >= SPEC_KEYWORD_THRESHOLD:
+            spec_pages.append(i)  # 0-indexed
+
+    doc.close()
+    logger.info(
+        f"Text-based page detection: {len(spec_pages)}/{total_pages} pages "
+        f"matched spec keywords"
+    )
+    return spec_pages
 
 
 def pdf_pages_to_images(pdf_bytes: bytes, dpi: int = 100) -> List[bytes]:
@@ -139,22 +183,26 @@ Respond as a JSON array with one object per page:
                         # Convert 1-indexed page from LLM to 0-indexed
                         page_1idx = item.get("page", 0)
                         page_0idx = page_1idx - 1 + batch_start
-                        results.append({
-                            "page_number": page_0idx,
-                            "page_display": page_1idx + batch_start,
-                            "has_specs": item.get("has_specs", False),
-                            "description": item.get("description", ""),
-                        })
+                        results.append(
+                            {
+                                "page_number": page_0idx,
+                                "page_display": page_1idx + batch_start,
+                                "has_specs": item.get("has_specs", False),
+                                "description": item.get("description", ""),
+                            }
+                        )
         except Exception as e:
             logger.error(f"Error classifying pages {page_labels}: {e}")
             # Mark failed pages as unknown
             for p in page_numbers:
-                results.append({
-                    "page_number": p,
-                    "page_display": p + 1,
-                    "has_specs": False,
-                    "description": f"classification failed: {e}",
-                })
+                results.append(
+                    {
+                        "page_number": p,
+                        "page_display": p + 1,
+                        "has_specs": False,
+                        "description": f"classification failed: {e}",
+                    }
+                )
 
     return results
 
@@ -239,7 +287,8 @@ def main() -> None:
         help="Scan all datasheets in the DB that have no pages set",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         help="Save results to JSON file",
     )
@@ -260,12 +309,12 @@ def main() -> None:
     result = find_spec_pages(args.url, api_key, args.type or "")
 
     # Print results
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"PDF: {result['url']}")
     print(f"Total pages: {result['total_pages']}")
     print(f"Pages with specs: {result['spec_page_count']}")
     print(f"Spec pages (0-indexed): {result['spec_pages']}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for page in result["all_pages"]:
         marker = "[SPEC]" if page["has_specs"] else "      "
@@ -301,7 +350,9 @@ def _update_datasheet_pages(url: str, pages: List[int]) -> None:
             logger.error(f"Failed to update datasheet {ds.datasheet_id}")
 
 
-def _scan_all_datasheets(api_key: str, product_type: Optional[str], update_db: bool) -> None:
+def _scan_all_datasheets(
+    api_key: str, product_type: Optional[str], update_db: bool
+) -> None:
     """Scan all datasheets and find spec pages for PDFs missing page info."""
     from datasheetminer.db.dynamo import DynamoDBClient
     from datasheetminer.utils import is_pdf_url
@@ -326,7 +377,9 @@ def _scan_all_datasheets(api_key: str, product_type: Optional[str], update_db: b
     logger.info(f"Found {len(candidates)} datasheets needing page discovery")
 
     for i, ds in enumerate(candidates):
-        logger.info(f"[{i+1}/{len(candidates)}] Processing: {ds.product_name} ({ds.url[:60]}...)")
+        logger.info(
+            f"[{i + 1}/{len(candidates)}] Processing: {ds.product_name} ({ds.url[:60]}...)"
+        )
         try:
             result = find_spec_pages(ds.url, api_key, ds.product_type)
 

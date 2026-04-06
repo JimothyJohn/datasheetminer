@@ -11,7 +11,6 @@ import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
 import subscriptionRouter from './routes/subscription';
-import recommendRouter from './routes/recommend';
 import searchRouter from './routes/search';
 import docsRouter from './routes/docs';
 
@@ -49,9 +48,6 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Upload route — available in both public and admin mode (queues only, no data mutation)
 app.use('/api/upload', uploadRouter);
-
-// Recommendation route — read-only LLM-powered product suggestions
-app.use('/api/recommend', recommendRouter);
 
 // API routes
 app.use('/api/products', productsRouter);

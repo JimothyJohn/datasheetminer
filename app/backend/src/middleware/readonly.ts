@@ -12,7 +12,7 @@ import { Request, Response, NextFunction } from 'express';
 const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 // Paths exempt from readonly — these only queue work, they don't mutate existing data
-const WRITE_ALLOWED_PATHS = new Set(['/upload', '/upload/', '/recommend', '/recommend/']);
+const WRITE_ALLOWED_PATHS = new Set(['/upload', '/upload/']);
 
 export function readonlyGuard(req: Request, res: Response, next: NextFunction): void {
   if (ALLOWED_METHODS.has(req.method)) {
