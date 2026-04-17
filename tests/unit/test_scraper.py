@@ -1,6 +1,7 @@
 """Unit tests for datasheetminer/scraper.py."""
 
 import logging
+import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -57,12 +58,15 @@ class TestProcessDatasheet:
         assert result == "skipped"
         mock_client.product_exists.assert_called_once()
 
+    @patch.dict(os.environ, {"LLM_PROVIDER": "gemini"})
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
     @patch("datasheetminer.scraper.get_document")
+    @patch("datasheetminer.scraper.find_spec_pages_by_text", return_value=[])
     def test_pdf_success(
         self,
+        mock_find_pages: MagicMock,
         mock_get_doc: MagicMock,
         mock_is_pdf: MagicMock,
         mock_generate: MagicMock,
@@ -102,6 +106,7 @@ class TestProcessDatasheet:
         assert result == "success"
         mock_client.batch_create.assert_called_once()
 
+    @patch.dict(os.environ, {"LLM_PROVIDER": "gemini"})
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
@@ -173,12 +178,15 @@ class TestProcessDatasheet:
 
         assert result == "failed"
 
+    @patch.dict(os.environ, {"LLM_PROVIDER": "gemini"})
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
     @patch("datasheetminer.scraper.get_document")
+    @patch("datasheetminer.scraper.find_spec_pages_by_text", return_value=[])
     def test_parse_failure(
         self,
+        mock_find_pages: MagicMock,
         mock_get_doc: MagicMock,
         mock_is_pdf: MagicMock,
         mock_generate: MagicMock,
@@ -208,12 +216,15 @@ class TestProcessDatasheet:
 
         assert result == "failed"
 
+    @patch.dict(os.environ, {"LLM_PROVIDER": "gemini"})
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
     @patch("datasheetminer.scraper.get_document")
+    @patch("datasheetminer.scraper.find_spec_pages_by_text", return_value=[])
     def test_deterministic_id(
         self,
+        mock_find_pages: MagicMock,
         mock_get_doc: MagicMock,
         mock_is_pdf: MagicMock,
         mock_generate: MagicMock,
@@ -263,12 +274,15 @@ class TestProcessDatasheet:
         saved_models = mock_client.batch_create.call_args[0][0]
         assert saved_models[0].product_id == expected_id
 
+    @patch.dict(os.environ, {"LLM_PROVIDER": "gemini"})
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
     @patch("datasheetminer.scraper.get_document")
+    @patch("datasheetminer.scraper.find_spec_pages_by_text", return_value=[])
     def test_no_manufacturer_skips(
         self,
+        mock_find_pages: MagicMock,
         mock_get_doc: MagicMock,
         mock_is_pdf: MagicMock,
         mock_generate: MagicMock,

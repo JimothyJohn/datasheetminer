@@ -24,6 +24,8 @@ from typing import Any, List, Optional, Type
 
 from datasheetminer.config import SCHEMA_CHOICES
 from datasheetminer.db.dynamo import DynamoDBClient
+from datasheetminer.ids import compute_product_id, normalize_string, PRODUCT_NAMESPACE
+from datasheetminer.merge import merge_per_page_products
 from datasheetminer.models.product import ProductBase
 from datasheetminer.utils import (
     extract_pdf_pages,
@@ -37,6 +39,9 @@ from datasheetminer.utils import (
 )
 from datasheetminer.llm import generate_content
 from datasheetminer.page_finder import find_spec_pages_by_text  # noqa: E402
+
+PAGES_PER_CHUNK = int(os.environ.get("PAGES_PER_CHUNK", "1"))
+MAX_PER_PAGE_CALLS = int(os.environ.get("MAX_PER_PAGE_CALLS", "30"))
 
 
 class ElapsedTimeFormatter(logging.Formatter):
@@ -388,6 +393,91 @@ def main() -> None:
         sys.exit(1)
 
 
+def _extract_bundled_pdf(full_pdf: bytes, pages_0idx: List[int]) -> bytes:
+    """Extract a subset of pages from a PDF into a new PDF, return bytes."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_in:
+        tmp_in.write(full_pdf)
+        tmp_in_path = Path(tmp_in.name)
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_out:
+        tmp_out_path = Path(tmp_out.name)
+    extract_pdf_pages(tmp_in_path, tmp_out_path, pages_0idx)
+    data = tmp_out_path.read_bytes()
+    tmp_in_path.unlink()
+    tmp_out_path.unlink()
+    return data
+
+
+def _call_llm(
+    doc_data: bytes | str,
+    api_key: str,
+    product_type: str,
+    context: dict,
+    content_type: str,
+) -> List[Any]:
+    """Call the configured LLM provider and parse the response into models."""
+    provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
+
+    if provider == "anthropic":
+        from datasheetminer.llm_anthropic import generate_content_anthropic
+        from datasheetminer.utils import parse_anthropic_response
+
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or api_key
+        response: Any = generate_content_anthropic(
+            doc_data, anthropic_key, product_type, context, content_type
+        )
+        return parse_anthropic_response(
+            response, SCHEMA_CHOICES[product_type], product_type, context
+        )
+    else:
+        response = generate_content(
+            doc_data, api_key, product_type, context, content_type
+        )
+        return parse_gemini_response(
+            response, SCHEMA_CHOICES[product_type], product_type, context
+        )
+
+
+def _extract_per_page(
+    full_pdf: bytes,
+    pages_0idx: List[int],
+    api_key: str,
+    product_type: str,
+    context: dict,
+    content_type: str,
+) -> List[Any]:
+    """Extract products one page (or chunk) at a time, tagging each with source page."""
+    all_products: List[Any] = []
+    chunk_size = max(1, PAGES_PER_CHUNK)
+
+    chunks = [
+        pages_0idx[i : i + chunk_size] for i in range(0, len(pages_0idx), chunk_size)
+    ]
+
+    for chunk in chunks:
+        pages_1idx = [p + 1 for p in chunk]
+        logger.info("Extracting page(s) %s (1-indexed)", pages_1idx)
+
+        try:
+            page_pdf = _extract_bundled_pdf(full_pdf, chunk)
+            page_context = dict(context, single_page_mode=True)
+            products = _call_llm(
+                page_pdf, api_key, product_type, page_context, content_type
+            )
+
+            for model in products:
+                model.pages = pages_1idx
+
+            all_products.extend(products)
+            logger.info("Got %d products from page(s) %s", len(products), pages_1idx)
+        except Exception as e:
+            logger.error("Failed to extract page(s) %s: %s", pages_1idx, e)
+            continue
+
+    return all_products
+
+
 def process_datasheet(
     client: DynamoDBClient,
     api_key: str,
@@ -464,23 +554,28 @@ def process_datasheet(
                     logger.info(f"Auto-detected {len(pages)} spec pages: {pages}")
                     context["pages"] = pages
 
-            # Extract specific pages if we have them, otherwise use full PDF
-            if pages:
-                import tempfile
-
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_in:
-                    tmp_in.write(full_pdf)
-                    tmp_in_path = Path(tmp_in.name)
-                with tempfile.NamedTemporaryFile(
-                    suffix=".pdf", delete=False
-                ) as tmp_out:
-                    tmp_out_path = Path(tmp_out.name)
-                extract_pdf_pages(tmp_in_path, tmp_out_path, pages)
-                doc_data = tmp_out_path.read_bytes()
-                tmp_in_path.unlink()
-                tmp_out_path.unlink()
+            # Per-page extraction when we have spec pages and count is manageable
+            if pages and len(pages) <= MAX_PER_PAGE_CALLS:
+                parsed_models = _extract_per_page(
+                    full_pdf, pages, api_key, product_type, context, content_type
+                )
+            elif pages:
+                logger.warning(
+                    "Spec pages (%d) exceeds MAX_PER_PAGE_CALLS (%d), falling back to bundled extraction",
+                    len(pages),
+                    MAX_PER_PAGE_CALLS,
+                )
+                doc_data = _extract_bundled_pdf(full_pdf, pages)
+                parsed_models = _call_llm(
+                    doc_data, api_key, product_type, context, content_type
+                )
+                for model in parsed_models:
+                    model.pages = [p + 1 for p in pages]
             else:
                 doc_data = full_pdf
+                parsed_models = _call_llm(
+                    doc_data, api_key, product_type, context, content_type
+                )
         else:
             if pages:
                 logger.warning("Pages parameter is ignored for web content")
@@ -488,99 +583,47 @@ def process_datasheet(
             if doc_data is None:
                 logger.error("Could not retrieve web content.")
                 return "failed"
-
-        # Generate content
-        response: Any = generate_content(
-            doc_data, api_key, product_type, context, content_type
-        )
-
-        # Debug output
-        if response and hasattr(response, "text"):
-            debug_output_path = Path("gemini_response_debug.txt")
-            try:
-                debug_output_path.write_text(response.text, encoding="utf-8")
-            except Exception as e:
-                logger.warning(f"Could not save debug response: {e}")
-
-        # Parse response
-        try:
-            parsed_models: List[Any] = parse_gemini_response(
-                response, SCHEMA_CHOICES[product_type], product_type, context
+            parsed_models = _call_llm(
+                doc_data, api_key, product_type, context, content_type
             )
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to parse Gemini response: {e}")
-            return "failed"
 
         if not parsed_models:
-            logger.error("No valid response received from Gemini AI.")
+            logger.error("No valid products extracted.")
             return "failed"
+
+        # Merge partial records from per-page extraction
+        parsed_models = merge_per_page_products(parsed_models)
 
         # Inject source metadata and deterministic IDs
         import uuid
-        import re
-
-        # Use a fixed namespace for product IDs to ensure reproducibility across runs
-        PRODUCT_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-
-        def normalize_string(s: Optional[str]) -> str:
-            """Normalize string for ID generation: lowercase, alphanumeric only."""
-            if not s:
-                return ""
-            # Remove non-alphanumeric characters (keep alphanumeric)
-            # This handles "Nidec Corp." vs "Nidec-Corp" vs "Nidec"
-            # We keep spaces for readability in the source string but strip them for ID
-            # Actually, removing ALL special chars including spaces makes it most robust against formatting
-            # e.g. "Model A" vs "Model-A"
-            s = s.lower().strip()
-            return re.sub(r"[^a-z0-9]", "", s)
 
         valid_models = []
 
         for model in parsed_models:
-            model.datasheet_url = url
-            model.pages = pages
-
-            # Robust Deterministic ID Generation
-            norm_manufacturer = normalize_string(
-                model.manufacturer
-            ) or normalize_string(manufacturer)
-            norm_part_number = normalize_string(model.part_number)
-            norm_name = normalize_string(model.product_name)
-
-            id_string = ""
-
-            if norm_manufacturer and norm_part_number:
-                # Primary Strategy: Manufacturer + Part Number
-                id_string = f"{norm_manufacturer}:{norm_part_number}"
-                logger.debug(f"ID Strategy: Manuf+PartNum ({id_string})")
-            elif norm_manufacturer and norm_name:
-                # Fallback Strategy: Manufacturer + Product Name
-                # Used when part number is missing but we have a distinct product name
-                id_string = f"{norm_manufacturer}:{norm_name}"
-                logger.warning(
-                    f"⚠️  Missing part number for '{model.product_name}'. Using Manuf+Name for ID."
-                )
+            # Bake deep-link into datasheet_url
+            if model.pages:
+                model.datasheet_url = f"{url}#page={model.pages[0]}"
             else:
-                # Last resort: Hash the URL + Index (if multiple items from one URL)
-                # This prevents "random" IDs but ties identity to the source URL
-                # which is better than random but not ideal for deduplication across different URLs.
-                # However, for now, we'll skip to be safe as per user request to avoid duplicates.
+                model.datasheet_url = url
+
+            # Deterministic ID from ids module
+            mfg = model.manufacturer or manufacturer
+            pid = compute_product_id(mfg, model.part_number, model.product_name)
+            if pid is None:
                 logger.error(
-                    f"❌ Could not generate robust ID for product '{model.product_name}'. "
-                    "Missing Manufacturer AND (Part Number OR distinct Product Name). Skipping to avoid duplicates."
+                    "Could not generate ID for product '%s'. "
+                    "Missing Manufacturer AND (Part Number OR Product Name). Skipping.",
+                    model.product_name,
                 )
                 continue
 
-            model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_string)
-            logger.info(f"Generated ID {model.product_id} from key '{id_string}'")
+            model.product_id = pid
+            logger.info(f"Generated ID {model.product_id}")
 
-            # Check if this specific ID already exists in DB
-            from datasheetminer.models.product import ProductBase
-
-            existing_item = client.read(model.product_id, ProductBase)
+            existing_item = client.read(model.product_id, type(model))
             if existing_item:
                 logger.info(
-                    f"ℹ️  Product with ID {model.product_id} already exists. Skipping."
+                    f"Product with ID {model.product_id} already exists. Skipping."
                 )
                 continue
 

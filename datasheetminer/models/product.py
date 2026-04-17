@@ -69,4 +69,7 @@ class ProductBase(BaseModel):
     datasheet_url: Optional[str] = Field(
         None, description="URL of the source datasheet"
     )
-    pages: Optional[list[int]] = Field(None, description="Pages used for extraction")
+    pages: Optional[list[int]] = Field(
+        None,
+        description="1-indexed PDF pages where this product's specs were found. Used for #page=N deep-linking.",
+    )

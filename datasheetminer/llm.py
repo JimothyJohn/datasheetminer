@@ -1,5 +1,13 @@
+"""Gemini content generation for datasheet extraction.
+
+Calls Gemini with a JSON schema derived from the Pydantic model so the
+response is structurally guaranteed. Replaces the earlier CSV-as-
+interchange approach, which was prone to column misalignment when Gemini
+dropped empty cells.
+"""
+
 import logging
-from typing import Any, Optional, Dict, Union
+from typing import Any, Optional, Dict
 
 from google import genai
 from tenacity import (
@@ -9,7 +17,7 @@ from tenacity import (
 )
 
 from datasheetminer.config import GUARDRAILS, MODEL, SCHEMA_CHOICES
-from datasheetminer.models.csv_schema import build_columns, header_row
+from datasheetminer.models.llm_schema import to_gemini_schema
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -25,79 +33,67 @@ def generate_content(
     schema: str,
     context: Optional[Dict[str, Any]] = None,
     content_type: str = "pdf",
+    model: Optional[str] = None,
 ) -> Any:
-    """
-    Generate AI response for document analysis.
+    """Generate a structured JSON extraction for a datasheet.
 
     Args:
-        doc_data: The document data (bytes for PDF, string for HTML)
-        api_key: Gemini API key for authentication
-        schema: The name of the product type (key into SCHEMA_CHOICES)
-        context: Optional context with pre-defined specs for the LLM
-        content_type: Type of content - "pdf" or "html" (default: "pdf")
+        doc_data: The document data (bytes for PDF, string for HTML).
+        api_key: Gemini API key.
+        schema: Product type key into ``SCHEMA_CHOICES`` (e.g. ``"drive"``).
+        context: Optional known fields the caller already has (manufacturer,
+            product_name, product_family, datasheet_url). These are excluded
+            from the schema so the LLM doesn't re-emit them.
+        content_type: ``"pdf"`` or ``"html"``.
+        model: Override the Gemini model identifier. Defaults to
+            ``datasheetminer.config.MODEL``.
+
+    Returns the raw ``google.genai`` response object. The JSON payload is
+    accessed via ``response.text`` and parsed downstream by
+    ``datasheetminer.utils.parse_gemini_response``.
     """
     client: genai.Client = genai.Client(api_key=api_key)
 
     full_schema_type = SCHEMA_CHOICES[schema]
-    columns = build_columns(full_schema_type)
-    csv_header = header_row(columns)
-
-    # Build a terse per-column hint so the LLM understands list/numeric/enum
-    # semantics without us having to repeat instructions in prose.
-    from typing import Literal, get_args, get_origin
-
-    hint_lines = []
-    for col in columns:
-        if col.kind == "list":
-            hint_lines.append(f"- {col.header}: pipe-separated list (e.g. A|B|C)")
-        elif col.kind in ("value", "min", "max"):
-            hint_lines.append(f"- {col.header}: plain number, unit is {col.unit}")
-
-    # Add enum hints for Literal fields so the LLM uses exact valid values.
-    for name, field_info in full_schema_type.model_fields.items():
-        annotation = field_info.annotation
-        # Unwrap Optional[Literal[...]]
-        if get_origin(annotation) is Union:
-            for arg in get_args(annotation):
-                if get_origin(arg) is Literal:
-                    annotation = arg
-                    break
-        if get_origin(annotation) is Literal:
-            choices = get_args(annotation)
-            hint_lines.append(
-                f"- {name}: must be one of: {', '.join(repr(c) for c in choices)}"
-            )
-    hints = "\n".join(hint_lines)
+    response_schema = to_gemini_schema(full_schema_type, as_array=True)
 
     context_block = ""
     if context:
-        context_block = f"""The following information is already known (do NOT repeat it in your output):
-- Product Name: {context.get("product_name")}
-- Manufacturer: {context.get("manufacturer")}
-- Product Family: {context.get("product_family")}
-- Datasheet URL: {context.get("datasheet_url")}
+        context_block = (
+            "The following fields are ALREADY KNOWN and will be filled in by "
+            "the caller — DO NOT emit them in your output (they're not in the "
+            "response schema):\n"
+            f"- product_name: {context.get('product_name')!r}\n"
+            f"- manufacturer: {context.get('manufacturer')!r}\n"
+            f"- product_family: {context.get('product_family')!r}\n"
+            f"- datasheet_url: {context.get('datasheet_url')!r}\n\n"
+        )
 
-"""
+    single_page_nudge = ""
+    if context and context.get("single_page_mode"):
+        single_page_nudge = (
+            "You are analyzing a SINGLE PAGE of a larger datasheet. "
+            "Extract only products whose specifications visibly appear on "
+            "THIS page. If no product specs are visible, return an empty "
+            "products array.\n\n"
+        )
 
-    prompt = f"""You are extracting product specifications from an industrial catalog.
-
-{context_block}Return the data as CSV. The FIRST row MUST be exactly this header:
-{csv_header}
-
-Then one row per product variant found in the document.
-
-Formatting rules:
-- Leave a cell EMPTY when the specification is absent. Do not write "null" or "N/A".
-- Numeric columns contain plain numbers only — no units, no "+", no "~". The unit is already in the column header.
-- For range columns (*_min / *_max), fill both sides when the spec is a range; fill only one when it's a single value.
-- List columns (marked below) use "|" as the separator.
-- Wrap any cell containing a comma in double quotes.
-
-Column details:
-{hints}
-
-{GUARDRAILS}
-"""
+    prompt = (
+        "You are extracting product specifications from an industrial catalog.\n\n"
+        f"{single_page_nudge}"
+        f"{context_block}"
+        "Emit one entry per distinct product VARIANT found in the document — "
+        "a distinct part number, voltage class, or form factor is a separate "
+        "entry. Leave optional fields unset when the specification is genuinely "
+        "absent from the document; do NOT fabricate values.\n\n"
+        "Numeric specs with units (rated_current, input_voltage, etc.) must be "
+        "emitted as structured objects:\n"
+        '- single-valued fields: {"value": <number>, "unit": <string>}\n'
+        '- min/max fields:       {"min": <number>, "max": <number>, "unit": <string>}\n'
+        "Emit plain numbers in the numeric fields — no '+', '~', or unit text "
+        "in the value slot.\n\n"
+        f"{GUARDRAILS}"
+    )
 
     contents: list[Any] = []
 
@@ -120,12 +116,14 @@ Column details:
     else:
         raise ValueError(f"Unsupported content_type: {content_type}")
 
-    # Plain-text response; CSV is enforced by the prompt and parsed locally.
+    # Structured JSON output. The schema constrains Gemini so it can't
+    # drop columns or emit wrong-type values.
     response: Any = client.models.generate_content(
-        model=MODEL,
+        model=model or MODEL,
         contents=contents,
         config={
-            "response_mime_type": "text/plain",
+            "response_mime_type": "application/json",
+            "response_schema": response_schema,
             "max_output_tokens": 65536,
         },
     )

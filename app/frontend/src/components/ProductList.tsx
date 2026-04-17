@@ -729,9 +729,9 @@ export default function ProductList() {
                   {/* Product info - first grid cell */}
                   <div className="product-card-info">
                     <div className="product-info-part">
-                      {product.datasheet_url?.url ? (
+                      {(typeof product.datasheet_url === 'string' ? product.datasheet_url : product.datasheet_url?.url) ? (
                         <a
-                          href={product.datasheet_url.url}
+                          href={typeof product.datasheet_url === 'string' ? product.datasheet_url : product.datasheet_url!.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
