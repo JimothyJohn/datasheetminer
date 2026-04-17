@@ -416,27 +416,11 @@ def _call_llm(
     context: dict,
     content_type: str,
 ) -> List[Any]:
-    """Call the configured LLM provider and parse the response into models."""
-    provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
-
-    if provider == "anthropic":
-        from datasheetminer.llm_anthropic import generate_content_anthropic
-        from datasheetminer.utils import parse_anthropic_response
-
-        anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or api_key
-        response: Any = generate_content_anthropic(
-            doc_data, anthropic_key, product_type, context, content_type
-        )
-        return parse_anthropic_response(
-            response, SCHEMA_CHOICES[product_type], product_type, context
-        )
-    else:
-        response = generate_content(
-            doc_data, api_key, product_type, context, content_type
-        )
-        return parse_gemini_response(
-            response, SCHEMA_CHOICES[product_type], product_type, context
-        )
+    """Call Gemini and parse the response into Pydantic models."""
+    response = generate_content(doc_data, api_key, product_type, context, content_type)
+    return parse_gemini_response(
+        response, SCHEMA_CHOICES[product_type], product_type, context
+    )
 
 
 def _extract_per_page(

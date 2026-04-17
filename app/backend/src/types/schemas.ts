@@ -1,6 +1,23 @@
 
 import { z } from 'zod';
 
+/**
+ * Ethernet-based industrial fieldbus protocols supported on drives.
+ * Keep in sync with CommunicationProtocol (models.ts) and
+ * datasheetminer/models/communication_protocol.py.
+ */
+export const COMMUNICATION_PROTOCOLS = [
+  'EtherCAT',
+  'EtherNet/IP',
+  'PROFINET',
+  'Modbus TCP',
+  'POWERLINK',
+  'Sercos III',
+  'CC-Link IE',
+] as const;
+
+export const CommunicationProtocolSchema = z.enum(COMMUNICATION_PROTOCOLS);
+
 export const ValueUnitSchema = z.object({
   value: z.number(),
   unit: z.string(),
@@ -118,7 +135,7 @@ export const DriveSchema = ProductBaseSchema.extend({
   peak_current: ValueUnitSchema.optional(),
   output_power: ValueUnitSchema.optional(),
   switching_frequency: z.array(ValueUnitSchema).optional(),
-  fieldbus: z.array(z.string()).optional(),
+  fieldbus: z.array(CommunicationProtocolSchema).optional(),
   encoder_feedback_support: z.array(z.string()).optional(),
   ethernet_ports: z.number().optional(),
   digital_inputs: z.number().optional(),

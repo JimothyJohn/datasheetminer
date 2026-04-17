@@ -28,6 +28,8 @@ _META_FIELDS = frozenset(
         "SK",
         "datasheet_url",
         "pages",
+        "msrp_source_url",
+        "msrp_fetched_at",
     }
 )
 

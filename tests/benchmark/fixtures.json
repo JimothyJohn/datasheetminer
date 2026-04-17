@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "j5",
+    "pdf": "j5.pdf",
+    "product_type": "drive",
+    "manufacturer": "Mitsubishi Electric",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5",
+    "expected": "j5.json"
+  },
+  {
+    "slug": "j5-filtered",
+    "pdf": "j5-filtered.pdf",
+    "product_type": "drive",
+    "manufacturer": "Mitsubishi Electric",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5",
+    "expected": "j5.json"
+  },
+  {
+    "slug": "nidec-d-series-frameless",
+    "pdf": "nidec-d-series-frameless.pdf",
+    "product_type": "motor",
+    "manufacturer": "Nidec",
+    "product_name": "D Series Motors",
+    "product_family": "D Series",
+    "expected": "nidec-d-series-frameless.json"
+  },
+  {
+    "slug": "omron-g-series-servo-motors",
+    "pdf": "omron-g-series-servo-motors.pdf",
+    "product_type": "motor",
+    "manufacturer": "OMRON",
+    "product_name": "G-Series servo motors",
+    "product_family": "R88M-G",
+    "expected": "omron-g-series-servo-motors.json"
+  },
+  {
+    "slug": "orientalmotor-nx-series",
+    "pdf": "orientalmotor-nx-series.pdf",
+    "product_type": "motor",
+    "manufacturer": "Oriental Motor",
+    "product_name": "NX Series",
+    "product_family": "NX",
+    "expected": "orientalmotor-nx-series.json"
+  }
+]

@@ -105,6 +105,21 @@ EXCLUDED_FIELDS: frozenset[str] = frozenset(
 LIST_SEP = "|"
 
 
+def _looks_numeric(s: str) -> bool:
+    """True if ``s`` looks like a plain number (optionally with a qualifier
+    prefix like '+', '~', '<', '>'). Used to gate numeric CSV cells so
+    descriptive text doesn't reach the Pydantic ValueUnit validator.
+    """
+    if not s:
+        return False
+    stripped = s.strip().lstrip("+~<>")
+    try:
+        float(stripped)
+        return True
+    except ValueError:
+        return False
+
+
 @dataclass(frozen=True)
 class ColumnSpec:
     """One column in the CSV the LLM will emit.
@@ -113,12 +128,18 @@ class ColumnSpec:
     field_name: the target Pydantic field on the full model.
     kind: how to reconstruct the value before feeding it to Pydantic.
     unit: canonical unit for value/minmax kinds, else None.
+    allowed: for List[Literal[...]] or scalar Literal columns, the tuple of
+        valid values. Used to pre-filter Gemini output so individual bad
+        entries don't invalidate an entire row — the LLM sometimes writes
+        adjacent-topic text (e.g. encoder descriptions in the fieldbus
+        column) and we'd rather drop those than lose the whole row.
     """
 
     header: str
     field_name: str
     kind: Literal["str", "int", "float", "bool", "list", "value", "min", "max"]
     unit: Optional[str] = None
+    allowed: Optional[tuple] = None
 
 
 def _unwrap_optional(annotation: Any) -> Any:
@@ -139,12 +160,30 @@ def _unwrap_optional(annotation: Any) -> Any:
 
 
 def _is_list_of_str_or_int(annotation: Any) -> Optional[type]:
-    """If annotation is Optional[List[str]] / List[int], return the inner type."""
+    """If annotation is Optional[List[str]] / List[int] / List[Literal[...]],
+    return the inner type. List[Literal[...]] is treated as List[str] for CSV
+    encoding purposes (values are string constants); the LLM sees enum hints
+    via llm.py, and Pydantic validation enforces membership at parse time."""
     inner = _unwrap_optional(annotation)
     if get_origin(inner) in (list, List):
         args = get_args(inner)
-        if len(args) == 1 and args[0] in (str, int):
-            return args[0]
+        if len(args) == 1:
+            arg = args[0]
+            if arg in (str, int):
+                return arg
+            if get_origin(arg) is Literal:
+                return str
+    return None
+
+
+def _list_literal_values(annotation: Any) -> Optional[tuple]:
+    """If annotation is Optional[List[Literal[...]]], return the allowed
+    Literal values as a tuple. Otherwise None."""
+    inner = _unwrap_optional(annotation)
+    if get_origin(inner) in (list, List):
+        args = get_args(inner)
+        if len(args) == 1 and get_origin(args[0]) is Literal:
+            return get_args(args[0])
     return None
 
 
@@ -236,6 +275,7 @@ def build_columns(model_class: Type[BaseModel]) -> List[ColumnSpec]:
                     field_name=name,
                     kind="list",
                     unit=None,
+                    allowed=_list_literal_values(annotation),
                 )
             )
             continue
@@ -310,11 +350,29 @@ def reconstruct_row(
             out[col.field_name] = raw.lower() in ("true", "1", "yes", "y")
         elif col.kind == "list":
             items = [p.strip() for p in raw.split(LIST_SEP) if p.strip()]
+            if col.allowed is not None:
+                # Drop entries that aren't in the allowed enum. The LLM
+                # sometimes writes adjacent-topic text into enum columns
+                # (e.g. "24-bit Absolute Encoder" in fieldbus). Filtering
+                # here keeps individual bad entries from invalidating the
+                # whole row at Pydantic validation time.
+                allowed_set = set(col.allowed)
+                items = [i for i in items if i in allowed_set]
             out[col.field_name] = items or None
         elif col.kind == "value":
-            out[col.field_name] = f"{raw};{col.unit}"
+            # Gemini sometimes drops descriptive text into numeric columns
+            # (e.g. "24-bit absolute encoder" in the output_power cell).
+            # Reject anything that isn't a plain number to keep garbage
+            # from reaching Pydantic's ValueUnit validator.
+            if _looks_numeric(raw):
+                out[col.field_name] = f"{raw};{col.unit}"
+            else:
+                out[col.field_name] = None
         elif col.kind in ("min", "max"):
-            range_parts.setdefault(col.field_name, {})[col.kind] = raw
+            if _looks_numeric(raw):
+                range_parts.setdefault(col.field_name, {})[col.kind] = raw
+            else:
+                range_parts.setdefault(col.field_name, {})
 
     for field_name, parts in range_parts.items():
         unit = next(

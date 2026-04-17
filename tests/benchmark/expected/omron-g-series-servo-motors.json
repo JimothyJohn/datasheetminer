@@ -1,0 +1,50 @@
+[
+  {
+    "product_id": "065590f0-48f7-5df2-8667-d1bf5f2357b6",
+    "product_type": "motor",
+    "product_name": "G-Series servo motors",
+    "product_family": "R88M-G",
+    "part_number": "R88M-G20030",
+    "manufacturer": "OMRON",
+    "release_year": null,
+    "dimensions": {
+      "width": 60.0,
+      "length": 79.5,
+      "height": 60.0,
+      "unit": "mm"
+    },
+    "weight": "0.8;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "s3://datasheetminer-uploads-dev-403059190476/good_examples/omron_g-series-servo-motors_97e16ef0.pdf",
+    "pages": [
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "type": "ac servo",
+    "series": "G-Series",
+    "rated_voltage": "230;V",
+    "rated_speed": "3000;min-1",
+    "max_speed": "5000;min-1",
+    "rated_torque": "0.64;Nm",
+    "peak_torque": "1.78;Nm",
+    "rated_power": "200;W",
+    "encoder_feedback_support": "Incremental (10,000 pulses), Absolute (17 bits)",
+    "poles": null,
+    "rated_current": "1.6;A",
+    "peak_current": "4.9;A",
+    "voltage_constant": null,
+    "torque_constant": "0.41;Nm/A",
+    "resistance": null,
+    "inductance": null,
+    "ip_rating": 65,
+    "rotor_inertia": "0.14;kg*m2*10-4",
+    "axial_load_force_rating": "98;N",
+    "radial_load_force_rating": "245;N",
+    "PK": "PRODUCT#MOTOR",
+    "SK": "PRODUCT#065590f0-48f7-5df2-8667-d1bf5f2357b6"
+  }
+]

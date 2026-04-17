@@ -96,6 +96,18 @@ export interface Motor extends ProductBase {
 export type DriveType = 'servo' | 'variable frequency';
 
 /**
+ * Ethernet-based industrial fieldbus protocols supported on drives.
+ */
+export type CommunicationProtocol =
+  | 'EtherCAT'
+  | 'EtherNet/IP'
+  | 'PROFINET'
+  | 'Modbus TCP'
+  | 'POWERLINK'
+  | 'Sercos III'
+  | 'CC-Link IE';
+
+/**
  * Drive model matching datasheetminer/models/drive.py
  */
 export interface Drive extends ProductBase {
@@ -109,7 +121,7 @@ export interface Drive extends ProductBase {
   peak_current?: ValueUnit;
   output_power?: ValueUnit;
   switching_frequency?: ValueUnit[];
-  fieldbus?: string[];
+  fieldbus?: CommunicationProtocol[];
   control_modes?: string[];
   encoder_feedback_support?: string[];
   ethernet_ports?: number;
@@ -177,3 +189,17 @@ export interface RobotArm extends ProductBase {
  */
 export type Product = Motor | Drive | Gearhead | RobotArm | Datasheet;
 export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'datasheet' | 'all';
+
+/**
+ * Manufacturer record — first-class entity in the single-table design.
+ * PK = "MANUFACTURER", SK = `MANUFACTURER#{id}`. Mirrors
+ * datasheetminer/models/manufacturer.py.
+ */
+export interface Manufacturer {
+  id: string;
+  name: string;
+  website?: string;
+  offered_product_types?: string[];
+  PK?: string;
+  SK?: string;
+}

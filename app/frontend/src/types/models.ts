@@ -69,6 +69,18 @@ export interface Motor extends ProductBase {
 
 export type DriveType = 'servo' | 'variable frequency';
 
+/**
+ * Ethernet-based industrial fieldbus protocols supported on drives.
+ */
+export type CommunicationProtocol =
+  | 'EtherCAT'
+  | 'EtherNet/IP'
+  | 'PROFINET'
+  | 'Modbus TCP'
+  | 'POWERLINK'
+  | 'Sercos III'
+  | 'CC-Link IE';
+
 export interface Drive extends ProductBase {
   product_type: 'drive';
   type?: DriveType;
@@ -80,7 +92,7 @@ export interface Drive extends ProductBase {
   peak_current?: ValueUnit;
   output_power?: ValueUnit;
   switching_frequency?: (ValueUnit | MinMaxUnit)[];
-  fieldbus?: string[];
+  fieldbus?: CommunicationProtocol[];
   control_modes?: string[];
   encoder_feedback_support?: string[];
   ethernet_ports?: number;

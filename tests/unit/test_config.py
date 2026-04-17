@@ -49,4 +49,4 @@ class TestConstants:
         assert REGION == "us-east-1"
 
     def test_model_constant(self) -> None:
-        assert MODEL == "gemini-3-flash-preview"
+        assert MODEL == "gemini-2.5-flash"

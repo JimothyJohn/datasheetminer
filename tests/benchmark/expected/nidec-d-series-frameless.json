@@ -1,0 +1,48 @@
+[
+  {
+    "product_id": "0fa75eb2-c4fa-54c2-bc9b-972ffed38d0b",
+    "product_type": "motor",
+    "product_name": "D Series Motors",
+    "product_family": "D Series",
+    "part_number": "D35",
+    "manufacturer": "Nidec",
+    "release_year": 2023,
+    "dimensions": {
+      "width": 35.6,
+      "length": 20.5,
+      "height": 35.6,
+      "unit": "mm"
+    },
+    "weight": "0.104;kg",
+    "msrp": null,
+    "warranty": "1;years",
+    "datasheet_url": "s3://datasheetminer-uploads-dev-403059190476/good_examples/nidec_d-series-motors_d4ff26cf.pdf",
+    "pages": [
+      2,
+      3,
+      4
+    ],
+    "type": "brushless dc",
+    "series": "D Series",
+    "rated_voltage": "48;Vdc",
+    "rated_speed": "4800;RPM",
+    "max_speed": "10000;RPM",
+    "rated_torque": "0.145;Nm",
+    "peak_torque": "0.457;Nm",
+    "rated_power": "73;W",
+    "encoder_feedback_support": null,
+    "poles": 6,
+    "rated_current": "3.14;Arms",
+    "peak_current": "9.68;Arms",
+    "voltage_constant": "3.21;Vrms/kRPM",
+    "torque_constant": "0.053;Nm/Arms",
+    "resistance": "2.41;\u03a9",
+    "inductance": "1.4;mH",
+    "ip_rating": null,
+    "rotor_inertia": "0.013;kgcm2",
+    "axial_load_force_rating": null,
+    "radial_load_force_rating": null,
+    "PK": "PRODUCT#MOTOR",
+    "SK": "PRODUCT#0fa75eb2-c4fa-54c2-bc9b-972ffed38d0b"
+  }
+]

@@ -7,6 +7,15 @@ from pydantic import BaseModel, Field, computed_field
 
 from datasheetminer.models.common import ValueUnit
 
+# PDFs above this byte count are flagged as "large" — likely multi-family
+# catalogs that need manual review before automatic processing.
+LARGE_PDF_THRESHOLD = 10_000_000  # 10 MB
+
+
+def classify_pdf_size(byte_count: int) -> str:
+    """Return 'large' or 'standard' based on PDF byte count."""
+    return "large" if byte_count >= LARGE_PDF_THRESHOLD else "standard"
+
 
 class Datasheet(BaseModel):
     """
@@ -59,6 +68,11 @@ class Datasheet(BaseModel):
     )
     spec_density: Optional[float] = Field(
         None, description="Estimated spec field coverage (0-1) from intake triage scan"
+    )
+    size_category: Optional[str] = Field(
+        None,
+        description="'large' (>=10MB, likely multi-family catalog) or 'standard'. "
+        "Large datasheets may need manual review before processing.",
     )
 
     # Additional metadata

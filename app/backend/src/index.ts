@@ -7,12 +7,14 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import config from './config';
 import { readonlyGuard } from './middleware/readonly';
+import { adminOnly } from './middleware/adminOnly';
 import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
 import subscriptionRouter from './routes/subscription';
 import searchRouter from './routes/search';
 import docsRouter from './routes/docs';
+import adminRouter from './routes/admin';
 
 const app: Application = express();
 
@@ -54,6 +56,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/datasheets', datasheetsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/v1/search', searchRouter);
+app.use('/api/admin', adminOnly, adminRouter);
 app.use('/api', docsRouter);
 
 // Serve frontend static files in production (Docker container)

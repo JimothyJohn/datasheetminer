@@ -15,7 +15,7 @@ import {
   AttributeValue,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { Product, ProductType, Datasheet, Motor, Drive } from '../types/models';
+import { Product, ProductType, Datasheet, Motor, Drive, Manufacturer } from '../types/models';
 import { VALID_PRODUCT_TYPES, formatDisplayName } from '../config/productTypes';
 
 export interface DynamoDBConfig {
@@ -449,6 +449,72 @@ export class DynamoDBService {
       console.error('Error getting unique names:', error);
       return [];
     }
+  }
+
+  /**
+   * List all Manufacturer records (PK = MANUFACTURER).
+   * Manufacturer is a first-class entity separate from Products; it lives in
+   * the same single-table design but with a fixed partition key.
+   */
+  async listManufacturers(): Promise<Manufacturer[]> {
+    try {
+      const allItems: Manufacturer[] = [];
+      let lastEvaluatedKey: Record<string, AttributeValue> | undefined = undefined;
+      do {
+        const result: QueryCommandOutput = await this.client.send(
+          new QueryCommand({
+            TableName: this.tableName,
+            KeyConditionExpression: 'PK = :pk',
+            ExpressionAttributeValues: marshall({ ':pk': 'MANUFACTURER' }),
+            ExclusiveStartKey: lastEvaluatedKey,
+          })
+        );
+        for (const item of result.Items || []) {
+          allItems.push(unmarshall(item) as Manufacturer);
+        }
+        lastEvaluatedKey = result.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+      return allItems;
+    } catch (error) {
+      console.error('Error listing manufacturers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Batch-create Manufacturer records. Items must already have `id`; PK/SK
+   * are computed here to match the Python model's pattern.
+   */
+  async batchCreateManufacturers(manufacturers: Manufacturer[]): Promise<number> {
+    if (manufacturers.length === 0) return 0;
+    let successCount = 0;
+    const batchSize = 25;
+    for (let i = 0; i < manufacturers.length; i += batchSize) {
+      const batch = manufacturers.slice(i, i + batchSize);
+      try {
+        const requests = batch.map((m) => ({
+          PutRequest: {
+            Item: marshall(
+              {
+                ...m,
+                PK: 'MANUFACTURER',
+                SK: `MANUFACTURER#${m.id}`,
+              },
+              { removeUndefinedValues: true }
+            ),
+          },
+        }));
+        await this.client.send(
+          new BatchWriteItemCommand({
+            RequestItems: { [this.tableName]: requests },
+          })
+        );
+        successCount += batch.length;
+      } catch (error) {
+        console.error('Error in batch create (manufacturers):', error);
+      }
+    }
+    return successCount;
   }
 
   /**

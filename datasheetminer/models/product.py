@@ -65,6 +65,13 @@ class ProductBase(BaseModel):
     dimensions: Optional[Dimensions] = None
     weight: Optional[ValueUnit] = None
     msrp: Optional[ValueUnit] = None
+    msrp_source_url: Optional[str] = Field(
+        None,
+        description="URL the MSRP was scraped from. Populated by price-enrich.",
+    )
+    msrp_fetched_at: Optional[str] = Field(
+        None, description="ISO 8601 timestamp when MSRP was last fetched."
+    )
     warranty: Optional[ValueUnit] = None
     datasheet_url: Optional[str] = Field(
         None, description="URL of the source datasheet"

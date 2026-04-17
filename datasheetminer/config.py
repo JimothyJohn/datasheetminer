@@ -32,7 +32,7 @@ IMPORTANT EXTRACTION RULES:
 - Each row or variant in a selection table is a separate product — emit one CSV row per variant.
 """
 
-MODEL: str = "gemini-3-flash-preview"  # Explicitly define model for clarity
+MODEL: str = "gemini-2.5-flash"  # Explicitly define model for clarity
 
 
 def _discover_schema_models() -> Dict[str, Type[ProductBase]]:

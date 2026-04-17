@@ -354,7 +354,21 @@ def get_document(
             req: Request = Request(url, headers=headers)
             logger.debug(f"Request headers: {json.dumps(headers, indent=2)}")
 
-            with urlopen(req, timeout=25.0) as response:
+            # Build an SSL context backed by certifi's CA bundle. urllib's
+            # default trust store on macOS doesn't include every intermediate
+            # used by industrial vendor CDNs (Siemens, ISE, etc.), so we
+            # explicitly point at certifi — which is already pulled in via
+            # boto3/requests.
+            import ssl
+
+            try:
+                import certifi
+
+                ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+            except ImportError:
+                ssl_ctx = ssl.create_default_context()
+
+            with urlopen(req, timeout=25.0, context=ssl_ctx) as response:
                 # AI-generated comment:
                 # Log response headers to check for things like Content-Encoding.
                 # If content is compressed, it must be decompressed before use.
@@ -432,14 +446,18 @@ def validate_api_key(value: Optional[str]) -> str:
     return value.strip()
 
 
-def _strip_csv_fences(text: str) -> str:
-    """Remove markdown code fences if the LLM wrapped the CSV in them."""
+def _strip_json_fences(text: str) -> str:
+    """Remove markdown code fences if the LLM wrapped the JSON in them.
+
+    Gemini's JSON mode usually returns plain JSON, but occasionally wraps
+    output in ``json`` fences; strip those defensively so ``json.loads``
+    succeeds either way.
+    """
     text = text.strip()
     if text.startswith("```"):
         lines = text.splitlines()
-        # drop first fence line
+        # drop first fence line (possibly "```json")
         lines = lines[1:]
-        # drop trailing fence if present
         if lines and lines[-1].strip().startswith("```"):
             lines = lines[:-1]
         text = "\n".join(lines)
@@ -452,52 +470,60 @@ def parse_gemini_response(
     product_type: str,
     context: Optional[Dict[str, Any]] = None,
 ) -> List[Any]:
-    """Parse a CSV response from Gemini into validated Pydantic models.
+    """Parse a structured JSON response from Gemini into Pydantic models.
 
-    Expects the first row of the response to be the header emitted by
-    datasheetminer.models.csv_schema.header_row. Each subsequent row is
-    reconstructed into `value;unit` strings (for unit-bearing fields)
-    and then fed into the full Pydantic model so the existing
-    ValueUnit / MinMaxUnit validators and spec_rules unit checks remain
-    authoritative.
+    Gemini is called with ``response_mime_type="application/json"`` and a
+    schema derived from ``schema_type`` (see ``datasheetminer.models.llm_schema``),
+    so the payload is an array of objects matching the model shape. This
+    function iterates the array, merges in caller-provided ``context``
+    (manufacturer, product_name, etc., which are excluded from the schema),
+    and validates each entry against ``schema_type``. Individual rows that
+    fail validation are dropped with a logged error; the function only
+    raises if zero rows succeed.
+
+    ValueUnit / MinMaxUnit fields come through as ``{"value", "unit"}`` or
+    ``{"min", "max", "unit"}`` dicts and are converted to the canonical
+    ``"value;unit"`` compact strings by the existing ``BeforeValidator``
+    chain in ``common.py``.
     """
-    from datasheetminer.models.csv_schema import build_columns, reconstruct_row
-
-    # Step 1: extract raw CSV text from the response envelope.
     raw_text: str = ""
     if response and hasattr(response, "text") and response.text:
-        raw_text = _strip_csv_fences(response.text)
+        raw_text = _strip_json_fences(response.text)
     else:
         raise ValueError("Response object is invalid or has no text to parse.")
 
     if not raw_text:
-        raise ValueError("Empty response text; cannot parse CSV.")
+        raise ValueError("Empty response text; cannot parse JSON.")
 
-    # Step 2: parse the CSV body.
-    columns = build_columns(schema_type)
-    expected_headers = [c.header for c in columns]
+    try:
+        payload = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Gemini response was not valid JSON: {e}") from e
 
-    reader = csv.DictReader(io.StringIO(raw_text))
-    actual_headers = reader.fieldnames or []
-    if not actual_headers:
-        raise ValueError("CSV response has no header row.")
-
-    missing = [h for h in expected_headers if h not in actual_headers]
-    if missing:
-        logger.warning(
-            "CSV header missing %d expected column(s): %s",
-            len(missing),
-            missing[:5],
+    # The schema is always an array at the top level; tolerate a single
+    # object just in case Gemini returns one variant unwrapped.
+    if isinstance(payload, dict):
+        items: List[Any] = [payload]
+    elif isinstance(payload, list):
+        items = payload
+    else:
+        raise ValueError(
+            f"Unexpected top-level JSON type {type(payload).__name__}; "
+            f"expected array or object."
         )
 
-    # Step 3: reconstruct each row and validate against the full model.
     validated_models: List[Any] = []
-    for row in reader:
-        if not any((v or "").strip() for v in row.values()):
-            continue  # skip blank lines
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            logger.error(
+                "Row %d is not an object (%s); skipping", idx, type(item).__name__
+            )
+            continue
 
-        full_data = reconstruct_row(row, columns)
+        full_data: Dict[str, Any] = dict(item)
         if context:
+            # Caller-supplied context (manufacturer, product_name, etc.) is
+            # excluded from the LLM schema, so we fill it in here.
             full_data.update(context)
         full_data["product_type"] = product_type
 
@@ -506,7 +532,10 @@ def parse_gemini_response(
             validated_models.append(full_model)
         except Exception as e:
             logger.error(
-                f"Failed to validate row for '{full_data.get('part_number', 'unknown')}': {e}"
+                "Failed to validate row %d for '%s': %s",
+                idx,
+                full_data.get("part_number", "unknown"),
+                e,
             )
             continue
 

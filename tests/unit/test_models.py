@@ -233,10 +233,10 @@ class TestDrive:
         drive = Drive(
             product_name="ASD-B3",
             manufacturer=MFG,
-            fieldbus=["EtherCAT", "CANopen"],
+            fieldbus=["EtherCAT", "PROFINET"],
         )
         assert drive.product_type == "drive"
-        assert drive.fieldbus == ["EtherCAT", "CANopen"]
+        assert drive.fieldbus == ["EtherCAT", "PROFINET"]
 
     def test_drive_list_fields(self):
         drive = Drive(

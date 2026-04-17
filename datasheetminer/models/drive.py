@@ -13,6 +13,7 @@ from datasheetminer.models.common import (
     MinMaxUnit,
     ValueUnit,
 )
+from datasheetminer.models.communication_protocol import CommunicationProtocol
 from datasheetminer.models.product import ProductBase
 
 
@@ -37,7 +38,7 @@ class Drive(ProductBase):
     peak_current: Optional[ValueUnit] = None
     output_power: Optional[ValueUnit] = None
     switching_frequency: Optional[List[ValueUnit]] = None
-    fieldbus: Optional[List[str]] = None
+    fieldbus: Optional[List[CommunicationProtocol]] = None
     # control_modes: Optional[List[str]] = None
     encoder_feedback_support: Optional[List[str]] = None
     ethernet_ports: Optional[int] = None

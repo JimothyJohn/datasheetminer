@@ -139,12 +139,12 @@ class TestDriveCRUD:
         assert fetched.fieldbus == ["EtherCAT"]
 
         # Update fieldbus list
-        drive.fieldbus = ["EtherCAT", "Profinet"]
+        drive.fieldbus = ["EtherCAT", "PROFINET"]
         assert client.update(drive) is True
 
         updated = client.read(drive.product_id, Drive)
         assert updated is not None
-        assert set(updated.fieldbus) == {"EtherCAT", "Profinet"}
+        assert set(updated.fieldbus) == {"EtherCAT", "PROFINET"}
 
         # Delete
         assert client.delete(drive.product_id, Drive) is True

@@ -33,7 +33,6 @@ def generate_content(
     schema: str,
     context: Optional[Dict[str, Any]] = None,
     content_type: str = "pdf",
-    model: Optional[str] = None,
 ) -> Any:
     """Generate a structured JSON extraction for a datasheet.
 
@@ -45,8 +44,6 @@ def generate_content(
             product_name, product_family, datasheet_url). These are excluded
             from the schema so the LLM doesn't re-emit them.
         content_type: ``"pdf"`` or ``"html"``.
-        model: Override the Gemini model identifier. Defaults to
-            ``datasheetminer.config.MODEL``.
 
     Returns the raw ``google.genai`` response object. The JSON payload is
     accessed via ``response.text`` and parsed downstream by
@@ -119,7 +116,7 @@ def generate_content(
     # Structured JSON output. The schema constrains Gemini so it can't
     # drop columns or emit wrong-type values.
     response: Any = client.models.generate_content(
-        model=model or MODEL,
+        model=MODEL,
         contents=contents,
         config={
             "response_mime_type": "application/json",

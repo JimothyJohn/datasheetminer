@@ -5,6 +5,18 @@ import { Type } from '@google/genai';
 const VALUE_UNIT_DESC = "Format: 'value;unit'. Example: '5.0;A'";
 const MIN_MAX_UNIT_DESC = "Format: 'min-max;unit' or 'val;unit'. Example: '10-20;V'";
 
+// Ethernet-based fieldbus protocols (keep in sync with schemas.ts /
+// datasheetminer/models/communication_protocol.py)
+const COMMUNICATION_PROTOCOLS = [
+  'EtherCAT',
+  'EtherNet/IP',
+  'PROFINET',
+  'Modbus TCP',
+  'POWERLINK',
+  'Sercos III',
+  'CC-Link IE',
+];
+
 export const GEMINI_MOTOR_SCHEMA = {
   type: Type.ARRAY,
   items: {
@@ -74,7 +86,8 @@ export const GEMINI_DRIVE_SCHEMA = {
       },
       fieldbus: {
         type: Type.ARRAY,
-        items: { type: Type.STRING }
+        items: { type: Type.STRING, enum: COMMUNICATION_PROTOCOLS },
+        description: 'Ethernet-based industrial fieldbus protocols supported by the drive.',
       },
       encoder_feedback_support: {
         type: Type.ARRAY,

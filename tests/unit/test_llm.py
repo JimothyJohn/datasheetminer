@@ -66,7 +66,7 @@ class TestGenerateContent:
 
     @patch("datasheetminer.llm.genai")
     def test_with_context(self, mock_genai: MagicMock) -> None:
-        """When context is provided, prompt includes context fields."""
+        """When context is provided, prompt includes context fields as known-data."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_client.models.generate_content.return_value = Mock()
@@ -85,12 +85,13 @@ class TestGenerateContent:
 
         call_args = mock_client.models.generate_content.call_args
         contents = call_args.kwargs.get("contents") or call_args[1].get("contents")
-        # The prompt is the second element in contents for PDF
         prompt_text = contents[1]
-        assert "Product Name: Test Motor" in prompt_text
-        assert "Manufacturer: Acme Corp" in prompt_text
-        assert "Product Family: Series X" in prompt_text
-        assert "Datasheet URL: https://example.com/ds.pdf" in prompt_text
+        # Prompt calls out each known field by name so Gemini doesn't re-emit it.
+        assert "product_name" in prompt_text
+        assert "Test Motor" in prompt_text
+        assert "Acme Corp" in prompt_text
+        assert "Series X" in prompt_text
+        assert "https://example.com/ds.pdf" in prompt_text
 
     @patch("datasheetminer.llm.genai")
     def test_without_context(self, mock_genai: MagicMock) -> None:
@@ -107,10 +108,32 @@ class TestGenerateContent:
         call_args = mock_client.models.generate_content.call_args
         contents = call_args.kwargs.get("contents") or call_args[1].get("contents")
         prompt_text = contents[1]
-        assert "Product Name:" not in prompt_text
+        assert "ALREADY KNOWN" not in prompt_text
         assert "extracting product specifications" in prompt_text
-        # Header row for CSV extraction must be embedded in the prompt.
-        assert "part_number" in prompt_text
+        # Prompt describes the structured value/unit output shape.
+        assert "value" in prompt_text and "unit" in prompt_text
+
+    @patch("datasheetminer.llm.genai")
+    def test_uses_json_response_schema(self, mock_genai: MagicMock) -> None:
+        """Generated config passes a JSON schema to Gemini."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        mock_client.models.generate_content.return_value = Mock()
+        mock_genai.types.Part.from_bytes.return_value = Mock()
+
+        generate_content(b"pdf bytes", "test-key", "drive", content_type="pdf")
+
+        call_args = mock_client.models.generate_content.call_args
+        config = call_args.kwargs.get("config") or call_args[1].get("config")
+        assert config["response_mime_type"] == "application/json"
+        schema = config["response_schema"]
+        assert schema["type"] == "ARRAY"
+        assert schema["items"]["type"] == "OBJECT"
+        # Drive-specific: fieldbus is an array of enum-string.
+        props = schema["items"]["properties"]
+        assert props["fieldbus"]["type"] == "ARRAY"
+        assert props["fieldbus"]["items"]["type"] == "STRING"
+        assert "EtherCAT" in props["fieldbus"]["items"]["enum"]
 
     @patch("datasheetminer.llm.genai")
     def test_invalid_content_type(self, mock_genai: MagicMock) -> None:
@@ -151,4 +174,4 @@ class TestGenerateContent:
 
         call_args = mock_client.models.generate_content.call_args
         model_arg = call_args.kwargs.get("model") or call_args[1].get("model")
-        assert model_arg == "gemini-3-flash-preview"
+        assert model_arg == "gemini-2.5-flash"

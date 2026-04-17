@@ -48,6 +48,10 @@ const DatasheetsPage = isAdmin
   ? lazy(() => import('./components/DatasheetsPage'))
   : null;
 
+const AdminPanel = isAdmin
+  ? lazy(() => import('./components/AdminPanel'))
+  : null;
+
 /**
  * Loading Fallback Component
  *
@@ -93,6 +97,7 @@ function App() {
                 <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
 {isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
                 {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
+                {isAdmin && <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>}
               </nav>
             </div>
             <ThemeToggle />
@@ -108,6 +113,7 @@ function App() {
                 {/* Admin-only routes (hidden in public mode) */}
                 {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}
                 {ProductManagement && <Route path="/management" element={<ProductManagement />} />}
+                {AdminPanel && <Route path="/admin" element={<AdminPanel />} />}
 
                 {/* Catch-all: Redirect to products */}
                 <Route path="*" element={<Navigate to="/" replace />} />

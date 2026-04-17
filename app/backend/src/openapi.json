@@ -445,7 +445,7 @@
               "peak_current": { "$ref": "#/components/schemas/ValueUnit" },
               "output_power": { "$ref": "#/components/schemas/ValueUnit" },
               "switching_frequency": { "type": "array", "items": { "$ref": "#/components/schemas/ValueUnit" } },
-              "fieldbus": { "type": "array", "items": { "type": "string" } },
+              "fieldbus": { "type": "array", "items": { "type": "string", "enum": ["EtherCAT", "EtherNet/IP", "PROFINET", "Modbus TCP", "POWERLINK", "Sercos III", "CC-Link IE"] } },
               "control_modes": { "type": "array", "items": { "type": "string" } },
               "encoder_feedback_support": { "type": "array", "items": { "type": "string" } },
               "ethernet_ports": { "type": "integer" },

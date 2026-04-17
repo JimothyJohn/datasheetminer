@@ -1,0 +1,1074 @@
+[
+  {
+    "product_id": "fdbb9f33-e174-56ac-b2df-68fb38f86ca5",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-60G4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "1.6;A",
+    "peak_current": null,
+    "output_power": "600;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#fdbb9f33-e174-56ac-b2df-68fb38f86ca5"
+  },
+  {
+    "product_id": "b0e010d2-6397-51b1-aa04-69e5e71a226c",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-100G4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "2.8;A",
+    "peak_current": null,
+    "output_power": "1000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#b0e010d2-6397-51b1-aa04-69e5e71a226c"
+  },
+  {
+    "product_id": "2637d37a-099a-530d-8528-2c226cfc9ab7",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-200G4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.2;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "5.5;A",
+    "peak_current": null,
+    "output_power": "2000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#2637d37a-099a-530d-8528-2c226cfc9ab7"
+  },
+  {
+    "product_id": "c6e0fcc4-caa4-599b-bea0-c01d2292f121",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-350G4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.3;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "8.6;A",
+    "peak_current": null,
+    "output_power": "3500;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#c6e0fcc4-caa4-599b-bea0-c01d2292f121"
+  },
+  {
+    "product_id": "a4ee93e5-6c70-5906-9203-18bed14209c3",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-60G4-N1",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "1.6;A",
+    "peak_current": null,
+    "output_power": "600;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "EtherCAT"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#a4ee93e5-6c70-5906-9203-18bed14209c3"
+  },
+  {
+    "product_id": "e18a649b-84a6-564c-b578-aa430aaa06f8",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-100G4-N1",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "2.8;A",
+    "peak_current": null,
+    "output_power": "1000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "EtherCAT"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#e18a649b-84a6-564c-b578-aa430aaa06f8"
+  },
+  {
+    "product_id": "52dd6116-e459-560d-83d2-675be08b3a99",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-200G4-N1",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.2;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "5.5;A",
+    "peak_current": null,
+    "output_power": "2000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "EtherCAT"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#52dd6116-e459-560d-83d2-675be08b3a99"
+  },
+  {
+    "product_id": "95ce7bdf-3ff2-5595-87d5-5c02d397f2e7",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-350G4-N1",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.3;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "8.6;A",
+    "peak_current": null,
+    "output_power": "3500;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "EtherCAT"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#95ce7bdf-3ff2-5595-87d5-5c02d397f2e7"
+  },
+  {
+    "product_id": "f3a52852-71b7-594b-adb8-0923cb2ab0d1",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-60A4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "1.6;A",
+    "peak_current": null,
+    "output_power": "600;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#f3a52852-71b7-594b-adb8-0923cb2ab0d1"
+  },
+  {
+    "product_id": "3e175783-f3a1-5088-96b9-9526dc1a8d49",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-100A4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "2.8;A",
+    "peak_current": null,
+    "output_power": "1000;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#3e175783-f3a1-5088-96b9-9526dc1a8d49"
+  },
+  {
+    "product_id": "abc206b5-9512-5fd9-83ad-13156bd5a36e",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-200A4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.2;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "5.5;A",
+    "peak_current": null,
+    "output_power": "2000;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#abc206b5-9512-5fd9-83ad-13156bd5a36e"
+  },
+  {
+    "product_id": "2ab9e9b7-e1a9-549d-97dc-b0e7b2dd9f72",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-350A4",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.3;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "8.6;A",
+    "peak_current": null,
+    "output_power": "3500;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#2ab9e9b7-e1a9-549d-97dc-b0e7b2dd9f72"
+  },
+  {
+    "product_id": "917bddd6-4d83-5492-85ee-22afac4a7a35",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-60G4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "1.6;A",
+    "peak_current": null,
+    "output_power": "600;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#917bddd6-4d83-5492-85ee-22afac4a7a35"
+  },
+  {
+    "product_id": "f7e0ed92-79ce-5c21-b45e-34a7288841e3",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-100G4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "2.8;A",
+    "peak_current": null,
+    "output_power": "1000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#f7e0ed92-79ce-5c21-b45e-34a7288841e3"
+  },
+  {
+    "product_id": "54cfb4ef-a366-506d-b15c-476e5b58c9d1",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-200G4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.2;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "5.5;A",
+    "peak_current": null,
+    "output_power": "2000;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#54cfb4ef-a366-506d-b15c-476e5b58c9d1"
+  },
+  {
+    "product_id": "bf8da863-81c7-5027-bdf6-e9aaed5f62a2",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-350G4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.3;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "8.6;A",
+    "peak_current": null,
+    "output_power": "3500;W",
+    "switching_frequency": null,
+    "fieldbus": [
+      "CC-Link IE"
+    ],
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 0,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#bf8da863-81c7-5027-bdf6-e9aaed5f62a2"
+  },
+  {
+    "product_id": "9054b253-f764-55f7-9281-3fcd252cbb51",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-60A4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "1.6;A",
+    "peak_current": null,
+    "output_power": "600;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#9054b253-f764-55f7-9281-3fcd252cbb51"
+  },
+  {
+    "product_id": "418b489d-2733-5550-aace-e1dd39421cf3",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-100A4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "1.6;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "2.8;A",
+    "peak_current": null,
+    "output_power": "1000;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#418b489d-2733-5550-aace-e1dd39421cf3"
+  },
+  {
+    "product_id": "f38cbb94-6e28-5ad5-855a-886d509f74b0",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-200A4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.2;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "5.5;A",
+    "peak_current": null,
+    "output_power": "2000;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#f38cbb94-6e28-5ad5-855a-886d509f74b0"
+  },
+  {
+    "product_id": "177ca180-0e21-5e17-91b3-840fbacc451f",
+    "product_type": "drive",
+    "product_name": "MELSERVO-J5",
+    "product_family": "MR-J5 400V Class Servo Amplifiers",
+    "part_number": "MR-J5-350A4-RJ",
+    "manufacturer": "Mitsubishi Electric",
+    "release_year": null,
+    "dimensions": null,
+    "weight": "2.3;kg",
+    "msrp": null,
+    "warranty": null,
+    "datasheet_url": "https://eu-assets.contentstack.com/v3/assets/blt5412ff9af9aef77f/blt209211edac0549ce/61f6636afe4fd2454a9ddfec/efccc385-7b46-11eb-8592-b8ca3a62a094_sv2011-2e.pdf",
+    "pages": [
+      1,
+      2,
+      9,
+      10,
+      17,
+      18,
+      28
+    ],
+    "type": "servo",
+    "series": "MR-J5",
+    "input_voltage": "323-528;V",
+    "input_voltage_frequency": null,
+    "input_voltage_phases": [
+      3
+    ],
+    "rated_current": "8.6;A",
+    "peak_current": null,
+    "output_power": "3500;W",
+    "switching_frequency": null,
+    "fieldbus": null,
+    "encoder_feedback_support": [
+      "Two-wire type serial encoder",
+      "Four-wire type serial encoder"
+    ],
+    "ethernet_ports": null,
+    "digital_inputs": null,
+    "digital_outputs": 2,
+    "analog_inputs": 2,
+    "analog_outputs": null,
+    "safety_rating": null,
+    "approvals": [
+      "IP20"
+    ],
+    "max_humidity": null,
+    "ip_rating": null,
+    "ambient_temp": null,
+    "PK": "PRODUCT#DRIVE",
+    "SK": "PRODUCT#177ca180-0e21-5e17-91b3-840fbacc451f"
+  }
+]

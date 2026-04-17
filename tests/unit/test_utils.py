@@ -164,61 +164,58 @@ class TestGetProductInfoFromJson:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestParseGeminiResponse:
-    """The LLM now returns CSV; these tests exercise the CSV reconstruction path."""
-
-    def _csv(self, rows):
-        """Build a minimal CSV response for Motor using just part_number + a few cols."""
-        from datasheetminer.models.csv_schema import build_columns, header_row
-
-        cols = build_columns(Motor)
-        header = header_row(cols)
-        col_headers = [c.header for c in cols]
-        lines = [header]
-        for row in rows:
-            cells = [str(row.get(h, "")) for h in col_headers]
-            lines.append(",".join(cells))
-        return "\n".join(lines) + "\n"
+    """The LLM returns JSON matching a schema derived from the Pydantic model
+    (see datasheetminer.models.llm_schema). These tests exercise the JSON
+    parse path, including ValueUnit / MinMaxUnit dict handling via the
+    existing BeforeValidator chain in common.py."""
 
     def _ctx(self, **overrides):
         defaults = {"product_name": "TestMotor", "manufacturer": "TestCo"}
         defaults.update(overrides)
         return defaults
 
+    def _json(self, rows):
+        import json as _json
+
+        return _json.dumps(rows)
+
     def test_single_row_parsed(self):
         response = Mock(spec=[])
-        response.text = self._csv(
-            [{"part_number": "TM-100", "rated_speed[rpm]": "3000"}]
+        response.text = self._json(
+            [{"part_number": "TM-100", "rated_speed": {"value": 3000, "unit": "rpm"}}]
         )
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert len(result) == 1
         assert result[0].part_number == "TM-100"
+        # BeforeValidator converts {value, unit} dicts to "value;unit" strings.
         assert result[0].rated_speed == "3000;rpm"
 
     def test_min_max_range_reconstructed(self):
         response = Mock(spec=[])
-        response.text = self._csv(
+        response.text = self._json(
             [
                 {
                     "part_number": "TM-200",
-                    "rated_voltage_min[V]": "40",
-                    "rated_voltage_max[V]": "60",
+                    "rated_voltage": {"min": 40, "max": 60, "unit": "V"},
                 }
             ]
         )
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert result[0].rated_voltage == "40-60;V"
 
-    def test_empty_cells_become_none(self):
+    def test_missing_optional_fields_become_none(self):
         response = Mock(spec=[])
-        response.text = self._csv([{"part_number": "TM-300"}])
+        response.text = self._json([{"part_number": "TM-300"}])
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert result[0].rated_speed is None
         assert result[0].rated_voltage is None
 
     def test_markdown_fences_stripped(self):
         response = Mock(spec=[])
-        body = self._csv([{"part_number": "TM-400", "rated_speed[rpm]": "2500"}])
-        response.text = f"```csv\n{body}```"
+        body = self._json(
+            [{"part_number": "TM-400", "rated_speed": {"value": 2500, "unit": "rpm"}}]
+        )
+        response.text = f"```json\n{body}\n```"
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert result[0].rated_speed == "2500;rpm"
 
@@ -234,40 +231,60 @@ class TestParseGeminiResponse:
         with pytest.raises(ValueError):
             parse_gemini_response(response, Motor, "motor")
 
+    def test_non_json_raises(self):
+        response = Mock(spec=[])
+        response.text = "not valid json at all"
+        with pytest.raises(ValueError):
+            parse_gemini_response(response, Motor, "motor", context=self._ctx())
+
+    def test_top_level_object_accepted(self):
+        """Gemini is told to return an array, but tolerate a bare object just
+        in case it returns a single variant unwrapped."""
+        response = Mock(spec=[])
+        response.text = self._json({"part_number": "TM-SOLO"})  # single dict
+        # _json serializes the dict as a top-level object
+        import json as _json
+
+        response.text = _json.dumps({"part_number": "TM-SOLO"})
+        result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
+        assert len(result) == 1
+        assert result[0].part_number == "TM-SOLO"
+
     def test_context_merged(self):
         response = Mock(spec=[])
-        response.text = self._csv([{"part_number": "TM-500"}])
+        response.text = self._json([{"part_number": "TM-500"}])
         ctx = self._ctx(datasheet_url="https://example.com/ds.pdf")
         result = parse_gemini_response(response, Motor, "motor", context=ctx)
         assert result[0].datasheet_url == "https://example.com/ds.pdf"
 
     def test_product_type_set(self):
         response = Mock(spec=[])
-        response.text = self._csv([{"part_number": "TM-600"}])
+        response.text = self._json([{"part_number": "TM-600"}])
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert result[0].product_type == "motor"
 
     def test_validation_failure_skips_row(self):
-        # Row without product_name in context would fail; provide valid context,
-        # but force a validation error via an out-of-format voltage cell.
         response = Mock(spec=[])
-        response.text = self._csv(
+        # Row 0: malformed nested dict (missing unit) → BeforeValidator returns
+        # the raw dict, validate_value_unit_str rejects it → row dropped.
+        # Row 1: well-formed → should pass.
+        response.text = self._json(
             [
-                {"part_number": "BAD"},  # OK — all optional unit fields empty
-                {"part_number": "GOOD", "rated_speed[rpm]": "3000"},
+                {"part_number": "BAD", "rated_speed": {"value": 3000}},  # no unit
+                {
+                    "part_number": "GOOD",
+                    "rated_speed": {"value": 3000, "unit": "rpm"},
+                },
             ]
         )
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
-        # Both rows are actually valid here because unit fields are all optional;
-        # confirm that at least the second row parses cleanly.
         assert any(r.part_number == "GOOD" for r in result)
 
     def test_all_invalid_raises(self):
         # Missing manufacturer in context → every row fails ProductBase validation
         response = Mock(spec=[])
-        response.text = self._csv([{"part_number": "X"}, {"part_number": "Y"}])
+        response.text = self._json([{"part_number": "X"}, {"part_number": "Y"}])
         with pytest.raises(ValueError):
-            # No manufacturer in context → Pydantic required-field error per row
             parse_gemini_response(response, Motor, "motor", context={})
 
 

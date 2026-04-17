@@ -283,3 +283,8 @@ outputs/
 output_*.json
 **/cdk-outputs.json
 package-lock.json
+admin/
+s3*
+stripe/
+webscraper/
+.github/
