@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
-import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType } from '../types/filters';
+import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata } from '../types/filters';
 import { formatValue } from '../utils/formatting';
 import { extractNumeric, numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
@@ -38,10 +38,44 @@ export default function ProductList() {
   const defaultColWidth = 90;
   const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
 
-  // Sync column widths when product type or additional columns change
+  // Keys that should never render as their own column. `part_number` is
+  // pinned as the leading column by the existing render code; the rest are
+  // identity, bookkeeping, or per-record URLs that aren't useful in a
+  // spec table.
+  const COLUMN_EXCLUDED_KEYS = useMemo(
+    () =>
+      new Set<string>([
+        'part_number',
+        'datasheet_url',
+        'pages',
+        'PK',
+        'SK',
+        'product_id',
+        'product_type',
+        'msrp_source_url',
+        'msrp_fetched_at',
+      ]),
+    [],
+  );
+
+  // Full ordered column list: merge curated per-type AttributeMetadata
+  // (rich display names + tuned units) with attributes derived from the
+  // actual records (catches schema evolution). Sorted alphabetically by
+  // display name; exclusions applied. Single source of truth for both
+  // header rendering and the column-width effect.
+  const columnAttributes = useMemo<AttributeMetadata[]>(() => {
+    if (!productType) return [];
+    const staticAttrs = getAttributesForType(productType);
+    const derivedAttrs = deriveAttributesFromRecords(products, productType);
+    return mergeAttributesByKey(staticAttrs, derivedAttrs)
+      .filter(a => !COLUMN_EXCLUDED_KEYS.has(a.key))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [productType, products, COLUMN_EXCLUDED_KEYS]);
+
+  // Sync column widths when the column set changes.
   useEffect(() => {
     if (!productType) return;
-    const defaults = getDisplayedAttributes(productType);
+    const defaults = columnAttributes.map(a => a.key);
     const allKeys = ['part_number', ...defaults, ...additionalColumns];
     setColumnWidths(prev => {
       const next: Record<string, number> = {};
@@ -50,7 +84,7 @@ export default function ProductList() {
       }
       return next;
     });
-  }, [productType, additionalColumns]);
+  }, [productType, additionalColumns, columnAttributes]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -340,44 +374,29 @@ export default function ProductList() {
     setCurrentPage(1);
   }, [filters, sorts, itemsPerPage]);
 
-  // Get which attributes are displayed in the main specs for each product type
-  const getDisplayedAttributes = (productType: string): string[] => {
-    if (productType === 'motor') {
-      return ['rated_power', 'rated_voltage', 'rated_current', 'rated_speed', 'rated_torque', 'peak_torque'];
-    } else if (productType === 'drive') {
-      return ['output_power', 'input_voltage', 'rated_current', 'peak_current', 'input_voltage_phases', 'ip_rating'];
-    } else if (productType === 'robot_arm') {
-      return ['payload', 'reach', 'degrees_of_freedom', 'max_tcp_speed', 'ip_rating', 'weight'];
-    } else if (productType === 'gearhead') {
-      return ['gear_ratio', 'gear_type', 'max_continuous_torque', 'max_peak_torque', 'backlash', 'efficiency'];
-    }
-    return [];
-  };
+  // Back-compat shim: existing call sites pass `productType` but the
+  // computation is now state-driven via the `columnAttributes` memo
+  // defined near the top of the component. Signature kept so surrounding
+  // code doesn't need to change.
+  const getDisplayedAttributes = (_productType: string): string[] =>
+    columnAttributes.map(a => a.key);
 
-  // Get column header labels for the current product type with units from metadata
+  // Column headers with linear-mode label/unit overrides for SPEED_KEYS
+  // and TORQUE_KEYS (thrust/force view for linear actuators).
   const getColumnHeaders = (): Array<{ key: string; label: string; unit: string | null }> => {
-    if (!productType) return [];
-
-    const displayedKeys = getDisplayedAttributes(productType);
-    const allAttributes = getAttributesForType(productType);
-
-    return displayedKeys.map(key => {
-      const attr = allAttributes.find(a => a.key === key);
-      let label = attr ? attr.displayName : key;
-      let unit = attr ? attr.unit || null : null;
-
-      // Override labels/units in linear mode
+    return columnAttributes.map(attr => {
+      let label = attr.displayName;
+      let unit: string | null = attr.unit || null;
       if (isLinearMode) {
-        if (SPEED_KEYS.includes(key)) {
+        if (SPEED_KEYS.includes(attr.key)) {
           label = 'Linear Speed';
           unit = 'mm/s';
-        } else if (TORQUE_KEYS.includes(key)) {
-          label = key === 'peak_torque' ? 'Peak Thrust' : 'Rated Thrust';
+        } else if (TORQUE_KEYS.includes(attr.key)) {
+          label = attr.key === 'peak_torque' ? 'Peak Thrust' : 'Rated Thrust';
           unit = 'N';
         }
       }
-
-      return { key, label, unit };
+      return { key: attr.key, label, unit };
     });
   };
 
