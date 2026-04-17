@@ -45,6 +45,26 @@ export default function ProductList() {
       JSON.stringify(hiddenColumnKeys),
     );
   }, [hiddenColumnKeys]);
+
+  // Cap on how many columns are displayed at once. null = no cap.
+  // Columns past the cap auto-hide to the "Restore" dropdown alongside
+  // user-hidden ones; they're still individually restorable. Default
+  // ceiling of 12 keeps the table scannable even on 30+ field schemas.
+  const [maxVisibleColumns, setMaxVisibleColumns] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return 12;
+    const stored = window.localStorage.getItem('productListMaxVisibleColumns');
+    if (stored === null) return 12;
+    if (stored === 'null') return null;
+    const n = parseInt(stored, 10);
+    return Number.isFinite(n) && n > 0 ? n : 12;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      'productListMaxVisibleColumns',
+      maxVisibleColumns === null ? 'null' : String(maxVisibleColumns),
+    );
+  }, [maxVisibleColumns]);
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
   const [gearRatio, setGearRatio] = useState<number>(1);
   const [autoGear, setAutoGear] = useState<boolean>(true);
@@ -105,19 +125,24 @@ export default function ProductList() {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [productType, products, COLUMN_EXCLUDED_KEYS]);
 
-  // Columns actually rendered in the table = full list minus the user's
-  // hidden set.
-  const visibleColumnAttributes = useMemo<AttributeMetadata[]>(
-    () => columnAttributes.filter(a => !hiddenColumnKeys.includes(a.key)),
-    [columnAttributes, hiddenColumnKeys],
-  );
+  // Columns actually rendered in the table: full list minus user
+  // hides, then clamped to maxVisibleColumns. Columns past the cap
+  // spill into the restore dropdown alongside user-hidden ones.
+  const visibleColumnAttributes = useMemo<AttributeMetadata[]>(() => {
+    const afterUserHides = columnAttributes.filter(
+      a => !hiddenColumnKeys.includes(a.key),
+    );
+    return maxVisibleColumns === null
+      ? afterUserHides
+      : afterUserHides.slice(0, maxVisibleColumns);
+  }, [columnAttributes, hiddenColumnKeys, maxVisibleColumns]);
 
-  // Hidden columns, in the same alphabetical order, for the restore
-  // dropdown.
-  const hiddenColumnAttributes = useMemo<AttributeMetadata[]>(
-    () => columnAttributes.filter(a => hiddenColumnKeys.includes(a.key)),
-    [columnAttributes, hiddenColumnKeys],
-  );
+  // Restore-dropdown candidates: everything the user could bring back —
+  // explicit hides plus anything that fell past the cap.
+  const hiddenColumnAttributes = useMemo<AttributeMetadata[]>(() => {
+    const visibleKeys = new Set(visibleColumnAttributes.map(a => a.key));
+    return columnAttributes.filter(a => !visibleKeys.has(a.key));
+  }, [columnAttributes, visibleColumnAttributes]);
 
   // Sync column widths when the visible column set changes.
   useEffect(() => {
@@ -567,9 +592,22 @@ export default function ProductList() {
     setHiddenColumnKeys(prev => (prev.includes(attribute) ? prev : [...prev, attribute]));
   };
 
-  // Restore (un-hide) a previously-hidden column.
+  // Restore (un-hide) a previously-hidden or cap-hidden column. If the
+  // column was only hidden because it fell past the cap, bump the cap
+  // just enough to fit it — otherwise the click would do nothing and
+  // the user would see no feedback.
   const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
-    setHiddenColumnKeys(prev => prev.filter(k => k !== attribute.key));
+    const newHidden = hiddenColumnKeys.filter(k => k !== attribute.key);
+    setHiddenColumnKeys(newHidden);
+    if (maxVisibleColumns !== null) {
+      const newVisibleList = columnAttributes.filter(
+        a => !newHidden.includes(a.key),
+      );
+      const pos = newVisibleList.findIndex(a => a.key === attribute.key);
+      if (pos >= 0 && pos >= maxVisibleColumns) {
+        setMaxVisibleColumns(pos + 1);
+      }
+    }
     setShowSortSelector(false);
   };
 
@@ -602,6 +640,23 @@ export default function ProductList() {
           </div>
 
           <div className="results-header-right">
+            <label className="column-cap-control" title="Max number of spec columns shown at once. Extras are restorable.">
+              <span>Max cols:</span>
+              <select
+                value={maxVisibleColumns === null ? 'none' : String(maxVisibleColumns)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMaxVisibleColumns(v === 'none' ? null : parseInt(v, 10));
+                }}
+              >
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="12">12</option>
+                <option value="16">16</option>
+                <option value="24">24</option>
+                <option value="none">All</option>
+              </select>
+            </label>
             <button
               type="button"
               className="density-toggle-btn"

@@ -2321,6 +2321,25 @@ button.secondary:hover {
   background: var(--bg-tertiary);
 }
 
+/* Max-column cap picker, rendered next to the density toggle. */
+.column-cap-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-right: 0.5rem;
+}
+
+.column-cap-control select {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.3rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
 /* Product list - compact table layout */
 .product-grid {
   display: table;
