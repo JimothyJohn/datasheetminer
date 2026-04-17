@@ -23,13 +23,20 @@ export default function ProductList() {
   const [showSortSelector, setShowSortSelector] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  // Hidden columns: user dismissed them via the × button. Persisted
-  // in localStorage so the hide survives reloads; "+ Add Spec" button
-  // restores any of them. The old `additionalColumns` concept (user-
-  // added extras on top of a small default set) is obsolete — since
-  // Step 1 the default set is "every column the record carries", so
-  // the inverse (hide) is what the UI needs.
-  const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>(() => {
+  // Column visibility model — two sets, because default visibility
+  // depends on the attribute's *kind*:
+  //
+  // - ValueUnit / MinMaxUnit columns (numeric with a unit) are visible
+  //   by default. User hides them via the × button; stored in
+  //   `userHiddenKeys`.
+  // - Every other kind (strings, booleans, arrays, bare ints/floats)
+  //   is hidden by default — too noisy in a spec table — and must be
+  //   explicitly pulled out of the "+ N hidden" dropdown. Those opt-in
+  //   restores are stored in `userRestoredKeys`.
+  //
+  // Both sets persist across sessions. The old 'productListHiddenColumns'
+  // key now stores userHiddenKeys.
+  const [userHiddenKeys, setUserHiddenKeys] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
       const raw = window.localStorage.getItem('productListHiddenColumns');
@@ -42,9 +49,26 @@ export default function ProductList() {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
       'productListHiddenColumns',
-      JSON.stringify(hiddenColumnKeys),
+      JSON.stringify(userHiddenKeys),
     );
-  }, [hiddenColumnKeys]);
+  }, [userHiddenKeys]);
+
+  const [userRestoredKeys, setUserRestoredKeys] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem('productListRestoredColumns');
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      'productListRestoredColumns',
+      JSON.stringify(userRestoredKeys),
+    );
+  }, [userRestoredKeys]);
 
   // Column sort direction — A→Z by default; toggle flips to Z→A.
   // Persisted so the user's preferred scan direction sticks.
@@ -140,20 +164,23 @@ export default function ProductList() {
     return merged.sort((a, b) => dir * a.displayName.localeCompare(b.displayName));
   }, [productType, products, COLUMN_EXCLUDED_KEYS, columnSortDirection]);
 
-  // Columns actually rendered in the table: full list minus user
-  // hides, then clamped to maxVisibleColumns. Columns past the cap
-  // spill into the restore dropdown alongside user-hidden ones.
+  // Columns actually rendered in the table. Default rule by kind:
+  // - ValueUnit / MinMaxUnit (nested:true) = visible unless user-hidden
+  // - everything else = hidden unless user-restored
+  // Then clamp to maxVisibleColumns. Columns past the cap spill into
+  // the restore dropdown.
   const visibleColumnAttributes = useMemo<AttributeMetadata[]>(() => {
-    const afterUserHides = columnAttributes.filter(
-      a => !hiddenColumnKeys.includes(a.key),
-    );
-    return maxVisibleColumns === null
-      ? afterUserHides
-      : afterUserHides.slice(0, maxVisibleColumns);
-  }, [columnAttributes, hiddenColumnKeys, maxVisibleColumns]);
+    const shown = columnAttributes.filter(a => {
+      if (userHiddenKeys.includes(a.key)) return false;
+      if (a.nested) return true; // ValueUnit / MinMaxUnit
+      return userRestoredKeys.includes(a.key); // non-unit kinds need opt-in
+    });
+    return maxVisibleColumns === null ? shown : shown.slice(0, maxVisibleColumns);
+  }, [columnAttributes, userHiddenKeys, userRestoredKeys, maxVisibleColumns]);
 
   // Restore-dropdown candidates: everything the user could bring back —
-  // explicit hides plus anything that fell past the cap.
+  // explicit hides, cap overflow, and the hidden-by-default non-unit
+  // kinds (strings, booleans, arrays, bare numbers).
   const hiddenColumnAttributes = useMemo<AttributeMetadata[]>(() => {
     const visibleKeys = new Set(visibleColumnAttributes.map(a => a.key));
     return columnAttributes.filter(a => !visibleKeys.has(a.key));
@@ -599,25 +626,39 @@ export default function ProductList() {
     }
   };
 
-  // Hide a column: drop any active sort for it and add it to the
-  // hidden set. Restore via "+ Add Spec" which opens the hidden-column
-  // picker.
+  // Hide a column: drop any active sort for it, add it to the user
+  // hidden set, and clear any prior restore (non-unit kinds only —
+  // unit-bearing columns can stay visible again just by removing them
+  // from userHiddenKeys).
   const handleRemoveColumn = (attribute: string) => {
     setSorts(sorts.filter(s => s.attribute !== attribute));
-    setHiddenColumnKeys(prev => (prev.includes(attribute) ? prev : [...prev, attribute]));
+    setUserHiddenKeys(prev => (prev.includes(attribute) ? prev : [...prev, attribute]));
+    setUserRestoredKeys(prev => prev.filter(k => k !== attribute));
   };
 
-  // Restore (un-hide) a previously-hidden or cap-hidden column. If the
-  // column was only hidden because it fell past the cap, bump the cap
-  // just enough to fit it — otherwise the click would do nothing and
-  // the user would see no feedback.
+  // Restore a column. Two paths:
+  // - Unit-bearing column was user-hidden → remove from userHiddenKeys.
+  // - Non-unit column (hidden by default) → add to userRestoredKeys.
+  // If the column still falls past the cap after restoring, bump the
+  // cap just enough to fit it so the click produces visible feedback.
   const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
-    const newHidden = hiddenColumnKeys.filter(k => k !== attribute.key);
-    setHiddenColumnKeys(newHidden);
+    const newHidden = userHiddenKeys.filter(k => k !== attribute.key);
+    setUserHiddenKeys(newHidden);
+    const newRestored = attribute.nested
+      ? userRestoredKeys
+      : userRestoredKeys.includes(attribute.key)
+        ? userRestoredKeys
+        : [...userRestoredKeys, attribute.key];
+    if (newRestored !== userRestoredKeys) setUserRestoredKeys(newRestored);
+
     if (maxVisibleColumns !== null) {
-      const newVisibleList = columnAttributes.filter(
-        a => !newHidden.includes(a.key),
-      );
+      // Recompute visible list with the new sets to find where the
+      // restored attribute lands alphabetically.
+      const newVisibleList = columnAttributes.filter(a => {
+        if (newHidden.includes(a.key)) return false;
+        if (a.nested) return true;
+        return newRestored.includes(a.key);
+      });
       const pos = newVisibleList.findIndex(a => a.key === attribute.key);
       if (pos >= 0 && pos >= maxVisibleColumns) {
         setMaxVisibleColumns(pos + 1);
@@ -759,7 +800,8 @@ export default function ProductList() {
                     key={header.key}
                     className="product-grid-header-item clickable removable"
                     style={{ width: columnWidths[header.key] ?? defaultColWidth }}
-                    title="Click to sort"
+                    title="Click anywhere to sort"
+                    onClick={() => handleColumnSort(header.key)}
                   >
                     <button
                       className="column-remove-btn"
@@ -771,10 +813,7 @@ export default function ProductList() {
                     >
                       ×
                     </button>
-                    <div
-                      className="product-grid-header-label"
-                      onClick={() => handleColumnSort(header.key)}
-                    >
+                    <div className="product-grid-header-label">
                       {header.label}
                       <span className="sort-indicator">
                         {isSorted && sortConfig?.direction === 'asc' && '↑'}
@@ -783,7 +822,14 @@ export default function ProductList() {
                       </span>
                     </div>
                     {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
-                    <div className="col-resize-handle" onMouseDown={(e) => startResize(header.key, e)} />
+                    <div
+                      className="col-resize-handle"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        startResize(header.key, e);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
                 );
               })}
