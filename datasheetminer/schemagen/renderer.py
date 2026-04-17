@@ -1,17 +1,20 @@
-"""Deterministic Python-source rendering from a ``ProposedModel``.
+"""Deterministic source rendering from a ``ProposedModel``.
 
-Two pure functions:
+Three pure functions:
 
-- ``render_model_file(pm)`` — returns the full contents of a new
+- ``render_model_file(pm)`` — returns the contents of a new
   ``datasheetminer/models/<type>.py`` file.
+- ``render_reasoning_doc(pm)`` — returns the companion
+  ``datasheetminer/models/<type>.md`` that explains the schema's
+  scope, design decisions, and source citations. Every proposed
+  model now ships with one; see ``contactor.md`` for the shape.
 - ``render_product_type_patch(old_common_py_source, pm)`` — returns
-  a new ``common.py`` source string with the new ``product_type`` appended
-  to the ``ProductType = Literal[...]`` line. Idempotent: patching twice
-  yields the same result as patching once.
+  a new ``common.py`` source string with the new ``product_type``
+  appended to the ``ProductType = Literal[...]`` line. Idempotent.
 
-The output of ``render_model_file`` is passed through ``ast.parse`` before
-any caller writes it to disk — if we emit something that doesn't parse,
-we want to fail before touching the repo.
+The output of ``render_model_file`` is passed through ``ast.parse``
+before any caller writes it to disk — if we emit something that
+doesn't parse, we want to fail before touching the repo.
 """
 
 from __future__ import annotations
@@ -190,3 +193,110 @@ def render_product_type_patch(old_source: str, pm: ProposedModel) -> str:
     new_body = ", ".join(repr(v) for v in new_values)
     start, end = match.span("body")
     return old_source[:start] + new_body + old_source[end:]
+
+
+# ---------------------------------------------------------------------
+# Reasoning-doc renderer (<type>.md)
+# ---------------------------------------------------------------------
+
+_FALLBACK_SCOPE = (
+    "Scope notes weren't provided by the LLM. Fill in which products this "
+    "schema is meant to cover and explicit non-goals before merging."
+)
+
+_FALLBACK_DESIGN = (
+    "Design notes weren't provided by the LLM. Document any non-obvious "
+    "decisions — list-vs-scalar choices, unit conventions, normalization "
+    "traps — before merging."
+)
+
+
+def _format_sources_section(pm: ProposedModel) -> str:
+    if not pm.sources:
+        return (
+            "## Sources\n\n"
+            "_No sources were cited by the LLM. Add the datasheets or "
+            "standards this schema is grounded in before merging._\n"
+        )
+    rows = ["| Source | Relevance |", "|---|---|"]
+    for src in pm.sources:
+        label = src.name
+        if src.url:
+            label = f"[{src.name}]({src.url})"
+        elif src.local_path:
+            label = f"{src.name} (`{src.local_path}`)"
+        note = src.relevance_notes or ""
+        # Collapse newlines inside table cells.
+        note = note.replace("\n", " ")
+        rows.append(f"| {label} | {note} |")
+    return "## Sources\n\n" + "\n".join(rows) + "\n"
+
+
+def _format_fields_section(pm: ProposedModel) -> str:
+    """Emit a flat table of every proposed field grouped by section.
+
+    Gives the reader a quick audit surface for what the schema captures
+    without opening the .py.
+    """
+    lines: List[str] = ["## Fields", ""]
+    current_section: str | None = None
+    for field in pm.fields:
+        section = field.section or "General"
+        if section != current_section:
+            lines.append(f"### {section}\n")
+            lines.append("| Field | Kind | Unit | Description |")
+            lines.append("|---|---|---|---|")
+            current_section = section
+        kind = field.kind
+        if field.kind == "literal" and field.literal_values:
+            preview = ", ".join(field.literal_values[:4])
+            if len(field.literal_values) > 4:
+                preview += ", …"
+            kind = f"literal[{preview}]"
+        unit = field.unit or ""
+        desc = (field.description or "").replace("\n", " ").replace("|", "\\|")
+        lines.append(f"| `{field.name}` | {kind} | {unit} | {desc} |")
+        # Mark the end of this section group with a blank line when the
+        # next field has a different section.
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_reasoning_doc(pm: ProposedModel) -> str:
+    """Render the companion `<type>.md` doc for a ProposedModel.
+
+    The shape mirrors `datasheetminer/models/contactor.md`: title,
+    scope, source citations, design decisions, and an auto-generated
+    field table. The free-form sections come from the LLM's
+    ``scope_notes`` and ``design_notes`` fields; when either is empty
+    we emit a placeholder instead of omitting the section so the doc
+    structure stays predictable.
+    """
+    title = f"# {pm.class_name} Model — Design Notes & Sources"
+    intro = (
+        f"Companion to `{pm.product_type}.py`. Explains the field set, "
+        "why it was chosen, and the datasheets / standards the design "
+        "was grounded in. Regenerate this doc if the model changes "
+        "materially."
+    )
+
+    scope = pm.scope_notes or _FALLBACK_SCOPE
+    design = pm.design_notes or _FALLBACK_DESIGN
+
+    parts = [
+        title,
+        "",
+        intro,
+        "",
+        "## Scope",
+        "",
+        scope,
+        "",
+        _format_sources_section(pm),
+        "## Design decisions",
+        "",
+        design,
+        "",
+        _format_fields_section(pm),
+    ]
+    return "\n".join(parts).rstrip() + "\n"

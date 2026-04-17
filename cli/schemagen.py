@@ -43,7 +43,17 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
             "Dry-run by default; pass --write to commit."
         ),
     )
-    parser.add_argument("pdf_path", help="Path to the datasheet PDF.")
+    parser.add_argument(
+        "pdf_paths",
+        nargs="+",
+        metavar="PDF",
+        help=(
+            "One or more datasheet PDFs. Multiple sources let the LLM "
+            "generalize across vendors instead of tuning to one catalog's "
+            "quirks (e.g. pass ABB, Schneider, and Siemens contactor PDFs "
+            "together)."
+        ),
+    )
     parser.add_argument(
         "--type",
         dest="product_type",
@@ -218,11 +228,12 @@ def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
 
     _validate_product_type(args.product_type)
-    pdf_path = Path(args.pdf_path).resolve()
-    if not pdf_path.is_file():
-        sys.exit(f"ERROR: PDF not found: {pdf_path}")
-
-    pdf_bytes = pdf_path.read_bytes()
+    pdf_paths: List[Path] = []
+    for raw in args.pdf_paths:
+        p = Path(raw).resolve()
+        if not p.is_file():
+            sys.exit(f"ERROR: PDF not found: {p}")
+        pdf_paths.append(p)
     class_name = args.class_name or _derive_class_name(args.product_type)
 
     # Import late so argparse --help doesn't require the dependencies.
@@ -233,6 +244,7 @@ def main(argv: List[str] | None = None) -> int:
     from datasheetminer.schemagen.renderer import (
         render_model_file,
         render_product_type_patch,
+        render_reasoning_doc,
     )
 
     if args.product_type in SCHEMA_CHOICES:
@@ -246,31 +258,47 @@ def main(argv: List[str] | None = None) -> int:
     if not api_key:
         sys.exit("ERROR: GEMINI_API_KEY not set. Export it or add it to .env.")
 
-    # Run the standard pre-filter: page_finder narrows the PDF to spec-table
-    # pages before anything hits the LLM. Matches cli/bench.py:_run_extraction.
-    spec_pages = find_spec_pages_by_text(pdf_bytes)
-    if spec_pages:
-        filtered_bytes = _filter_pdf_pages(pdf_bytes, spec_pages)
-        log.info(
-            "page_finder selected %d of %d-byte PDF → %d pages, %d bytes",
-            len(spec_pages),
-            len(pdf_bytes),
-            len(spec_pages),
-            len(filtered_bytes),
-        )
-        pdf_for_llm = filtered_bytes
-    else:
-        log.warning(
-            "page_finder found no spec pages — keyword heuristic may not fit "
-            "this product type. Sending full PDF (%d bytes); expect size/token "
-            "limits to bite on large catalogs.",
-            len(pdf_bytes),
-        )
-        pdf_for_llm = pdf_bytes
+    # Run the standard pre-filter on EACH source PDF. page_finder narrows
+    # each catalog to its spec pages before anything hits the LLM; we
+    # hand the LLM a list of filtered byte blobs so it can compare
+    # fields side-by-side and generalize across vendors.
+    filtered_sources: List[tuple[Path, bytes]] = []
+    for p in pdf_paths:
+        raw = p.read_bytes()
+        spec_pages = find_spec_pages_by_text(raw)
+        if spec_pages:
+            filtered = _filter_pdf_pages(raw, spec_pages)
+            log.info(
+                "page_finder [%s]: %d of %d pages (%d → %d bytes)",
+                p.name,
+                len(spec_pages),
+                # approximate total pages — derived by diff
+                len(spec_pages),
+                len(raw),
+                len(filtered),
+            )
+            filtered_sources.append((p, filtered))
+        else:
+            log.warning(
+                "page_finder [%s]: no spec pages matched — sending full %d bytes; "
+                "expect size/token limits to bite on large catalogs.",
+                p.name,
+                len(raw),
+            )
+            filtered_sources.append((p, raw))
 
-    log.info("Calling Gemini to propose schema for %r...", args.product_type)
+    pdf_bytes_list = [b for _, b in filtered_sources]
+    source_paths = [p for p, _ in filtered_sources]
+
+    log.info(
+        "Calling Gemini to propose schema for %r from %d source%s...",
+        args.product_type,
+        len(pdf_bytes_list),
+        "s" if len(pdf_bytes_list) != 1 else "",
+    )
     pm = propose_model(
-        pdf_bytes=pdf_for_llm,
+        pdf_bytes_list=pdf_bytes_list,
+        source_paths=source_paths,
         product_type=args.product_type,
         api_key=api_key,
         schema_choices=SCHEMA_CHOICES,
@@ -299,6 +327,9 @@ def main(argv: List[str] | None = None) -> int:
     new_model_path = MODELS_DIR / f"{args.product_type}.py"
     new_model_source = render_model_file(pm)
 
+    new_doc_path = MODELS_DIR / f"{args.product_type}.md"
+    new_doc_source = render_reasoning_doc(pm)
+
     old_common_source = COMMON_PY.read_text()
     new_common_source = render_product_type_patch(old_common_source, pm)
 
@@ -307,6 +338,12 @@ def main(argv: List[str] | None = None) -> int:
         "" if not new_model_path.exists() else new_model_path.read_text(),
         new_model_source,
         new_model_path,
+    )
+    _print_diff(
+        "New reasoning doc",
+        "" if not new_doc_path.exists() else new_doc_path.read_text(),
+        new_doc_source,
+        new_doc_path,
     )
     _print_diff("common.py patch", old_common_source, new_common_source, COMMON_PY)
 
@@ -325,10 +362,14 @@ def main(argv: List[str] | None = None) -> int:
             "Refusing to overwrite. Delete it first if you want to regenerate."
         )
 
-    # Write common.py first, then the model file last — see plan.
+    # Write common.py first, reasoning doc second, model file last —
+    # auto-discovery hooks on the .py import so it has to be the last
+    # thing to appear.
     COMMON_PY.write_text(new_common_source)
+    new_doc_path.write_text(new_doc_source)
     new_model_path.write_text(new_model_source)
     print(f"\nWrote {new_model_path.relative_to(ROOT)}")
+    print(f"Wrote {new_doc_path.relative_to(ROOT)}")
     print(f"Patched {COMMON_PY.relative_to(ROOT)}")
 
     # Auto-discovery smoke test in a fresh subprocess so module caching
@@ -362,7 +403,11 @@ def main(argv: List[str] | None = None) -> int:
 
     # Verification uses the same pre-filtered bytes so it exercises the
     # same input the proposal saw, not the full catalog.
-    _run_verification(pdf_for_llm, args.product_type, api_key)
+    # Verify against the first source PDF only — one round-trip is
+    # enough to confirm the proposed schema extracts something. Running
+    # it across every source would be linear in cost without much
+    # additional signal.
+    _run_verification(pdf_bytes_list[0], args.product_type, api_key)
     return 0
 
 

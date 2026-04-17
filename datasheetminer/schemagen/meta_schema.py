@@ -162,8 +162,52 @@ class ProposedField(BaseModel):
         return self
 
 
+class ProposedSource(BaseModel):
+    """One datasheet or reference that informed a ProposedModel.
+
+    schemagen accepts one or more PDFs (and optionally reference
+    documents like the relevant IEC / UL standard) and asks the LLM to
+    generalize across them. Each source the LLM leaned on gets one
+    entry here; the renderer cites them in the companion .md doc so
+    the schema's provenance is auditable.
+    """
+
+    name: str = Field(
+        ...,
+        description=(
+            "Human-readable identifier for this source — vendor + product "
+            "line (e.g. 'ABB AF09-AF38 Technical Data') or standard "
+            "reference (e.g. 'IEC 60947-4-1:2018')."
+        ),
+    )
+    url: Optional[str] = Field(
+        None,
+        description=(
+            "Public URL the source was fetched from, if applicable. "
+            "Required when the LLM cites facts from the web."
+        ),
+    )
+    local_path: Optional[str] = Field(
+        None,
+        description=(
+            "Local filesystem path (relative to repo root) for PDFs "
+            "fed in via --pdf. Empty when the source is a URL or a "
+            "reference cited by name."
+        ),
+    )
+    relevance_notes: Optional[str] = Field(
+        None,
+        description=(
+            "Short note on what this source contributed to the schema "
+            "(e.g. 'AC-3 headline-voltage convention', 'NEMA hp "
+            "rating block'). Appears in the .md companion doc."
+        ),
+    )
+
+
 class ProposedModel(BaseModel):
-    """The full proposal: class metadata + ordered list of fields."""
+    """The full proposal: class metadata, field list, and optional
+    reasoning + source citations for the companion .md doc."""
 
     class_name: str = Field(
         ...,
@@ -196,6 +240,34 @@ class ProposedModel(BaseModel):
             "when the datasheet covers multiple variants of the same supertype "
             "(e.g. ['magnetic', 'solid-state', 'reversing'] for contactors). "
             "Leave null when the product type has no meaningful subtypes."
+        ),
+    )
+    scope_notes: Optional[str] = Field(
+        None,
+        description=(
+            "Short paragraph describing which products the schema is meant "
+            "to cover and explicit non-goals (e.g. 'covers general-purpose "
+            "industrial contactors per IEC 60947-4-1; excludes definite-"
+            "purpose HVAC and vacuum contactors'). Rendered as the "
+            "'Scope' section of the companion .md."
+        ),
+    )
+    design_notes: Optional[str] = Field(
+        None,
+        description=(
+            "Markdown paragraph(s) explaining the non-obvious design "
+            "decisions — why a list-of-objects instead of scalar fields, "
+            "why headline aliases, unit normalization traps the extractor "
+            "will hit, etc. Rendered as the 'Design decisions' section of "
+            "the companion .md. Cite specific sources by name."
+        ),
+    )
+    sources: Optional[List[ProposedSource]] = Field(
+        None,
+        description=(
+            "The datasheets / standards the LLM actually read to build "
+            "this proposal. Every claim in `design_notes` should be "
+            "attributable to at least one source listed here."
         ),
     )
     fields: List[ProposedField] = Field(

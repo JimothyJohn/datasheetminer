@@ -12,10 +12,15 @@ import ast
 import pytest
 from pydantic import ValidationError
 
-from datasheetminer.schemagen.meta_schema import ProposedField, ProposedModel
+from datasheetminer.schemagen.meta_schema import (
+    ProposedField,
+    ProposedModel,
+    ProposedSource,
+)
 from datasheetminer.schemagen.renderer import (
     render_model_file,
     render_product_type_patch,
+    render_reasoning_doc,
 )
 
 
@@ -253,3 +258,98 @@ def test_render_product_type_patch_multiline() -> None:
     assert "'contactor'" in new
     # Re-parse the result to confirm it's a valid ProductType declaration.
     assert new.count("ProductType = Literal") == 1
+
+
+def test_render_reasoning_doc_full_output() -> None:
+    pm = _model_with_fields(
+        [
+            ProposedField(
+                name="rated_voltage",
+                kind="min_max_unit",
+                unit="V",
+                description="Rated operational voltage range.",
+                section="Electrical",
+            ),
+            ProposedField(
+                name="ip_rating",
+                kind="int",
+                description="IP protection rating.",
+                section="Environmental",
+            ),
+        ],
+        class_name="Contactor",
+        product_type="contactor",
+        docstring="Electromagnetic contactor.",
+        scope_notes="General-purpose IEC 60947-4-1 contactors.",
+        design_notes="Ratings stored as headline scalars for filterability.",
+        sources=[
+            ProposedSource(
+                name="ABB AF09-AF38",
+                url="https://docs.galco.com/techdoc/abbg/cont_af09-af38_td.pdf",
+                relevance_notes="IEC headline-voltage convention.",
+            ),
+            ProposedSource(
+                name="Mitsubishi MS-T/N",
+                local_path="tests/benchmark/datasheets/mitsubishi-contactors-catalog.pdf",
+                relevance_notes="Initial draft source.",
+            ),
+        ],
+    )
+    doc = render_reasoning_doc(pm)
+
+    # Section headers present in order.
+    assert doc.startswith("# Contactor Model")
+    assert "## Scope" in doc
+    assert "## Sources" in doc
+    assert "## Design decisions" in doc
+    assert "## Fields" in doc
+    assert doc.index("## Scope") < doc.index("## Sources")
+    assert doc.index("## Sources") < doc.index("## Design decisions")
+    assert doc.index("## Design decisions") < doc.index("## Fields")
+
+    # Custom scope + design strings render.
+    assert "IEC 60947-4-1 contactors" in doc
+    assert "headline scalars for filterability" in doc
+
+    # Sources table renders both the URL source and the local-path
+    # source with their relevance notes.
+    assert "[ABB AF09-AF38](https://docs.galco.com" in doc
+    assert "`tests/benchmark/datasheets/mitsubishi-contactors-catalog.pdf`" in doc
+    assert "IEC headline-voltage convention" in doc
+
+    # Field tables are grouped by section.
+    assert "### Electrical" in doc
+    assert "### Environmental" in doc
+    assert "`rated_voltage`" in doc
+    assert "`ip_rating`" in doc
+
+
+def test_render_reasoning_doc_falls_back_when_fields_missing() -> None:
+    pm = _model_with_fields(
+        [ProposedField(name="foo", kind="int", description="a foo")],
+        product_type="widget",
+    )
+    doc = render_reasoning_doc(pm)
+    # Fallbacks surface so the doc structure is predictable even when
+    # the LLM leaves scope_notes / design_notes empty.
+    assert "weren't provided by the LLM" in doc  # scope fallback
+    assert "Design notes weren't provided" in doc
+    assert "No sources were cited" in doc
+
+
+def test_render_reasoning_doc_literal_preview() -> None:
+    many = [f"v{i}" for i in range(10)]
+    pm = _model_with_fields(
+        [
+            ProposedField(
+                name="mode",
+                kind="literal",
+                literal_values=many[:5],
+                description="Operation mode.",
+            )
+        ],
+        product_type="widget",
+    )
+    doc = render_reasoning_doc(pm)
+    # Shows first 4 values + ellipsis when there are more.
+    assert "literal[v0, v1, v2, v3, …]" in doc

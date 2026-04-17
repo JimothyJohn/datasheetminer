@@ -284,15 +284,78 @@ def build_system_prompt(
     )
 
 
-def build_user_prompt(product_type: str, max_fields: int) -> str:
-    """Per-call user instruction. The PDF itself is attached separately."""
+def build_user_prompt(
+    product_type: str,
+    max_fields: int,
+    source_labels: Optional[List[str]] = None,
+) -> str:
+    """Per-call user instruction. PDFs are attached separately; each one
+    is tagged ``[SOURCE N: filename]`` in the content stream, and
+    ``source_labels`` lists those filenames for citation back in
+    ``ProposedModel.sources``.
+
+    When multiple sources are provided, the prompt explicitly asks for
+    a schema that generalizes across vendors — every source that
+    informed a design decision should appear in
+    ``ProposedModel.sources`` with a short ``relevance_notes``.
+    """
+    labels = source_labels or []
+    n = len(labels)
+    if n <= 1:
+        source_block = (
+            "The attached datasheet is your single source. Populate "
+            "ProposedModel.sources with one entry naming the vendor / "
+            "product line and referencing the filename; include a short "
+            "relevance_notes summary of what it covers.\n\n"
+            "Schema shape guidance: derive the fields from what the "
+            "datasheet actually publishes. Treat unusual vendor-specific "
+            "quirks (hardcoded voltage columns, proprietary frame-size "
+            "notation) as smells — prefer a generalizable shape "
+            "(list-of-ratings-by-voltage, separate vendor_frame_size + "
+            "nema_size) over copying the vendor's table 1:1.\n\n"
+        )
+    else:
+        labeled = "\n".join(f"  - {label}" for label in labels)
+        source_block = (
+            f"You have {n} datasheets attached from different vendors:\n"
+            f"{labeled}\n\n"
+            "Your job is to propose a schema that GENERALIZES across all "
+            "of them, not one that's tuned to any single vendor's quirks. "
+            "Rules:\n"
+            "1. A field that appears in EVERY source is a confident "
+            "universal — include it.\n"
+            "2. A field that appears in MOST but not all is usually "
+            "still universal with vendor-specific gaps — include it and "
+            "note the gap in design_notes.\n"
+            "3. A single-vendor field is a smell — ask yourself whether "
+            "it's really vendor-specific nomenclature for a universal "
+            "concept (if yes, use the universal name; if no, drop it or "
+            "wrap it in a vendor_* prefix).\n"
+            "4. When vendors represent the same concept differently "
+            "(e.g. AC-3 ratings as per-voltage columns vs one table), "
+            "pick the representation that generalizes — typically a "
+            "list-of-objects over per-voltage scalar fields.\n\n"
+            "Populate ProposedModel.sources with ONE ENTRY PER SOURCE "
+            "you actually read, citing the filename exactly as tagged "
+            "in the content stream. Each source.relevance_notes should "
+            "state what that particular datasheet contributed to the "
+            "schema (e.g. 'confirmed the IEC headline voltage is 400V', "
+            "'only source with NEMA hp ratings').\n\n"
+            "Populate ProposedModel.design_notes with a short markdown "
+            "paragraph explaining the non-obvious decisions — cite "
+            "sources by name. This becomes the companion .md doc.\n\n"
+            "Populate ProposedModel.scope_notes with 1-2 sentences "
+            "describing what products the schema covers and explicit "
+            "non-goals.\n\n"
+        )
+
     return (
-        f"Propose a Pydantic model named after the product_type='{product_type}'. "
-        "Extract every distinct specification documented in the attached "
-        "datasheet. When the datasheet covers multiple sub-variants of the "
-        "same supertype, populate subtype_values — do not model them as "
-        "separate classes.\n\n"
+        f"Propose a Pydantic model for product_type='{product_type}'.\n\n"
+        f"{source_block}"
+        "When the data covers multiple sub-variants of the same supertype "
+        "(e.g. AC- vs DC-operated contactors), populate subtype_values — "
+        "do not model them as separate classes.\n\n"
         f"Soft cap: {max_fields} fields. Prefer reusing canonical field "
         "names from the registry when the same concept appears.\n\n"
-        "Return exactly one ProposedModel via the propose_model tool."
+        "Return exactly one ProposedModel."
     )

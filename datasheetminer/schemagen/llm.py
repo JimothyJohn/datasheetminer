@@ -1,13 +1,19 @@
-"""Gemini call that proposes a ProposedModel from a PDF.
+"""Gemini call that proposes a ProposedModel from one or more PDFs.
 
 Uses Gemini's structured-output mode with ``response_schema=ProposedModel``
 — the ``google.genai`` SDK converts the Pydantic class to Gemini's
 OpenAPI-subset schema internally, so the response text is JSON matching
 ``ProposedModel``'s shape.
 
-Large PDFs (>20 MB) route through the Files API to stay under the inline
-upload cap; the file is deleted after the call so storage doesn't
-accumulate across runs.
+Multi-source: the CLI passes a list of pre-filtered PDF byte blobs (one
+per datasheet). Each source lands as its own content part with a tag
+the LLM can cite back in ``ProposedModel.sources``; the prompt asks
+for a schema that generalizes across them rather than being tuned to
+any single vendor's quirks.
+
+Large PDFs (>20 MB) route through the Files API to stay under the
+inline upload cap; uploaded files are deleted after the call so
+storage doesn't accumulate across runs.
 """
 
 from __future__ import annotations
@@ -15,7 +21,8 @@ from __future__ import annotations
 import io
 import json
 import logging
-from typing import Any, Dict, Optional, Type
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Type
 
 from google import genai
 from google.genai import types as genai_types
@@ -56,22 +63,29 @@ def _should_retry(exc: BaseException) -> bool:
     retry=retry_if_exception(_should_retry),
 )
 def propose_model(
-    pdf_bytes: bytes,
+    pdf_bytes_list: Sequence[bytes],
     product_type: str,
     api_key: str,
+    source_paths: Optional[Sequence[Path]] = None,
     schema_choices: Optional[Dict[str, Type[ProductBase]]] = None,
     model: str = MODEL,
     max_fields: int = 30,
 ) -> ProposedModel:
-    """Send ``pdf_bytes`` to Gemini and return a validated ``ProposedModel``.
+    """Send ``pdf_bytes_list`` to Gemini and return a validated ``ProposedModel``.
 
     Large PDFs auto-upload via the Files API and are deleted afterwards.
 
     Args:
-        pdf_bytes: Raw datasheet bytes.
+        pdf_bytes_list: One or more datasheet byte blobs — all pre-filtered
+            through ``page_finder`` by the caller.
         product_type: snake_case product type key (e.g. ``"contactor"``).
         api_key: Gemini API key. Falls through to ``GEMINI_API_KEY`` env
             var when empty.
+        source_paths: Local filesystem paths for each blob in
+            ``pdf_bytes_list``, same order. Fed into the prompt so the
+            LLM can cite them by filename in ``ProposedModel.sources``.
+            Optional — if omitted, sources are labelled "source 1",
+            "source 2", etc.
         schema_choices: Registry of existing product types to reflect over
             for examples and the reuse-registry. Defaults to the live
             ``SCHEMA_CHOICES`` — override in tests.
@@ -82,47 +96,68 @@ def propose_model(
         google.genai.errors.ClientError: transport/auth errors (not retried
             for auth, file-size, or other non-transient conditions).
         ValueError: the LLM returned output that fails ``ProposedModel``
-            validation or isn't valid JSON.
+            validation or isn't valid JSON, or no sources were passed.
     """
+    if not pdf_bytes_list:
+        raise ValueError("propose_model requires at least one PDF blob.")
     if schema_choices is None:
         schema_choices = SCHEMA_CHOICES
+
+    # Normalize source labels so the prompt can reference each blob
+    # with a stable identifier ("SOURCE 1: abb-af09.pdf").
+    labels: List[str] = []
+    for i, _ in enumerate(pdf_bytes_list):
+        if source_paths and i < len(source_paths):
+            labels.append(source_paths[i].name)
+        else:
+            labels.append(f"source-{i + 1}.pdf")
 
     client = genai.Client(api_key=api_key) if api_key else genai.Client()
 
     system_prompt = build_system_prompt(schema_choices)
-    user_prompt = build_user_prompt(product_type, max_fields)
+    user_prompt = build_user_prompt(product_type, max_fields, source_labels=labels)
 
-    use_files_api = len(pdf_bytes) >= FILES_API_SIZE_THRESHOLD_BYTES
-    uploaded_file: Any = None
+    uploaded_files: List[Any] = []
+    parts: List[Any] = []
 
     try:
-        if use_files_api:
-            logger.info(
-                "schemagen: PDF is %.1f MB; uploading via Files API",
-                len(pdf_bytes) / (1024 * 1024),
-            )
-            uploaded_file = client.files.upload(
-                file=io.BytesIO(pdf_bytes),
-                config={"mime_type": "application/pdf"},
-            )
-            pdf_part: Any = uploaded_file
-        else:
-            pdf_part = genai_types.Part.from_bytes(
-                data=pdf_bytes,
-                mime_type="application/pdf",
-            )
+        for label, pdf_bytes in zip(labels, pdf_bytes_list):
+            use_files_api = len(pdf_bytes) >= FILES_API_SIZE_THRESHOLD_BYTES
+            if use_files_api:
+                logger.info(
+                    "schemagen: %s is %.1f MB; uploading via Files API",
+                    label,
+                    len(pdf_bytes) / (1024 * 1024),
+                )
+                uploaded = client.files.upload(
+                    file=io.BytesIO(pdf_bytes),
+                    config={"mime_type": "application/pdf"},
+                )
+                uploaded_files.append(uploaded)
+                parts.append(uploaded)
+            else:
+                parts.append(
+                    genai_types.Part.from_bytes(
+                        data=pdf_bytes,
+                        mime_type="application/pdf",
+                    )
+                )
+            # Tag each PDF with its label so the LLM can cite it back
+            # in ProposedModel.sources[*].name.
+            parts.append(f"[SOURCE {len(parts) // 2}: {label}]")
 
+        total_bytes = sum(len(b) for b in pdf_bytes_list)
         logger.info(
-            "schemagen: calling %s with %d-byte PDF for product_type=%r (transport=%s)",
+            "schemagen: calling %s with %d sources, %d total bytes for product_type=%r",
             model,
-            len(pdf_bytes),
+            len(pdf_bytes_list),
+            total_bytes,
             product_type,
-            "files_api" if use_files_api else "inline",
         )
 
         response = client.models.generate_content(
             model=model,
-            contents=[pdf_part, user_prompt],
+            contents=[*parts, user_prompt],
             config=genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 response_mime_type="application/json",
@@ -131,15 +166,16 @@ def propose_model(
             ),
         )
     finally:
-        # Files persist until deleted; clean up regardless of success so we
-        # don't leak storage on retry loops or validation errors.
-        if uploaded_file is not None:
+        # Files persist until deleted; clean up every upload regardless
+        # of success so we don't leak storage on retry loops or
+        # validation errors.
+        for uploaded in uploaded_files:
             try:
-                client.files.delete(name=uploaded_file.name)
+                client.files.delete(name=uploaded.name)
             except Exception as e:
                 logger.warning(
                     "Failed to delete uploaded file %s: %s — clean up manually",
-                    uploaded_file.name,
+                    uploaded.name,
                     e,
                 )
 
@@ -164,4 +200,22 @@ def propose_model(
     except json.JSONDecodeError as e:
         raise ValueError(f"Gemini response was not valid JSON: {e}") from e
 
-    return ProposedModel.model_validate(payload)
+    pm = ProposedModel.model_validate(payload)
+
+    # If the LLM returned sources, supplement missing local_path entries
+    # with the actual filesystem paths we passed in — this way the .md
+    # doc can always reference a concrete file even when the LLM only
+    # cited the vendor name.
+    if pm.sources and source_paths:
+        path_by_name = {p.name: str(p) for p in source_paths}
+        for src in pm.sources:
+            if src.local_path:
+                continue
+            # Try to match the source's name against any of the input
+            # filenames. Cheap fuzzy: substring either direction.
+            for fname, full in path_by_name.items():
+                if fname in src.name or src.name in fname:
+                    src.local_path = full
+                    break
+
+    return pm

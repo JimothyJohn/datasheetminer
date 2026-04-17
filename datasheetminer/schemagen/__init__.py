@@ -9,15 +9,19 @@ lives in ``cli.schemagen``.
 from datasheetminer.schemagen.meta_schema import (
     ProposedField,
     ProposedModel,
+    ProposedSource,
 )
 from datasheetminer.schemagen.renderer import (
     render_model_file,
     render_product_type_patch,
+    render_reasoning_doc,
 )
 
 __all__ = [
     "ProposedField",
     "ProposedModel",
+    "ProposedSource",
     "render_model_file",
     "render_product_type_patch",
+    "render_reasoning_doc",
 ]
