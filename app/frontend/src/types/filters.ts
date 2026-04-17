@@ -117,7 +117,7 @@ export interface AttributeMetadata {
   key: string;                // Attribute key (matches Product interface)
   displayName: string;        // Human-readable name for UI
   type: 'string' | 'number' | 'boolean' | 'range' | 'array' | 'object';
-  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet')[]; // Which product types have this attribute
+  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'datasheet')[]; // Which product types have this attribute
   nested?: boolean;           // True for ValueUnit and MinMaxUnit types
   unit?: string;              // Unit of measurement (e.g., "V", "W", "A", "rpm", "kg")
 }
@@ -262,6 +262,58 @@ export const getDatasheetAttributes = (): AttributeMetadata[] => [
 ];
 
 /**
+ * Get all filterable attributes for contactors
+ *
+ * Mirrors datasheetminer/models/contactor.py. Covers main-circuit
+ * electrical ratings across AC-1/AC-3/AC-4 utilization categories at
+ * multiple voltage classes, coil specs, mechanical/electrical durability,
+ * and environmental ratings.
+ */
+export const getContactorAttributes = (): AttributeMetadata[] => [
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'type', displayName: 'Contactor Type', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'frame_size', displayName: 'Frame Size', type: 'string', applicableTypes: ['contactor'] },
+  // Electrical — main contact
+  { key: 'rated_insulation_voltage', displayName: 'Rated Insulation Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'V' },
+  { key: 'rated_impulse_withstand_voltage', displayName: 'Rated Impulse Withstand Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kV' },
+  { key: 'rated_frequency', displayName: 'Rated Frequency', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'pollution_degree', displayName: 'Pollution Degree', type: 'number', applicableTypes: ['contactor'] },
+  // AC-3 motor-duty ratings
+  { key: 'rated_operating_current_ac3_220v', displayName: 'AC-3 Current @ 220 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'rated_operating_current_ac3_440v', displayName: 'AC-3 Current @ 440 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'rated_operating_current_ac3_500v', displayName: 'AC-3 Current @ 500 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'rated_operating_current_ac3_690v', displayName: 'AC-3 Current @ 690 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'rated_capacity_ac3_220v', displayName: 'AC-3 Capacity @ 220 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kW' },
+  { key: 'rated_capacity_ac3_440v', displayName: 'AC-3 Capacity @ 440 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kW' },
+  // AC-1 resistive / thermal
+  { key: 'rated_operating_current_ac1', displayName: 'AC-1 Current', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'conventional_free_air_thermal_current', displayName: 'Thermal Current (Ith)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  // Coil
+  { key: 'coil_voltage_designations', displayName: 'Coil Voltage Options', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'coil_power_consumption_sealed', displayName: 'Coil Power (Sealed)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'W' },
+  { key: 'coil_consumption_inrush', displayName: 'Coil Inrush', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'VA' },
+  // Mechanical
+  { key: 'number_of_poles', displayName: 'Number of Poles', type: 'number', applicableTypes: ['contactor'] },
+  { key: 'auxiliary_contact_arrangement', displayName: 'Auxiliary Contact Arrangement', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'mechanical_durability', displayName: 'Mechanical Durability', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations' },
+  { key: 'electrical_durability_ac3', displayName: 'Electrical Durability (AC-3)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations' },
+  { key: 'switching_frequency_ac3', displayName: 'Switching Frequency (AC-3)', type: 'string', applicableTypes: ['contactor'] },
+  // Performance
+  { key: 'making_capacity', displayName: 'Making Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'breaking_capacity', displayName: 'Breaking Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
+  { key: 'operating_time_close', displayName: 'Operating Time (Close)', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'operating_time_open', displayName: 'Operating Time (Open)', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'iec_rail_mounting', displayName: 'IEC DIN Rail Mount', type: 'boolean', applicableTypes: ['contactor'] },
+  // Environmental
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['contactor'] },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '°C' },
+  { key: 'approvals', displayName: 'Approvals', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kg' },
+];
+
+/**
  * Get all filterable attributes for drives
  *
  * Returns 23 drive-specific attributes with metadata for filtering/sorting.
@@ -336,6 +388,7 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
   if (productType === 'drive') return getDriveAttributes();
   if (productType === 'robot_arm') return getRobotArmAttributes();
   if (productType === 'gearhead') return getGearheadAttributes();
+  if (productType === 'contactor') return getContactorAttributes();
   if (productType === 'datasheet') return getDatasheetAttributes();
 
   // ===== COMPUTE COMMON ATTRIBUTES =====
