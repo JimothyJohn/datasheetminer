@@ -33,19 +33,188 @@ PAGE_FINDER_MODEL = "gemini-2.0-flash"
 
 
 # Keywords that indicate a spec table. A page must match at least
-# SPEC_KEYWORD_THRESHOLD of these to be considered a spec page.
+# SPEC_KEYWORD_THRESHOLD distinct GROUPS to qualify. Each inner list is
+# an OR group — matching any one string in a group counts as 1.
+#
+# Scope: industrial product specs across electronics, mechanics, and
+# mechatronics — motors, drives, gearheads, contactors, relays, starters,
+# linear actuators, robot arms, sensors, PLCs, power supplies, etc.
+# Motor-shaped vocabulary is one slice, not the whole target.
 SPEC_KEYWORDS: list[list[str]] = [
-    # Each inner list is an OR group — matching any one string counts.
-    ["rated torque", "rated output", "rated power"],
-    ["rated speed", "max speed", "maximum speed"],
-    ["rated voltage", "supply voltage", "voltage range"],
-    ["rated current", "continuous current"],
-    ["rotor inertia", "moment of inertia", "inertia"],
-    ["torque constant", "voltage constant", "back emf"],
-    ["encoder", "resolver", "feedback"],
-    ["frame size", "flange size", "mounting"],
+    # --- Electrical: voltage ---
+    [
+        "rated voltage",
+        "supply voltage",
+        "voltage range",
+        "input voltage",
+        "operational voltage",
+        "coil voltage",
+        "control voltage",
+        "line voltage",
+    ],
+    # --- Electrical: current ---
+    [
+        "rated current",
+        "continuous current",
+        "operating current",
+        "breaking capacity",
+        "making current",
+        "inrush current",
+        "surge current",
+        "short-circuit current",
+        "thermal current",
+    ],
+    # --- Electrical: power / output ---
+    [
+        "rated power",
+        "rated output",
+        "output power",
+        "power consumption",
+        "apparent power",
+        "motor capacity",
+    ],
+    # --- Electrical: frequency ---
+    [
+        "rated frequency",
+        "switching frequency",
+        "line frequency",
+        "pwm frequency",
+        "carrier frequency",
+    ],
+    # --- Electrical: insulation / dielectric ---
+    [
+        "rated insulation voltage",
+        "withstand voltage",
+        "dielectric strength",
+        "impulse withstand",
+        "insulation resistance",
+        "pollution degree",
+    ],
+    # --- Motor: torque ---
+    [
+        "rated torque",
+        "peak torque",
+        "stall torque",
+        "holding torque",
+        "starting torque",
+        "cogging torque",
+    ],
+    # --- Motor: speed ---
+    [
+        "rated speed",
+        "max speed",
+        "maximum speed",
+        "no-load speed",
+        "rated rotational speed",
+    ],
+    # --- Motor: constants / inertia ---
+    [
+        "rotor inertia",
+        "moment of inertia",
+        "torque constant",
+        "voltage constant",
+        "back emf",
+        "thermal resistance",
+    ],
+    # --- Feedback / sensing elements ---
+    ["encoder", "resolver", "feedback", "hall sensor", "tachometer"],
+    # --- Signal I/O / communication ---
+    [
+        "digital input",
+        "digital output",
+        "analog input",
+        "analog output",
+        "communication protocol",
+        "fieldbus",
+    ],
+    # --- Switching devices (contactors / relays / starters) ---
+    [
+        "pole configuration",
+        "auxiliary contact",
+        "number of poles",
+        "utilization category",
+        "pick-up voltage",
+        "drop-out voltage",
+        "mechanical durability",
+        "electrical durability",
+        "main contact",
+        "zero voltage trigger",
+    ],
+    # --- Linear actuation ---
+    [
+        "stroke",
+        "push force",
+        "pull force",
+        "thrust force",
+        "linear speed",
+        "positioning repeatability",
+        "lead screw",
+    ],
+    # --- Rotary / gearing ---
+    [
+        "gear ratio",
+        "backlash",
+        "torsional rigidity",
+        "transmission error",
+        "allowable input speed",
+    ],
+    # --- Robotics ---
+    [
+        "payload",
+        "reach",
+        "degrees of freedom",
+        "joint speed",
+        "pose repeatability",
+        "tcp speed",
+    ],
+    # --- Sensor / measurement ---
+    [
+        "accuracy class",
+        "sensing range",
+        "measurement range",
+        "sensing distance",
+        "response time",
+        "hysteresis",
+        "detection range",
+        "sampling rate",
+    ],
+    # --- Environmental ---
+    [
+        "ip rating",
+        "ingress protection",
+        "operating temperature",
+        "ambient temperature",
+        "storage temperature",
+        "humidity range",
+        "vibration resistance",
+        "shock resistance",
+    ],
+    # --- Physical / mechanical identity ---
+    [
+        "frame size",
+        "flange size",
+        "mounting type",
+        "mounting hole",
+        "shaft diameter",
+    ],
+    # --- Certifications / standards ---
+    [
+        "applicable standards",
+        "standards compliance",
+        "certifications",
+        "ce marking",
+        "rohs compliant",
+    ],
 ]
-SPEC_KEYWORD_THRESHOLD = 3  # Must match at least 3 groups
+SPEC_KEYWORD_THRESHOLD = 3  # Must match at least 3 distinct groups
+
+# Scored page finder constants
+_MIN_LINES_FOR_DENSITY = (
+    15  # Pages shorter than this get density capped to avoid false positives
+)
+_MAX_PAGES_SMALL_DOC = 15  # Docs ≤ 20 pages: generous cap
+_MAX_PAGES_LARGE_DOC = 20  # Docs > 20 pages: hard cap
+_MIN_SCORE = 0.15  # Minimum composite score to be considered
 
 
 def find_spec_pages_by_text(pdf_bytes: bytes) -> list[int]:
@@ -78,6 +247,117 @@ def find_spec_pages_by_text(pdf_bytes: bytes) -> list[int]:
         f"matched spec keywords"
     )
     return spec_pages
+
+
+def _score_page(text: str, tables: list) -> dict:
+    """Score a single page for spec-table likelihood.
+
+    Returns a dict with the composite score and component signals.
+    """
+    lines = [l for l in text.split("\n") if l.strip()]
+    n_lines = max(len(lines), 1)
+    text_lower = text.lower()
+
+    groups_matched = sum(
+        1 for group in SPEC_KEYWORDS if any(kw in text_lower for kw in group)
+    )
+    keyword_hits = sum(
+        sum(1 for kw in group if kw in text_lower) for group in SPEC_KEYWORDS
+    )
+
+    total_cells = sum(t.row_count * t.col_count for t in tables)
+    n_tables = len(tables)
+
+    raw_density = keyword_hits / n_lines
+    # Penalize tiny pages that inflate density with a single keyword mention
+    if n_lines < _MIN_LINES_FOR_DENSITY:
+        raw_density *= n_lines / _MIN_LINES_FOR_DENSITY
+
+    group_coverage = groups_matched / len(SPEC_KEYWORDS)
+    table_signal = min(total_cells / 200.0, 1.0)
+
+    composite = (
+        min(raw_density / 0.08, 1.0) * 0.25
+        + group_coverage * 0.35
+        + table_signal * 0.40
+    )
+
+    return {
+        "groups_matched": groups_matched,
+        "keyword_hits": keyword_hits,
+        "n_lines": n_lines,
+        "keyword_density": round(raw_density, 4),
+        "n_tables": n_tables,
+        "table_cells": total_cells,
+        "score": round(composite, 4),
+    }
+
+
+def find_spec_pages_scored(
+    pdf_bytes: bytes,
+    max_pages: int | None = None,
+    min_score: float = _MIN_SCORE,
+) -> tuple[list[int], list[dict]]:
+    """Find spec pages using density scoring + table detection.
+
+    Scores every page by keyword density, keyword group breadth, and
+    table cell count. Returns the top pages above the minimum score
+    threshold, capped at max_pages.
+
+    Args:
+        pdf_bytes: Raw PDF bytes.
+        max_pages: Override the adaptive page cap. None = auto.
+        min_score: Minimum composite score to include a page.
+
+    Returns:
+        Tuple of (page_numbers 0-indexed sorted, page_details for all pages).
+    """
+    try:
+        import fitz
+    except ImportError:
+        logger.warning("PyMuPDF not installed, falling back to text-only heuristic")
+        pages = find_spec_pages_by_text(pdf_bytes)
+        return pages, []
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total_pages = len(doc)
+
+    if max_pages is None:
+        max_pages = _MAX_PAGES_SMALL_DOC if total_pages <= 20 else _MAX_PAGES_LARGE_DOC
+
+    page_scores: list[dict] = []
+    for i in range(total_pages):
+        text = doc[i].get_text()
+        if not text.strip():
+            page_scores.append({"page": i, "score": 0.0, "empty": True})
+            continue
+        try:
+            tables = doc[i].find_tables().tables
+        except Exception:
+            tables = []
+        info = _score_page(text, tables)
+        info["page"] = i
+        page_scores.append(info)
+
+    doc.close()
+
+    # Select pages above threshold, ranked by score, capped
+    candidates = [p for p in page_scores if p.get("score", 0) >= min_score]
+    candidates.sort(key=lambda p: -p["score"])
+    selected = candidates[:max_pages]
+    # Return in document order
+    selected_pages = sorted(p["page"] for p in selected)
+
+    old_count = sum(
+        1 for p in page_scores if p.get("groups_matched", 0) >= SPEC_KEYWORD_THRESHOLD
+    )
+
+    logger.info(
+        f"Scored page detection: {len(selected_pages)}/{total_pages} pages selected "
+        f"(was {old_count} with binary heuristic, cap={max_pages})"
+    )
+
+    return selected_pages, page_scores
 
 
 def pdf_pages_to_images(pdf_bytes: bytes, dpi: int = 100) -> List[bytes]:

@@ -1,0 +1,255 @@
+"""Unit tests for the schemagen renderer.
+
+Deterministic given a ``ProposedModel`` — no LLM involved. Covers every
+``kind``, subtype-discriminator rendering, literal-downgrade behavior, the
+reserved-name check, and ``ast.parse`` roundtrip.
+"""
+
+from __future__ import annotations
+
+import ast
+
+import pytest
+from pydantic import ValidationError
+
+from datasheetminer.schemagen.meta_schema import ProposedField, ProposedModel
+from datasheetminer.schemagen.renderer import (
+    render_model_file,
+    render_product_type_patch,
+)
+
+
+def _model_with_fields(fields: list[ProposedField], **kwargs) -> ProposedModel:
+    return ProposedModel(
+        class_name=kwargs.pop("class_name", "TestProduct"),
+        product_type=kwargs.pop("product_type", "test_product"),
+        docstring=kwargs.pop("docstring", "A test product."),
+        fields=fields,
+        **kwargs,
+    )
+
+
+def test_render_model_file_every_kind() -> None:
+    pm = _model_with_fields(
+        [
+            ProposedField(
+                name="rated_voltage",
+                kind="min_max_unit",
+                unit="V",
+                description="Rated voltage range.",
+                section="Electrical",
+            ),
+            ProposedField(
+                name="rated_current",
+                kind="value_unit",
+                unit="A",
+                description="Rated current.",
+            ),
+            ProposedField(name="poles", kind="int", description="Pole count."),
+            ProposedField(
+                name="efficiency", kind="float", description="Efficiency ratio 0-1."
+            ),
+            ProposedField(
+                name="ip_rating",
+                kind="str",
+                description="IP rating string.",
+                section="Environmental",
+            ),
+            ProposedField(
+                name="reversible",
+                kind="bool",
+                description="Whether contacts are reversible.",
+            ),
+            ProposedField(
+                name="approvals",
+                kind="list_str",
+                description="List of regulatory approvals.",
+            ),
+            ProposedField(
+                name="mounting_style",
+                kind="literal",
+                literal_values=["din-rail", "panel"],
+                description="How the device is mounted.",
+            ),
+        ]
+    )
+    source = render_model_file(pm)
+
+    # Smoke-parse.
+    ast.parse(source)
+
+    # Imports
+    assert "from datasheetminer.models.common import MinMaxUnit, ValueUnit" in source
+    assert "from datasheetminer.models.product import ProductBase" in source
+    assert "from typing import List, Literal, Optional" in source
+
+    # Class skeleton
+    assert "class TestProduct(ProductBase):" in source
+    assert "    product_type: Literal['test_product'] = 'test_product'" in source
+    assert "    series: Optional[str] = None" in source
+
+    # Every field lands
+    assert "rated_voltage: Optional[MinMaxUnit]" in source
+    assert "rated_current: Optional[ValueUnit]" in source
+    assert "poles: Optional[int]" in source
+    assert "efficiency: Optional[float]" in source
+    assert "ip_rating: Optional[str]" in source
+    assert "reversible: Optional[bool]" in source
+    assert "approvals: Optional[List[str]]" in source
+    assert "mounting_style: Optional[Literal['din-rail', 'panel']]" in source
+
+    # Sections rendered as grouping comments
+    assert "# --- Electrical ---" in source
+    assert "# --- Environmental ---" in source
+
+
+def test_render_model_file_with_subtype_discriminator() -> None:
+    pm = _model_with_fields(
+        [
+            ProposedField(
+                name="rated_current",
+                kind="value_unit",
+                unit="A",
+                description="Rated current.",
+            ),
+        ],
+        class_name="Contactor",
+        product_type="contactor",
+        subtype_values=["magnetic", "solid-state", "reversing"],
+    )
+    source = render_model_file(pm)
+    ast.parse(source)
+    assert (
+        "    type: Optional[Literal['magnetic', 'solid-state', 'reversing']] = None"
+        in source
+    )
+    # Without subtype_values, the line should be absent.
+    pm_no_subtype = _model_with_fields(
+        [
+            ProposedField(
+                name="rated_current",
+                kind="value_unit",
+                unit="A",
+                description="Rated current.",
+            ),
+        ],
+    )
+    assert "type: Optional[Literal[" not in render_model_file(pm_no_subtype)
+
+
+def test_render_model_file_dedupes_series_when_proposed() -> None:
+    """If the LLM proposes `series` with its own description, don't emit the default line too."""
+    pm = _model_with_fields(
+        [
+            ProposedField(
+                name="series",
+                kind="str",
+                description="Product series or frame designation (e.g. T10, T65).",
+            ),
+            ProposedField(
+                name="rated_current",
+                kind="value_unit",
+                unit="A",
+                description="Rated current.",
+            ),
+        ],
+    )
+    source = render_model_file(pm)
+    ast.parse(source)
+    # Exactly one `series:` field line, and it's the LLM-proposed one.
+    series_lines = [ln for ln in source.splitlines() if "series:" in ln]
+    assert len(series_lines) == 1
+    assert "Field(None, description=" in series_lines[0]
+
+
+def test_proposed_field_rejects_reserved_name() -> None:
+    with pytest.raises(ValidationError) as excinfo:
+        ProposedField(
+            name="manufacturer",
+            kind="str",
+            description="shadow attempt",
+        )
+    assert "reserved" in str(excinfo.value).lower()
+
+
+def test_proposed_field_rejects_unit_mismatch() -> None:
+    # value_unit without unit
+    with pytest.raises(ValidationError):
+        ProposedField(name="rated_power", kind="value_unit", description="Rated power.")
+    # non-unit kind with unit
+    with pytest.raises(ValidationError):
+        ProposedField(name="poles", kind="int", unit="V", description="Pole count.")
+
+
+def test_proposed_field_rejects_empty_description() -> None:
+    with pytest.raises(ValidationError):
+        ProposedField(name="foo", kind="str", description="")
+
+
+def test_proposed_field_literal_downgrade() -> None:
+    values = [f"v{i}" for i in range(20)]  # > MAX_LITERAL_VALUES
+    field = ProposedField(
+        name="frame_size",
+        kind="literal",
+        literal_values=values,
+        description="Frame size.",
+    )
+    # Downgraded to str.
+    assert field.kind == "str"
+    assert field.literal_values is None
+
+
+def test_proposed_model_rejects_duplicate_fields() -> None:
+    with pytest.raises(ValidationError):
+        ProposedModel(
+            class_name="Dup",
+            product_type="dup",
+            docstring="dup",
+            fields=[
+                ProposedField(name="x", kind="int", description="a"),
+                ProposedField(name="x", kind="str", description="b"),
+            ],
+        )
+
+
+def test_render_product_type_patch_appends() -> None:
+    old = 'from typing import Literal\nProductType = Literal["motor", "drive"]\nx = 1\n'
+    pm = _model_with_fields(
+        [ProposedField(name="foo", kind="int", description="x")],
+        product_type="contactor",
+    )
+    new = render_product_type_patch(old, pm)
+    assert "'motor', 'drive', 'contactor'" in new
+    assert new.endswith("x = 1\n")
+
+
+def test_render_product_type_patch_idempotent() -> None:
+    old = 'ProductType = Literal["motor", "contactor"]\n'
+    pm = _model_with_fields(
+        [ProposedField(name="foo", kind="int", description="x")],
+        product_type="contactor",
+    )
+    assert render_product_type_patch(old, pm) == old
+
+
+def test_render_product_type_patch_missing_anchor() -> None:
+    old = "# nothing interesting here\n"
+    pm = _model_with_fields(
+        [ProposedField(name="foo", kind="int", description="x")],
+        product_type="contactor",
+    )
+    with pytest.raises(ValueError, match="ProductType"):
+        render_product_type_patch(old, pm)
+
+
+def test_render_product_type_patch_multiline() -> None:
+    """Tolerate multi-line Literal declarations (common after formatters)."""
+    old = 'ProductType = Literal[\n    "motor",\n    "drive",\n    "gearhead",\n]\n'
+    pm = _model_with_fields(
+        [ProposedField(name="foo", kind="int", description="x")],
+        product_type="contactor",
+    )
+    new = render_product_type_patch(old, pm)
+    assert "'contactor'" in new
+    # Re-parse the result to confirm it's a valid ProductType declaration.
+    assert new.count("ProductType = Literal") == 1

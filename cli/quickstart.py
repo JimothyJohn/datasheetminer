@@ -8,6 +8,15 @@ Usage:
     ./Quickstart staging [URL]    Run staging contract tests
     ./Quickstart deploy [--stage] Deploy to AWS via CDK
     ./Quickstart smoke [URL]      Run post-deployment smoke tests
+    ./Quickstart admin <sub>      Blacklist + dev/prod data movement
+                                  (try: ./Quickstart admin -- --help)
+    ./Quickstart bench            Benchmark the ingress pipeline
+                                  (try: ./Quickstart bench --help)
+    ./Quickstart price-enrich     Backfill MSRP on existing products
+                                  (try: ./Quickstart price-enrich --help)
+    ./Quickstart schemagen PDF --type NAME
+                                  Propose a new Pydantic product model from a PDF
+                                  (try: ./Quickstart schemagen --help)
 
 Zero external dependencies — stdlib only.
 """
@@ -550,10 +559,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--once", action="store_true", help="Process queue once and exit (don't poll)"
     )
 
+    # admin is intercepted in main() before argparse runs, so the remaining
+    # args can flow through to cli.admin's own parser.
+
     return parser
 
 
 def main() -> None:
+    # Intercept "admin" before argparse — the admin CLI has its own nested
+    # subparsers and should see its own argv slice, not Quickstart's. Run it as
+    # a module subprocess so package imports resolve correctly (quickstart.py
+    # itself is invoked as a script, not a package module).
+    if len(sys.argv) >= 2 and sys.argv[1] == "admin":
+        run(["uv", "run", "python", "-m", "cli.admin", *sys.argv[2:]], cwd=ROOT)
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "bench":
+        run(["uv", "run", "python", "-m", "cli.bench", *sys.argv[2:]], cwd=ROOT)
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "schemagen":
+        run(["uv", "run", "python", "-m", "cli.schemagen", *sys.argv[2:]], cwd=ROOT)
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "price-enrich":
+        run(
+            ["uv", "run", "python", "-m", "cli.price_enrich", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
     parser = build_parser()
     args = parser.parse_args()
 

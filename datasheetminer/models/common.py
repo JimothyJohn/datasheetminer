@@ -18,7 +18,15 @@ from pydantic import AfterValidator, BeforeValidator, BaseModel
 # Creating these smaller, reusable models improves maintainability and readability.
 
 
-ProductType = Literal["motor", "drive", "gearhead", "robot_arm", "factory", "datasheet"]
+ProductType = Literal[
+    "motor",
+    "drive",
+    "gearhead",
+    "robot_arm",
+    "factory",
+    "datasheet",
+    "contactor",
+]
 
 
 class Datasheet(BaseModel):
