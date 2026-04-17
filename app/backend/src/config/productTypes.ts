@@ -16,6 +16,7 @@ export const VALID_PRODUCT_TYPES = [
   'drive',
   'gearhead',
   'robot_arm',
+  'contactor',
   'datasheet',
 ] as const;
 

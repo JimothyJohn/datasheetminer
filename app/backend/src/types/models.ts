@@ -185,10 +185,59 @@ export interface RobotArm extends ProductBase {
 }
 
 /**
+ * Contactor subtypes
+ */
+export type ContactorType =
+  | 'ac operated'
+  | 'dc operated'
+  | 'mechanically latched'
+  | 'reversing'
+  | 'delay open'
+  | 'solid state';
+
+/**
+ * Contactor model matching datasheetminer/models/contactor.py
+ */
+export interface Contactor extends ProductBase {
+  product_type: 'contactor';
+  type?: ContactorType;
+  series?: string;
+  frame_size?: string;
+  rated_insulation_voltage?: ValueUnit;
+  rated_impulse_withstand_voltage?: ValueUnit;
+  rated_frequency?: string;
+  pollution_degree?: number;
+  rated_operating_current_ac3_220v?: ValueUnit;
+  rated_operating_current_ac3_440v?: ValueUnit;
+  rated_operating_current_ac3_500v?: ValueUnit;
+  rated_operating_current_ac3_690v?: ValueUnit;
+  rated_capacity_ac3_220v?: ValueUnit;
+  rated_capacity_ac3_440v?: ValueUnit;
+  rated_operating_current_ac1?: ValueUnit;
+  conventional_free_air_thermal_current?: ValueUnit;
+  coil_voltage_designations?: string[];
+  coil_power_consumption_sealed?: ValueUnit;
+  coil_consumption_inrush?: ValueUnit;
+  number_of_poles?: number;
+  auxiliary_contact_arrangement?: string;
+  mechanical_durability?: ValueUnit;
+  electrical_durability_ac3?: ValueUnit;
+  switching_frequency_ac3?: string;
+  making_capacity?: ValueUnit;
+  breaking_capacity?: ValueUnit;
+  operating_time_close?: string;
+  operating_time_open?: string;
+  iec_rail_mounting?: boolean;
+  ip_rating?: number;
+  operating_temp?: MinMaxUnit;
+  approvals?: string[];
+}
+
+/**
  * Union type for all products
  */
-export type Product = Motor | Drive | Gearhead | RobotArm | Datasheet;
-export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'datasheet' | 'all';
+export type Product = Motor | Drive | Gearhead | RobotArm | Contactor | Datasheet;
+export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'contactor' | 'datasheet' | 'all';
 
 /**
  * Manufacturer record — first-class entity in the single-table design.

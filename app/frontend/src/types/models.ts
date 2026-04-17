@@ -160,7 +160,7 @@ export interface DatasheetEntry extends ProductBase {
 }
 
 export type Product = Motor | Drive | RobotArm | Gearhead | DatasheetEntry;
-export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'datasheet' | 'all' | null;
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'datasheet' | 'all' | null;
 
 /**
  * Product summary with dynamic counts per type
