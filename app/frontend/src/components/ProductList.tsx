@@ -164,16 +164,23 @@ export default function ProductList() {
     return merged.sort((a, b) => dir * a.displayName.localeCompare(b.displayName));
   }, [productType, products, COLUMN_EXCLUDED_KEYS, columnSortDirection]);
 
-  // Columns actually rendered in the table. Default rule by kind:
-  // - ValueUnit / MinMaxUnit (nested:true) = visible unless user-hidden
-  // - everything else = hidden unless user-restored
-  // Then clamp to maxVisibleColumns. Columns past the cap spill into
+  // Columns actually rendered in the table. Default rule:
+  // - `userRestored` → always visible (explicit opt-in)
+  // - `userHidden`   → always hidden
+  // - `defaultVisible === true` → visible (expert override)
+  // - `defaultVisible === false` → hidden (expert override, e.g. a
+  //   ValueUnit motor spec that's motor-designer-only)
+  // - otherwise fall through to the kind-based default: ValueUnit /
+  //   MinMaxUnit (nested:true) visible, everything else hidden.
+  // Then clamp to maxVisibleColumns; columns past the cap spill into
   // the restore dropdown.
   const visibleColumnAttributes = useMemo<AttributeMetadata[]>(() => {
     const shown = columnAttributes.filter(a => {
       if (userHiddenKeys.includes(a.key)) return false;
-      if (a.nested) return true; // ValueUnit / MinMaxUnit
-      return userRestoredKeys.includes(a.key); // non-unit kinds need opt-in
+      if (userRestoredKeys.includes(a.key)) return true;
+      if (a.defaultVisible === true) return true;
+      if (a.defaultVisible === false) return false;
+      return a.nested === true;
     });
     return maxVisibleColumns === null ? shown : shown.slice(0, maxVisibleColumns);
   }, [columnAttributes, userHiddenKeys, userRestoredKeys, maxVisibleColumns]);

@@ -123,6 +123,17 @@ export interface AttributeMetadata {
   applicableTypes: string[];
   nested?: boolean;           // True for ValueUnit and MinMaxUnit types
   unit?: string;              // Unit of measurement (e.g., "V", "W", "A", "rpm", "kg")
+  // Expert curation override for the frontend's default-visible column
+  // set. Tri-state:
+  //   true  — force visible by default (even for non-unit kinds)
+  //   false — force hidden by default (even for unit-bearing kinds,
+  //           e.g. voltage_constant is a ValueUnit but nobody compares
+  //           motors by it, so a motor record shouldn't flood the
+  //           table with it)
+  //   undefined — fall through to the nested rule (unit-bearing visible,
+  //           everything else hidden)
+  // The frontend visibility predicate lives in ProductList.tsx.
+  defaultVisible?: boolean;
 }
 
 // ========== Attribute Metadata Functions ==========
@@ -143,27 +154,33 @@ export interface AttributeMetadata {
  *
  * @returns Array of 20 motor attribute metadata objects
  */
+// Motor default-visible selection (defaultVisible: true) prioritizes
+// the specs engineers actually sort motors by: power, torque, speed,
+// voltage. Motor-designer-facing specs (voltage_constant, torque_constant,
+// resistance, inductance) are pushed behind opt-in restore — they're
+// unit-bearing but not comparison-useful for product selection. See
+// datasheetminer/models/motor.md.
 export const getMotorAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['motor'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['motor'] },
   { key: 'type', displayName: 'Motor Type', type: 'string', applicableTypes: ['motor'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['motor'] },
-  { key: 'rated_voltage', displayName: 'Rated Voltage', type: 'range', applicableTypes: ['motor'], nested: true, unit: 'V' },
-  { key: 'rated_speed', displayName: 'Rated Speed', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'rpm' },
-  { key: 'rated_torque', displayName: 'Rated Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm' },
-  { key: 'peak_torque', displayName: 'Peak Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm' },
-  { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'W' },
+  { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'W', defaultVisible: true },
+  { key: 'rated_torque', displayName: 'Rated Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'peak_torque', displayName: 'Peak Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'rated_speed', displayName: 'Rated Speed', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'rpm', defaultVisible: true },
+  { key: 'rated_voltage', displayName: 'Rated Voltage', type: 'range', applicableTypes: ['motor'], nested: true, unit: 'V', defaultVisible: true },
+  { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'A', defaultVisible: true },
+  { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg·cm²', defaultVisible: true },
   { key: 'encoder_feedback_support', displayName: 'Encoder Feedback', type: 'string', applicableTypes: ['motor'] },
   { key: 'poles', displayName: 'Poles', type: 'number', applicableTypes: ['motor'] },
-  { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'A' },
-  { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'A' },
-  { key: 'voltage_constant', displayName: 'Voltage Constant', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'V/krpm' },
-  { key: 'torque_constant', displayName: 'Torque Constant', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm/A' },
-  { key: 'resistance', displayName: 'Resistance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Ω' },
-  { key: 'inductance', displayName: 'Inductance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'mH' },
+  { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'A', defaultVisible: false },
+  { key: 'voltage_constant', displayName: 'Voltage Constant', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'V/krpm', defaultVisible: false },
+  { key: 'torque_constant', displayName: 'Torque Constant', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm/A', defaultVisible: false },
+  { key: 'resistance', displayName: 'Resistance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Ω', defaultVisible: false },
+  { key: 'inductance', displayName: 'Inductance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'mH', defaultVisible: false },
   { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['motor'] },
-  { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg·cm²' },
-  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg' },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
 /**
@@ -181,23 +198,28 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
  *
  * @returns Array of robot arm attribute metadata objects
  */
+// Robot arm default-visible set: payload, reach, DOF, pose repeatability,
+// and max TCP speed are the core capability metrics every manufacturer
+// leads with and every integrator cross-compares. Environmental details
+// (noise, operating_temp) and safety metadata are hidden by default —
+// reachable via restore. See datasheetminer/models/robot_arm.md.
 export const getRobotArmAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'product_family', displayName: 'Product Family', type: 'string', applicableTypes: ['robot_arm'] },
-  { key: 'payload', displayName: 'Payload', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg' },
-  { key: 'reach', displayName: 'Reach', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm' },
-  { key: 'degrees_of_freedom', displayName: 'Degrees of Freedom', type: 'number', applicableTypes: ['robot_arm'] },
-  { key: 'pose_repeatability', displayName: 'Pose Repeatability', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm' },
-  { key: 'max_tcp_speed', displayName: 'Max TCP Speed', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'm/s' },
-  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'payload', displayName: 'Payload', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg', defaultVisible: true },
+  { key: 'reach', displayName: 'Reach', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm', defaultVisible: true },
+  { key: 'degrees_of_freedom', displayName: 'Degrees of Freedom', type: 'number', applicableTypes: ['robot_arm'], defaultVisible: true },
+  { key: 'pose_repeatability', displayName: 'Pose Repeatability', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm', defaultVisible: true },
+  { key: 'max_tcp_speed', displayName: 'Max TCP Speed', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'm/s', defaultVisible: true },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['robot_arm'], defaultVisible: true },
   { key: 'cleanroom_class', displayName: 'Cleanroom Class', type: 'string', applicableTypes: ['robot_arm'] },
-  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'dB(A)' },
+  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'dB(A)', defaultVisible: false },
   { key: 'mounting_position', displayName: 'Mounting Position', type: 'string', applicableTypes: ['robot_arm'] },
-  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['robot_arm'], nested: true, unit: '°C' },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['robot_arm'], nested: true, unit: '°C', defaultVisible: false },
   { key: 'materials', displayName: 'Materials', type: 'array', applicableTypes: ['robot_arm'] },
   { key: 'safety_certifications', displayName: 'Safety Certifications', type: 'array', applicableTypes: ['robot_arm'] },
-  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg' },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
 /**
@@ -218,31 +240,36 @@ export const getRobotArmAttributes = (): AttributeMetadata[] => [
  *
  * @returns Array of gearhead attribute metadata objects
  */
+// Gearhead default-visible set: ratio + torque + backlash + efficiency
+// is the four-field summary every servo-system designer uses for
+// selection. Installation-specific loads (radial/axial), shaft diameters,
+// and lubrication/service-life marketing numbers are hidden by default.
+// See datasheetminer/models/gearhead.md.
 export const getGearheadAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['gearhead'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['gearhead'] },
-  { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['gearhead'] },
-  { key: 'gear_type', displayName: 'Gear Type', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['gearhead'], defaultVisible: true },
+  { key: 'gear_type', displayName: 'Gear Type', type: 'string', applicableTypes: ['gearhead'], defaultVisible: true },
+  { key: 'max_continuous_torque', displayName: 'Max Continuous Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'max_peak_torque', displayName: 'Max Peak Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'backlash', displayName: 'Backlash', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'arcmin', defaultVisible: true },
+  { key: 'efficiency', displayName: 'Efficiency', type: 'number', applicableTypes: ['gearhead'], unit: '%', defaultVisible: true },
+  { key: 'nominal_input_speed', displayName: 'Nominal Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm', defaultVisible: false },
+  { key: 'max_input_speed', displayName: 'Max Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm', defaultVisible: false },
   { key: 'stages', displayName: 'Stages', type: 'number', applicableTypes: ['gearhead'] },
-  { key: 'nominal_input_speed', displayName: 'Nominal Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm' },
-  { key: 'max_input_speed', displayName: 'Max Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm' },
-  { key: 'max_continuous_torque', displayName: 'Max Continuous Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm' },
-  { key: 'max_peak_torque', displayName: 'Max Peak Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm' },
-  { key: 'backlash', displayName: 'Backlash', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'arcmin' },
-  { key: 'efficiency', displayName: 'Efficiency', type: 'number', applicableTypes: ['gearhead'], unit: '%' },
-  { key: 'torsional_rigidity', displayName: 'Torsional Rigidity', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm/arcmin' },
-  { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg·cm²' },
-  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'dBA' },
+  { key: 'torsional_rigidity', displayName: 'Torsional Rigidity', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm/arcmin', defaultVisible: false },
+  { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg·cm²', defaultVisible: false },
+  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'dBA', defaultVisible: false },
   { key: 'frame_size', displayName: 'Frame Size', type: 'string', applicableTypes: ['gearhead'] },
-  { key: 'input_shaft_diameter', displayName: 'Input Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm' },
-  { key: 'output_shaft_diameter', displayName: 'Output Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm' },
-  { key: 'max_radial_load', displayName: 'Max Radial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N' },
-  { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N' },
+  { key: 'input_shaft_diameter', displayName: 'Input Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm', defaultVisible: false },
+  { key: 'output_shaft_diameter', displayName: 'Output Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm', defaultVisible: false },
+  { key: 'max_radial_load', displayName: 'Max Radial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N', defaultVisible: false },
+  { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N', defaultVisible: false },
   { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['gearhead'] },
-  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['gearhead'], nested: true, unit: '°C' },
-  { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'hours' },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['gearhead'], nested: true, unit: '°C', defaultVisible: false },
+  { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'hours', defaultVisible: false },
   { key: 'lubrication_type', displayName: 'Lubrication Type', type: 'string', applicableTypes: ['gearhead'] },
-  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg' },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
 /**
@@ -264,56 +291,62 @@ export const getDatasheetAttributes = (): AttributeMetadata[] => [
   { key: 'component_type', displayName: 'Product Type', type: 'string', applicableTypes: ['datasheet'] },
 ];
 
-/**
- * Get all filterable attributes for contactors
- *
- * Mirrors datasheetminer/models/contactor.py. Covers main-circuit
- * electrical ratings across AC-1/AC-3/AC-4 utilization categories at
- * multiple voltage classes, coil specs, mechanical/electrical durability,
- * and environmental ratings.
- */
+// Contactor attributes — mirrors the generalized datasheetminer/models/
+// contactor.py schema (IEC 60947-4-1 vocabulary, not Mitsubishi-specific
+// columns). Default-visible set surfaces the IEC headline scalars
+// (ie_ac3_400v, motor_power_ac3_400v_kw, motor_power_ac3_480v_hp) plus
+// thermal/insulation ratings every vendor publishes. List-of-ratings
+// fields (ratings_ac3 etc.) aren't in the filter UI at all — they're
+// the detail view you drill into per-product. See
+// datasheetminer/models/contactor.md.
 export const getContactorAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['contactor'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['contactor'] },
   { key: 'type', displayName: 'Contactor Type', type: 'string', applicableTypes: ['contactor'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['contactor'] },
-  { key: 'frame_size', displayName: 'Frame Size', type: 'string', applicableTypes: ['contactor'] },
-  // Electrical — main contact
-  { key: 'rated_insulation_voltage', displayName: 'Rated Insulation Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'V' },
-  { key: 'rated_impulse_withstand_voltage', displayName: 'Rated Impulse Withstand Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kV' },
+  { key: 'vendor_frame_size', displayName: 'Vendor Frame Size', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'nema_size', displayName: 'NEMA Size', type: 'string', applicableTypes: ['contactor'] },
+  // Headline ratings (what users sort by)
+  { key: 'ie_ac3_400v', displayName: 'Ie AC-3 @ 400 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A', defaultVisible: true },
+  { key: 'motor_power_ac3_400v_kw', displayName: 'Motor Power AC-3 @ 400 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kW', defaultVisible: true },
+  { key: 'motor_power_ac3_480v_hp', displayName: 'Motor Power AC-3 @ 480 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'hp', defaultVisible: true },
+  { key: 'conventional_thermal_current', displayName: 'Thermal Current (Ith)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A', defaultVisible: true },
+  { key: 'rated_insulation_voltage', displayName: 'Rated Insulation Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'V', defaultVisible: true },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '°C', defaultVisible: true },
+  { key: 'number_of_poles', displayName: 'Number of Poles', type: 'number', applicableTypes: ['contactor'], defaultVisible: true },
+  // Insulation / voltage (detail)
+  { key: 'rated_impulse_withstand_voltage', displayName: 'Rated Impulse Withstand Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kV', defaultVisible: false },
+  { key: 'rated_operational_voltage_max', displayName: 'Max Operational Voltage', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'V', defaultVisible: false },
   { key: 'rated_frequency', displayName: 'Rated Frequency', type: 'string', applicableTypes: ['contactor'] },
   { key: 'pollution_degree', displayName: 'Pollution Degree', type: 'number', applicableTypes: ['contactor'] },
-  // AC-3 motor-duty ratings
-  { key: 'rated_operating_current_ac3_220v', displayName: 'AC-3 Current @ 220 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'rated_operating_current_ac3_440v', displayName: 'AC-3 Current @ 440 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'rated_operating_current_ac3_500v', displayName: 'AC-3 Current @ 500 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'rated_operating_current_ac3_690v', displayName: 'AC-3 Current @ 690 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'rated_capacity_ac3_220v', displayName: 'AC-3 Capacity @ 220 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kW' },
-  { key: 'rated_capacity_ac3_440v', displayName: 'AC-3 Capacity @ 440 V', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kW' },
-  // AC-1 resistive / thermal
-  { key: 'rated_operating_current_ac1', displayName: 'AC-1 Current', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'conventional_free_air_thermal_current', displayName: 'Thermal Current (Ith)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  // Coil
-  { key: 'coil_voltage_designations', displayName: 'Coil Voltage Options', type: 'array', applicableTypes: ['contactor'] },
-  { key: 'coil_power_consumption_sealed', displayName: 'Coil Power (Sealed)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'W' },
-  { key: 'coil_consumption_inrush', displayName: 'Coil Inrush', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'VA' },
-  // Mechanical
-  { key: 'number_of_poles', displayName: 'Number of Poles', type: 'number', applicableTypes: ['contactor'] },
-  { key: 'auxiliary_contact_arrangement', displayName: 'Auxiliary Contact Arrangement', type: 'string', applicableTypes: ['contactor'] },
-  { key: 'mechanical_durability', displayName: 'Mechanical Durability', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations' },
-  { key: 'electrical_durability_ac3', displayName: 'Electrical Durability (AC-3)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations' },
-  { key: 'switching_frequency_ac3', displayName: 'Switching Frequency (AC-3)', type: 'string', applicableTypes: ['contactor'] },
-  // Performance
-  { key: 'making_capacity', displayName: 'Making Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'breaking_capacity', displayName: 'Breaking Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A' },
-  { key: 'operating_time_close', displayName: 'Operating Time (Close)', type: 'string', applicableTypes: ['contactor'] },
-  { key: 'operating_time_open', displayName: 'Operating Time (Open)', type: 'string', applicableTypes: ['contactor'] },
-  { key: 'iec_rail_mounting', displayName: 'IEC DIN Rail Mount', type: 'boolean', applicableTypes: ['contactor'] },
-  // Environmental
+  // Short-circuit
+  { key: 'sccr', displayName: 'SCCR', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kA', defaultVisible: false },
+  // Coil (detail)
+  { key: 'coil_voltage_range_ac', displayName: 'Coil Voltage Range (AC)', type: 'range', applicableTypes: ['contactor'], nested: true, unit: 'V', defaultVisible: false },
+  { key: 'coil_voltage_range_dc', displayName: 'Coil Voltage Range (DC)', type: 'range', applicableTypes: ['contactor'], nested: true, unit: 'V', defaultVisible: false },
+  { key: 'coil_voltage_options', displayName: 'Coil Voltage Options', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'coil_pickup_factor', displayName: 'Coil Pickup Factor', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '×Uc', defaultVisible: false },
+  { key: 'coil_dropout_factor', displayName: 'Coil Drop-out Factor', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '×Uc', defaultVisible: false },
+  { key: 'coil_time_constant', displayName: 'Coil Time Constant', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'ms', defaultVisible: false },
+  { key: 'coil_power_consumption_sealed', displayName: 'Coil Power (Sealed)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'W', defaultVisible: false },
+  { key: 'coil_power_consumption_inrush', displayName: 'Coil Inrush', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'VA', defaultVisible: false },
+  // Contacts / durability (detail)
+  { key: 'auxiliary_contact_configuration', displayName: 'Auxiliary Contacts', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'mechanical_durability', displayName: 'Mechanical Durability', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations', defaultVisible: false },
+  { key: 'electrical_durability_ac3', displayName: 'Electrical Durability (AC-3)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'operations', defaultVisible: false },
+  { key: 'operating_frequency_ac3', displayName: 'Operating Frequency (AC-3)', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'ops/h', defaultVisible: false },
+  { key: 'making_capacity', displayName: 'Making Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A', defaultVisible: false },
+  { key: 'breaking_capacity', displayName: 'Breaking Capacity', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'A', defaultVisible: false },
+  { key: 'operating_time_close', displayName: 'Operating Time (Close)', type: 'range', applicableTypes: ['contactor'], nested: true, unit: 'ms', defaultVisible: false },
+  { key: 'operating_time_open', displayName: 'Operating Time (Open)', type: 'range', applicableTypes: ['contactor'], nested: true, unit: 'ms', defaultVisible: false },
+  // Environmental / certifications
   { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['contactor'] },
-  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '°C' },
-  { key: 'approvals', displayName: 'Approvals', type: 'array', applicableTypes: ['contactor'] },
-  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kg' },
+  { key: 'storage_temp', displayName: 'Storage Temperature', type: 'range', applicableTypes: ['contactor'], nested: true, unit: '°C', defaultVisible: false },
+  { key: 'altitude_max', displayName: 'Max Altitude', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'm', defaultVisible: false },
+  { key: 'standards_compliance', displayName: 'Standards', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'certifications', displayName: 'Certifications', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'mounting_types', displayName: 'Mounting', type: 'array', applicableTypes: ['contactor'] },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['contactor'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
 /**
@@ -333,16 +366,23 @@ export const getContactorAttributes = (): AttributeMetadata[] => [
  *
  * @returns Array of 23 drive attribute metadata objects
  */
+// Drive default-visible set: output_power + input_voltage + currents
+// + IP rating. I/O counts (digital_inputs/outputs, analog_*,
+// ethernet_ports) are buried detail that nobody sorts the table by —
+// they matter for a specific integration, not product discovery. Same
+// logic for the safety/approvals arrays. See
+// datasheetminer/models/drive.md.
 export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['drive'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['drive'] },
   { key: 'type', displayName: 'Drive Type', type: 'string', applicableTypes: ['drive'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['drive'] },
-  { key: 'input_voltage', displayName: 'Input Voltage', type: 'range', applicableTypes: ['drive'], nested: true, unit: 'V' },
+  { key: 'output_power', displayName: 'Output Power', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'W', defaultVisible: true },
+  { key: 'input_voltage', displayName: 'Input Voltage', type: 'range', applicableTypes: ['drive'], nested: true, unit: 'V', defaultVisible: true },
+  { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
+  { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['drive'], defaultVisible: true },
   { key: 'input_voltage_phases', displayName: 'Input Voltage Phases', type: 'array', applicableTypes: ['drive'] },
-  { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A' },
-  { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A' },
-  { key: 'output_power', displayName: 'Output Power', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'W' },
   { key: 'fieldbus', displayName: 'Fieldbus', type: 'array', applicableTypes: ['drive'] },
   { key: 'control_modes', displayName: 'Control Modes', type: 'array', applicableTypes: ['drive'] },
   { key: 'encoder_feedback_support', displayName: 'Encoder Feedback', type: 'array', applicableTypes: ['drive'] },
@@ -355,9 +395,43 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'safety_rating', displayName: 'Safety Rating', type: 'array', applicableTypes: ['drive'] },
   { key: 'approvals', displayName: 'Approvals', type: 'array', applicableTypes: ['drive'] },
   { key: 'max_humidity', displayName: 'Max Humidity', type: 'number', applicableTypes: ['drive'], unit: '%' },
-  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['drive'] },
-  { key: 'ambient_temp', displayName: 'Ambient Temperature', type: 'range', applicableTypes: ['drive'], nested: true, unit: '°C' },
-  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'kg' },
+  { key: 'ambient_temp', displayName: 'Ambient Temperature', type: 'range', applicableTypes: ['drive'], nested: true, unit: '°C', defaultVisible: false },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'kg', defaultVisible: false },
+];
+
+// Electric cylinder default-visible set: stroke + force + speed +
+// voltage is the four-field comparison profile integrators start with.
+// Secondary mechanical specs (lead screw, backlash, gear ratio) are
+// hidden by default. See datasheetminer/models/electric_cylinder.md.
+export const getElectricCylinderAttributes = (): AttributeMetadata[] => [
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'type', displayName: 'Type', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'stroke', displayName: 'Stroke', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm', defaultVisible: true },
+  { key: 'max_push_force', displayName: 'Max Push Force', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: true },
+  { key: 'continuous_force', displayName: 'Continuous Force', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: true },
+  { key: 'max_linear_speed', displayName: 'Max Linear Speed', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm/s', defaultVisible: true },
+  { key: 'rated_voltage', displayName: 'Rated Voltage', type: 'range', applicableTypes: ['electric_cylinder'], nested: true, unit: 'V', defaultVisible: true },
+  { key: 'positioning_repeatability', displayName: 'Positioning Repeatability', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm', defaultVisible: true },
+  { key: 'max_pull_force', displayName: 'Max Pull Force', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: false },
+  { key: 'linear_speed_at_rated_load', displayName: 'Linear Speed @ Rated Load', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm/s', defaultVisible: false },
+  { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'A', defaultVisible: false },
+  { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'A', defaultVisible: false },
+  { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'W', defaultVisible: false },
+  { key: 'motor_type', displayName: 'Motor Type', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'lead_screw_pitch', displayName: 'Lead Screw Pitch', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm/rev', defaultVisible: false },
+  { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['electric_cylinder'] },
+  { key: 'backlash', displayName: 'Backlash', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'mm', defaultVisible: false },
+  { key: 'max_radial_load', displayName: 'Max Radial Load', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: false },
+  { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: false },
+  { key: 'encoder_feedback_support', displayName: 'Encoder Feedback', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'fieldbus', displayName: 'Fieldbus', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['electric_cylinder'], nested: true, unit: '°C', defaultVisible: false },
+  { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'h', defaultVisible: false },
+  { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'dBA', defaultVisible: false },
+  { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
 /**
@@ -392,6 +466,7 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
   if (productType === 'robot_arm') return getRobotArmAttributes();
   if (productType === 'gearhead') return getGearheadAttributes();
   if (productType === 'contactor') return getContactorAttributes();
+  if ((productType as string) === 'electric_cylinder') return getElectricCylinderAttributes();
   if (productType === 'datasheet') return getDatasheetAttributes();
 
   // ===== COMPUTE COMMON ATTRIBUTES =====
