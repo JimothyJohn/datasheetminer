@@ -46,6 +46,19 @@ export default function ProductList() {
     );
   }, [hiddenColumnKeys]);
 
+  // Column sort direction — A→Z by default; toggle flips to Z→A.
+  // Persisted so the user's preferred scan direction sticks.
+  const [columnSortDirection, setColumnSortDirection] = useState<'asc' | 'desc'>(() => {
+    if (typeof window === 'undefined') return 'asc';
+    return window.localStorage.getItem('productListColumnSortDirection') === 'desc'
+      ? 'desc'
+      : 'asc';
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('productListColumnSortDirection', columnSortDirection);
+  }, [columnSortDirection]);
+
   // Cap on how many columns are displayed at once. null = no cap.
   // Columns past the cap auto-hide to the "Restore" dropdown alongside
   // user-hidden ones; they're still individually restorable. Default
@@ -120,10 +133,12 @@ export default function ProductList() {
     if (!productType) return [];
     const staticAttrs = getAttributesForType(productType);
     const derivedAttrs = deriveAttributesFromRecords(products, productType);
-    return mergeAttributesByKey(staticAttrs, derivedAttrs)
-      .filter(a => !COLUMN_EXCLUDED_KEYS.has(a.key))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [productType, products, COLUMN_EXCLUDED_KEYS]);
+    const merged = mergeAttributesByKey(staticAttrs, derivedAttrs).filter(
+      a => !COLUMN_EXCLUDED_KEYS.has(a.key),
+    );
+    const dir = columnSortDirection === 'desc' ? -1 : 1;
+    return merged.sort((a, b) => dir * a.displayName.localeCompare(b.displayName));
+  }, [productType, products, COLUMN_EXCLUDED_KEYS, columnSortDirection]);
 
   // Columns actually rendered in the table: full list minus user
   // hides, then clamped to maxVisibleColumns. Columns past the cap
@@ -657,6 +672,18 @@ export default function ProductList() {
                 <option value="none">All</option>
               </select>
             </label>
+            <button
+              type="button"
+              className="density-toggle-btn"
+              onClick={() => setColumnSortDirection(d => (d === 'asc' ? 'desc' : 'asc'))}
+              title={
+                columnSortDirection === 'asc'
+                  ? 'Columns A→Z. Click to reverse (Z→A).'
+                  : 'Columns Z→A. Click to reverse (A→Z).'
+              }
+            >
+              {columnSortDirection === 'asc' ? 'A↓Z' : 'Z↓A'}
+            </button>
             <button
               type="button"
               className="density-toggle-btn"
