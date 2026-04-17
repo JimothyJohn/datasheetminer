@@ -288,3 +288,4 @@ s3*
 stripe/
 webscraper/
 .github/
+*.pdf
