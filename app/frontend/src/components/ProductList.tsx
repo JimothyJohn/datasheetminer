@@ -601,6 +601,7 @@ export default function ProductList() {
           </div>
         ) : (
           <>
+            <div className="product-grid-scroll">
             <div className="product-grid">
             {/* Column headers */}
             <div className="product-grid-headers">
@@ -857,6 +858,7 @@ export default function ProductList() {
                   })()}
                 </div>
               ))}
+            </div>
             </div>
 
             {/* Pagination navigation */}

@@ -2276,11 +2276,22 @@ button.secondary:hover {
   color: var(--text-tertiary);
 }
 
+/* Horizontal-scroll wrapper for the spec table. Column count can run
+ * into the dozens on dense product types (contactor has 30+); we let the
+ * table widen to its content and scroll rather than squeezing columns to
+ * unreadable widths. When the column set fits the viewport the table
+ * still spans 100% via `min-width` on .product-grid. */
+.product-grid-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
 /* Product list - compact table layout */
 .product-grid {
   display: table;
   table-layout: fixed;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   border-top: 1px solid var(--border-color);
