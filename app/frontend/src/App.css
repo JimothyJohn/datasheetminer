@@ -2294,6 +2294,33 @@ button.secondary:hover {
   overflow-x: auto;
 }
 
+/* Row density toggle — compact is the historical layout; comfy bumps
+ * vertical padding for scanability on long catalogs. Controlled by a
+ * button in the results header; preference persists in localStorage. */
+.product-grid.density-comfy .spec-header-item,
+.product-grid.density-comfy .product-card-info,
+.product-grid.density-comfy .product-grid-header-item,
+.product-grid.density-comfy .product-grid-header-part {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  line-height: 1.35;
+}
+
+.density-toggle-btn {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.density-toggle-btn:hover {
+  background: var(--bg-tertiary);
+}
+
 /* Product list - compact table layout */
 .product-grid {
   display: table;

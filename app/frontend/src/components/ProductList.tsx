@@ -33,6 +33,19 @@ export default function ProductList() {
   const [screwEfficiency, setScrewEfficiency] = useState<number>(90); // % (ball screw ~90, lead screw ~30-50)
   const [loadMass, setLoadMass] = useState<number>(0); // kg (for Z-axis gravity calc)
 
+  // Row-height preference. Persisted across sessions so user doesn't
+  // have to re-toggle on every page load. 'compact' matches the
+  // historical density; 'comfy' bumps vertical padding for readability.
+  const [rowDensity, setRowDensity] = useState<'compact' | 'comfy'>(() => {
+    if (typeof window === 'undefined') return 'compact';
+    const stored = window.localStorage.getItem('productListRowDensity');
+    return stored === 'comfy' ? 'comfy' : 'compact';
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('productListRowDensity', rowDensity);
+  }, [rowDensity]);
+
   // Default column widths (px): part number + spec columns
   const defaultPartWidth = 120;
   const defaultColWidth = 90;
@@ -577,6 +590,14 @@ export default function ProductList() {
           </div>
 
           <div className="results-header-right">
+            <button
+              type="button"
+              className="density-toggle-btn"
+              onClick={() => setRowDensity(d => (d === 'compact' ? 'comfy' : 'compact'))}
+              title={rowDensity === 'compact' ? 'Switch to comfortable row height' : 'Switch to compact row height'}
+            >
+              {rowDensity === 'compact' ? '☰ Compact' : '≡ Comfy'}
+            </button>
           </div>
         </div>
 
@@ -602,7 +623,7 @@ export default function ProductList() {
         ) : (
           <>
             <div className="product-grid-scroll">
-            <div className="product-grid">
+            <div className={`product-grid density-${rowDensity}`}>
             {/* Column headers */}
             <div className="product-grid-headers">
               <div
