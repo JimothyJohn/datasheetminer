@@ -14,8 +14,13 @@ Everything goes through `./Quickstart <command>`. It's a bash shim that delegate
     ./Quickstart process          Process S3 upload queue
     ./Quickstart admin <sub>      Blacklist, data movement, purge
     ./Quickstart bench            Benchmark the ingress pipeline
-    ./Quickstart schemagen PDF --type NAME
-                                  Propose a new Pydantic product model from a PDF
+    ./Quickstart schemagen PDF... --type NAME
+                                  Propose a new Pydantic product model from one
+                                  or more datasheets. Multi-source is preferred:
+                                  pass 3-5 vendors' PDFs so the LLM generalizes
+                                  instead of tuning to one catalog's quirks.
+                                  Writes <type>.py + <type>.md (reasoning doc
+                                  with source citations).
     ./Quickstart price-enrich     Backfill MSRP on existing products
 
 All CLI modules live in `cli/`. Quickstart is the single entry point — don't run `python -m cli.foo` in docs or scripts unless there's a reason.
@@ -48,7 +53,7 @@ The Python side auto-discovers, but the TypeScript side has four hardcoded allow
 5. `app/backend/src/routes/search.ts` — add to the zod `type` enum. Without this, `/api/v1/search?type=<type>` returns 400.
 6. `app/frontend/src/types/models.ts` — add to the `ProductType` union.
 
-Step 1 can be scaffolded with `./Quickstart schemagen <pdf> --type <name>`, which runs the standard `page_finder → Gemini → ProposedModel` pipeline and writes the model file plus the `common.py` patch.
+Step 1 can be scaffolded with `./Quickstart schemagen <pdf>... --type <name>`, which runs the standard `page_finder → Gemini → ProposedModel` pipeline and writes the model file plus the `common.py` patch. **Pass 3-5 vendors' datasheets** (ABB, Schneider, Siemens, Allen-Bradley, etc.) so the LLM generalizes across vendors instead of tuning the schema to one catalog's quirks — a single-source proposal will happily hardcode vendor-specific voltage columns or frame codes. The CLI also writes a companion `<type>.md` doc citing the sources and explaining non-obvious design decisions; treat that `.md` as the schema's reviewable ADR, not scratchwork.
 
 ## Frontend UI conventions
 
