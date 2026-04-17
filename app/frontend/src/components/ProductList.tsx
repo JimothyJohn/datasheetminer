@@ -23,7 +23,28 @@ export default function ProductList() {
   const [showSortSelector, setShowSortSelector] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
+  // Hidden columns: user dismissed them via the × button. Persisted
+  // in localStorage so the hide survives reloads; "+ Add Spec" button
+  // restores any of them. The old `additionalColumns` concept (user-
+  // added extras on top of a small default set) is obsolete — since
+  // Step 1 the default set is "every column the record carries", so
+  // the inverse (hide) is what the UI needs.
+  const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem('productListHiddenColumns');
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      'productListHiddenColumns',
+      JSON.stringify(hiddenColumnKeys),
+    );
+  }, [hiddenColumnKeys]);
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
   const [gearRatio, setGearRatio] = useState<number>(1);
   const [autoGear, setAutoGear] = useState<boolean>(true);
@@ -71,11 +92,10 @@ export default function ProductList() {
     [],
   );
 
-  // Full ordered column list: merge curated per-type AttributeMetadata
-  // (rich display names + tuned units) with attributes derived from the
-  // actual records (catches schema evolution). Sorted alphabetically by
-  // display name; exclusions applied. Single source of truth for both
-  // header rendering and the column-width effect.
+  // Full ordered column list — alphabetical, all derivable attributes,
+  // excludes identity/metadata keys. Does NOT yet filter by hidden set;
+  // we keep the full list so AttributeSelector can tell what's hideable
+  // vs hidden. `visibleColumnAttributes` below is the filtered view.
   const columnAttributes = useMemo<AttributeMetadata[]>(() => {
     if (!productType) return [];
     const staticAttrs = getAttributesForType(productType);
@@ -85,11 +105,25 @@ export default function ProductList() {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [productType, products, COLUMN_EXCLUDED_KEYS]);
 
-  // Sync column widths when the column set changes.
+  // Columns actually rendered in the table = full list minus the user's
+  // hidden set.
+  const visibleColumnAttributes = useMemo<AttributeMetadata[]>(
+    () => columnAttributes.filter(a => !hiddenColumnKeys.includes(a.key)),
+    [columnAttributes, hiddenColumnKeys],
+  );
+
+  // Hidden columns, in the same alphabetical order, for the restore
+  // dropdown.
+  const hiddenColumnAttributes = useMemo<AttributeMetadata[]>(
+    () => columnAttributes.filter(a => hiddenColumnKeys.includes(a.key)),
+    [columnAttributes, hiddenColumnKeys],
+  );
+
+  // Sync column widths when the visible column set changes.
   useEffect(() => {
     if (!productType) return;
-    const defaults = columnAttributes.map(a => a.key);
-    const allKeys = ['part_number', ...defaults, ...additionalColumns];
+    const defaults = visibleColumnAttributes.map(a => a.key);
+    const allKeys = ['part_number', ...defaults];
     setColumnWidths(prev => {
       const next: Record<string, number> = {};
       for (const key of allKeys) {
@@ -97,7 +131,7 @@ export default function ProductList() {
       }
       return next;
     });
-  }, [productType, additionalColumns, columnAttributes]);
+  }, [productType, visibleColumnAttributes]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -317,11 +351,6 @@ export default function ProductList() {
     return applyFilters(products, gearedFilters);
   }, [products, gearedFilters, autoGearActive, autoGearResults]);
 
-  // Get available attributes for sorting based on product type
-  const availableAttributes = useMemo(() => {
-    return getAttributesForType(productType);
-  }, [productType]);
-
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
     () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
@@ -387,17 +416,10 @@ export default function ProductList() {
     setCurrentPage(1);
   }, [filters, sorts, itemsPerPage]);
 
-  // Back-compat shim: existing call sites pass `productType` but the
-  // computation is now state-driven via the `columnAttributes` memo
-  // defined near the top of the component. Signature kept so surrounding
-  // code doesn't need to change.
-  const getDisplayedAttributes = (_productType: string): string[] =>
-    columnAttributes.map(a => a.key);
-
   // Column headers with linear-mode label/unit overrides for SPEED_KEYS
   // and TORQUE_KEYS (thrust/force view for linear actuators).
   const getColumnHeaders = (): Array<{ key: string; label: string; unit: string | null }> => {
-    return columnAttributes.map(attr => {
+    return visibleColumnAttributes.map(attr => {
       let label = attr.displayName;
       let unit: string | null = attr.unit || null;
       if (isLinearMode) {
@@ -437,15 +459,6 @@ export default function ProductList() {
       }
     }
 
-    return null;
-  };
-
-  // Extract just the unit from a spec
-  const extractUnit = (value: any): string | null => {
-    if (!value) return null;
-    if (typeof value === 'object' && 'unit' in value) {
-      return value.unit;
-    }
     return null;
   };
 
@@ -546,18 +559,17 @@ export default function ProductList() {
     }
   };
 
-  const handleRemoveColumn = (attribute: string, isDefault: boolean) => {
+  // Hide a column: drop any active sort for it and add it to the
+  // hidden set. Restore via "+ Add Spec" which opens the hidden-column
+  // picker.
+  const handleRemoveColumn = (attribute: string) => {
     setSorts(sorts.filter(s => s.attribute !== attribute));
-    if (!isDefault) {
-      setAdditionalColumns(additionalColumns.filter(col => col !== attribute));
-    }
+    setHiddenColumnKeys(prev => (prev.includes(attribute) ? prev : [...prev, attribute]));
   };
 
+  // Restore (un-hide) a previously-hidden column.
   const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
-    const defaultColumns = getDisplayedAttributes(productType || '');
-    if (!defaultColumns.includes(attribute.key) && !additionalColumns.includes(attribute.key)) {
-      setAdditionalColumns([...additionalColumns, attribute.key]);
-    }
+    setHiddenColumnKeys(prev => prev.filter(k => k !== attribute.key));
     setShowSortSelector(false);
   };
 
@@ -653,7 +665,8 @@ export default function ProductList() {
                   <div className="product-grid-header-unit">(: 1)</div>
                 </div>
               )}
-              {/* Default columns */}
+              {/* Spec columns — all visible columns get an × to hide
+                  them; restore from the "+ Add Spec" dropdown. */}
               {getColumnHeaders().map((header) => {
                 const sortIndex = sorts.findIndex(s => s.attribute === header.key);
                 const isSorted = sortIndex !== -1;
@@ -662,12 +675,24 @@ export default function ProductList() {
                 return (
                   <div
                     key={header.key}
-                    className="product-grid-header-item clickable"
+                    className="product-grid-header-item clickable removable"
                     style={{ width: columnWidths[header.key] ?? defaultColWidth }}
-                    onClick={() => handleColumnSort(header.key)}
                     title="Click to sort"
                   >
-                    <div className="product-grid-header-label">
+                    <button
+                      className="column-remove-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveColumn(header.key);
+                      }}
+                      title="Hide column"
+                    >
+                      ×
+                    </button>
+                    <div
+                      className="product-grid-header-label"
+                      onClick={() => handleColumnSort(header.key)}
+                    >
                       {header.label}
                       <span className="sort-indicator">
                         {isSorted && sortConfig?.direction === 'asc' && '↑'}
@@ -677,52 +702,6 @@ export default function ProductList() {
                     </div>
                     {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
                     <div className="col-resize-handle" onMouseDown={(e) => startResize(header.key, e)} />
-                  </div>
-                );
-              })}
-              {/* Additional columns */}
-              {additionalColumns.map((attrKey) => {
-                const attributes = getAttributesForType(productType || 'motor');
-                const attrMetadata = attributes.find(a => a.key === attrKey);
-                if (!attrMetadata) return null;
-
-                const firstProduct = gearedProducts[0];
-                const unit = firstProduct ? extractUnit((firstProduct as any)[attrKey]) : null;
-
-                const sortIndex = sorts.findIndex(s => s.attribute === attrKey);
-                const isSorted = sortIndex !== -1;
-                const sortConfig = isSorted ? sorts[sortIndex] : null;
-
-                return (
-                  <div
-                    key={`additional-${attrKey}`}
-                    className="product-grid-header-item clickable removable"
-                    style={{ width: columnWidths[attrKey] ?? defaultColWidth }}
-                  >
-                    <button
-                      className="column-remove-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveColumn(attrKey, false);
-                      }}
-                      title="Remove column"
-                    >
-                      ×
-                    </button>
-                    <div
-                      className="product-grid-header-label"
-                      onClick={() => handleColumnSort(attrKey)}
-                      title="Click to sort"
-                    >
-                      {attrMetadata.displayName}
-                      <span className="sort-indicator">
-                        {isSorted && sortConfig?.direction === 'asc' && '↑'}
-                        {isSorted && sortConfig?.direction === 'desc' && '↓'}
-                        {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
-                      </span>
-                    </div>
-                    {unit && <div className="product-grid-header-unit">({unit})</div>}
-                    <div className="col-resize-handle" onMouseDown={(e) => startResize(attrKey, e)} />
                   </div>
                 );
               })}
@@ -750,15 +729,18 @@ export default function ProductList() {
                   <div className="product-grid-header-unit">(kg·cm²)</div>
                 </div>
               )}
-              {/* Add spec button */}
-              <button
-                ref={(el) => setAddColumnBtnRef(el)}
-                className="add-column-btn"
-                onClick={() => setShowSortSelector(true)}
-                title="Add spec"
-              >
-                + Add Spec
-              </button>
+              {/* Restore-hidden-column button — only rendered when
+                  there's something to restore. */}
+              {hiddenColumnAttributes.length > 0 && (
+                <button
+                  ref={(el) => setAddColumnBtnRef(el)}
+                  className="add-column-btn"
+                  onClick={() => setShowSortSelector(true)}
+                  title={`Restore hidden columns (${hiddenColumnAttributes.length})`}
+                >
+                  + {hiddenColumnAttributes.length} hidden
+                </button>
+              )}
             </div>
 
               {paginatedProducts.map((product) => (
@@ -806,28 +788,6 @@ export default function ProductList() {
                     return (
                       <div
                         key={`default-value-${attrKey}`}
-                        className={`spec-header-item ${
-                          !hasProximityColor && isFilteredAttribute(attrKey) ? 'spec-header-item-filtered' :
-                          !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
-                        }`}
-                        style={{
-                          backgroundColor: proximityColor || undefined
-                        }}
-                      >
-                        <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Show additional columns */}
-                  {additionalColumns.map((attrKey) => {
-                    const productValue = (product as any)[attrKey];
-                    const numericValue = extractNumericOnly(productValue);
-                    const proximityColor = getProximityColor(attrKey, productValue);
-                    const hasProximityColor = !!proximityColor;
-                    return (
-                      <div
-                        key={`additional-value-${attrKey}`}
                         className={`spec-header-item ${
                           !hasProximityColor && isFilteredAttribute(attrKey) ? 'spec-header-item-filtered' :
                           !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
@@ -1129,9 +1089,11 @@ export default function ProductList() {
         clickPosition={clickPosition}
       />
 
-      {/* Attribute Selector Modal for Adding Columns */}
+      {/* Attribute Selector Modal — shows currently-hidden columns so
+          the user can restore them. Passes hiddenColumnAttributes (not
+          the full list) so only hideable items appear. */}
       <AttributeSelector
-        attributes={availableAttributes}
+        attributes={hiddenColumnAttributes}
         onSelect={handleAddColumn}
         onClose={() => {
           setShowSortSelector(false);
