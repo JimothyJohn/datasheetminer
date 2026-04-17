@@ -117,7 +117,10 @@ export interface AttributeMetadata {
   key: string;                // Attribute key (matches Product interface)
   displayName: string;        // Human-readable name for UI
   type: 'string' | 'number' | 'boolean' | 'range' | 'array' | 'object';
-  applicableTypes: ('motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'datasheet')[]; // Which product types have this attribute
+  // Product types this attribute applies to. Widened to `string[]` so
+  // record-derived attributes can tag themselves with whatever product_type
+  // appears at runtime (see `deriveAttributesFromRecords`).
+  applicableTypes: string[];
   nested?: boolean;           // True for ValueUnit and MinMaxUnit types
   unit?: string;              // Unit of measurement (e.g., "V", "W", "A", "rpm", "kg")
 }
@@ -471,6 +474,132 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
 
   console.log(`[filters] Found ${commonAttrs.length} common attributes for 'all' type`);
   return commonAttrs;
+};
+
+// =====================================================================
+// Dynamic attribute derivation
+// =====================================================================
+//
+// The static per-type getXxxAttributes() lists above provide rich display
+// names and units, but they drift every time a new product type lands —
+// the contactor rollout had to patch four allowlists before filter chips
+// showed up. `deriveAttributesFromRecords` walks the actual returned
+// records, infers each field's kind + unit from the value shape, and
+// produces a ready-to-render AttributeMetadata[]. `mergeAttributesByKey`
+// combines static (rich) and derived (complete) lists, preferring static
+// metadata when keys collide so existing UI doesn't regress.
+
+/** Keys the filter UI should never offer (identity / bookkeeping). */
+const DERIVATION_EXCLUDED_KEYS: ReadonlySet<string> = new Set([
+  'PK',
+  'SK',
+  'product_id',
+  'product_type',
+  'datasheet_url',
+  'pages',
+  'msrp_source_url',
+  'msrp_fetched_at',
+]);
+
+function toDisplayName(snake: string): string {
+  return snake
+    .split('_')
+    .map(w => (w.length ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+function hasKey<K extends string>(obj: object, key: K): obj is Record<K, unknown> {
+  return key in obj;
+}
+
+function isValueUnitShape(v: unknown): v is { value: unknown; unit: unknown } {
+  return typeof v === 'object' && v !== null && hasKey(v, 'value') && hasKey(v, 'unit');
+}
+
+function isMinMaxUnitShape(v: unknown): v is { min: unknown; max: unknown; unit: unknown } {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    hasKey(v, 'min') &&
+    hasKey(v, 'max') &&
+    hasKey(v, 'unit')
+  );
+}
+
+function inferAttribute(
+  key: string,
+  value: unknown,
+  productType: string,
+): AttributeMetadata | null {
+  if (value === null || value === undefined) return null;
+  const displayName = toDisplayName(key);
+  const applicableTypes = [productType];
+
+  if (Array.isArray(value)) {
+    return { key, displayName, type: 'array', applicableTypes };
+  }
+  // Order matters: check MinMaxUnit before ValueUnit because both share the
+  // 'unit' key.
+  if (isMinMaxUnitShape(value)) {
+    const unit = typeof value.unit === 'string' ? value.unit : undefined;
+    return { key, displayName, type: 'range', applicableTypes, nested: true, unit };
+  }
+  if (isValueUnitShape(value)) {
+    const unit = typeof value.unit === 'string' ? value.unit : undefined;
+    return { key, displayName, type: 'object', applicableTypes, nested: true, unit };
+  }
+  if (typeof value === 'string') {
+    return { key, displayName, type: 'string', applicableTypes };
+  }
+  if (typeof value === 'number') {
+    return { key, displayName, type: 'number', applicableTypes };
+  }
+  if (typeof value === 'boolean') {
+    return { key, displayName, type: 'boolean', applicableTypes };
+  }
+  // Unknown shape — skip rather than emit a broken chip.
+  return null;
+}
+
+/**
+ * Walk `records` and produce an AttributeMetadata[] derived from the
+ * keys and value shapes actually present. First-seen-value wins for each
+ * key, so fields that first appear as `null`/`undefined` fall through to
+ * later records that have a real value.
+ */
+export const deriveAttributesFromRecords = (
+  records: readonly unknown[],
+  productType: ProductType,
+): AttributeMetadata[] => {
+  if (!records.length || productType === null || productType === 'all') return [];
+
+  const discovered = new Map<string, AttributeMetadata>();
+  for (const record of records) {
+    if (!record || typeof record !== 'object') continue;
+    for (const [key, value] of Object.entries(record as Record<string, unknown>)) {
+      if (DERIVATION_EXCLUDED_KEYS.has(key)) continue;
+      if (discovered.has(key)) continue;
+      const attr = inferAttribute(key, value, productType);
+      if (attr) discovered.set(key, attr);
+    }
+  }
+  return Array.from(discovered.values());
+};
+
+/**
+ * Combine a static (rich metadata) list with a derived (complete coverage)
+ * list. Entries from `primary` win on key collision, so existing per-type
+ * display names and tuned units are preserved; entries unique to
+ * `secondary` are appended so new fields from a schema evolution show up
+ * without a code change.
+ */
+export const mergeAttributesByKey = (
+  primary: AttributeMetadata[],
+  secondary: AttributeMetadata[],
+): AttributeMetadata[] => {
+  const primaryKeys = new Set(primary.map(a => a.key));
+  const extras = secondary.filter(a => !primaryKeys.has(a.key));
+  return [...primary, ...extras];
 };
 
 /**

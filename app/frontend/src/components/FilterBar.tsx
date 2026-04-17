@@ -3,7 +3,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { FilterCriterion, SortConfig, getAttributesForType, getAvailableOperators, applyFilters } from '../types/filters';
+import { FilterCriterion, SortConfig, getAttributesForType, getAvailableOperators, applyFilters, deriveAttributesFromRecords, mergeAttributesByKey } from '../types/filters';
 import { ProductType, Product } from '../types/models';
 import { extractUniqueValues } from '../utils/filterValues';
 import { useApp } from '../context/AppContext';
@@ -38,10 +38,16 @@ export default function FilterBar({
   // Get categories from context for dynamic dropdown
   const { categories } = useApp();
 
-  // Get all available attributes for the current product type
+  // Attribute list for the current product type. Starts from the
+  // rich per-type static defs (nice display names + tuned units) then
+  // appends any keys the actual records carry but the static list
+  // doesn't — so a new product type with no matching getXxxAttributes()
+  // still gets filter chips derived directly from the record shape.
   const availableAttributes = useMemo(() => {
-    return getAttributesForType(productType);
-  }, [productType]);
+    const staticAttrs = getAttributesForType(productType);
+    const derivedAttrs = deriveAttributesFromRecords(products, productType);
+    return mergeAttributesByKey(staticAttrs, derivedAttrs);
+  }, [productType, products]);
 
   // Memoize suggested values for each attribute
   const suggestedValuesByAttribute = useMemo(() => {

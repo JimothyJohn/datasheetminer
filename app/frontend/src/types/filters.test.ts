@@ -3,7 +3,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyFilters, sortProducts, FilterCriterion, SortConfig } from './filters';
+import {
+  applyFilters,
+  sortProducts,
+  FilterCriterion,
+  SortConfig,
+  deriveAttributesFromRecords,
+  mergeAttributesByKey,
+  AttributeMetadata,
+} from './filters';
 import { Product } from './models';
 
 describe('Filter Logic', () => {
@@ -369,5 +377,129 @@ describe('Sort Logic', () => {
       sortProducts(mockProducts, sort);
       expect(mockProducts).toEqual(original);
     });
+  });
+});
+
+describe('deriveAttributesFromRecords', () => {
+  const contactorRecords = [
+    {
+      product_id: 'abc',
+      product_type: 'contactor',
+      manufacturer: 'Mitsubishi',
+      part_number: 'S-T10',
+      series: 'MS-T',
+      frame_size: 'T10',
+      rated_insulation_voltage: { value: 690, unit: 'V' },
+      operating_temp: { min: -5, max: 40, unit: '°C' },
+      coil_voltage_designations: ['AC100V', 'AC200V'],
+      number_of_poles: 3,
+      iec_rail_mounting: true,
+      PK: 'PRODUCT#CONTACTOR',
+      SK: 'PRODUCT#abc',
+      datasheet_url: 'https://example.com/x.pdf',
+      pages: [1, 2, 3],
+    },
+  ];
+
+  it('derives a ValueUnit key as type=object with unit', () => {
+    const attrs = deriveAttributesFromRecords(contactorRecords, 'contactor');
+    const voltage = attrs.find(a => a.key === 'rated_insulation_voltage');
+    expect(voltage).toBeDefined();
+    expect(voltage!.type).toBe('object');
+    expect(voltage!.nested).toBe(true);
+    expect(voltage!.unit).toBe('V');
+    expect(voltage!.displayName).toBe('Rated Insulation Voltage');
+  });
+
+  it('derives a MinMaxUnit key as type=range with unit', () => {
+    const attrs = deriveAttributesFromRecords(contactorRecords, 'contactor');
+    const temp = attrs.find(a => a.key === 'operating_temp');
+    expect(temp).toBeDefined();
+    expect(temp!.type).toBe('range');
+    expect(temp!.nested).toBe(true);
+    expect(temp!.unit).toBe('°C');
+  });
+
+  it('derives primitives to their correct type', () => {
+    const attrs = deriveAttributesFromRecords(contactorRecords, 'contactor');
+    expect(attrs.find(a => a.key === 'part_number')?.type).toBe('string');
+    expect(attrs.find(a => a.key === 'number_of_poles')?.type).toBe('number');
+    expect(attrs.find(a => a.key === 'iec_rail_mounting')?.type).toBe('boolean');
+    expect(attrs.find(a => a.key === 'coil_voltage_designations')?.type).toBe('array');
+  });
+
+  it('excludes identity and bookkeeping keys', () => {
+    const attrs = deriveAttributesFromRecords(contactorRecords, 'contactor');
+    const keys = attrs.map(a => a.key);
+    expect(keys).not.toContain('PK');
+    expect(keys).not.toContain('SK');
+    expect(keys).not.toContain('product_id');
+    expect(keys).not.toContain('product_type');
+    expect(keys).not.toContain('datasheet_url');
+    expect(keys).not.toContain('pages');
+  });
+
+  it('tags derived attributes with the provided productType', () => {
+    const attrs = deriveAttributesFromRecords(contactorRecords, 'contactor');
+    for (const attr of attrs) {
+      expect(attr.applicableTypes).toEqual(['contactor']);
+    }
+  });
+
+  it('falls through null/undefined values to later records with real values', () => {
+    const records = [
+      { product_type: 'contactor', frame_size: null },
+      { product_type: 'contactor', frame_size: 'T50' },
+    ];
+    const attrs = deriveAttributesFromRecords(records, 'contactor');
+    expect(attrs.find(a => a.key === 'frame_size')?.type).toBe('string');
+  });
+
+  it('returns empty for null productType or empty records', () => {
+    expect(deriveAttributesFromRecords([], 'contactor')).toEqual([]);
+    expect(deriveAttributesFromRecords(contactorRecords, null)).toEqual([]);
+    expect(deriveAttributesFromRecords(contactorRecords, 'all')).toEqual([]);
+  });
+});
+
+describe('mergeAttributesByKey', () => {
+  const staticAttr: AttributeMetadata = {
+    key: 'rated_voltage',
+    displayName: 'Rated Voltage',
+    type: 'range',
+    applicableTypes: ['motor'],
+    nested: true,
+    unit: 'V',
+  };
+  const derivedSameKey: AttributeMetadata = {
+    key: 'rated_voltage',
+    displayName: 'Rated Voltage',
+    type: 'object',
+    applicableTypes: ['motor'],
+    nested: true,
+    unit: 'V',
+  };
+  const derivedNewKey: AttributeMetadata = {
+    key: 'weirdfield',
+    displayName: 'Weirdfield',
+    type: 'string',
+    applicableTypes: ['motor'],
+  };
+
+  it('prefers primary on key collision so static metadata wins', () => {
+    const merged = mergeAttributesByKey([staticAttr], [derivedSameKey]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(staticAttr);
+  });
+
+  it('appends secondary entries whose keys are missing from primary', () => {
+    const merged = mergeAttributesByKey([staticAttr], [derivedSameKey, derivedNewKey]);
+    expect(merged).toHaveLength(2);
+    expect(merged[1]).toBe(derivedNewKey);
+  });
+
+  it('returns just the derived list when primary is empty', () => {
+    const merged = mergeAttributesByKey([], [derivedSameKey, derivedNewKey]);
+    expect(merged).toEqual([derivedSameKey, derivedNewKey]);
   });
 });
