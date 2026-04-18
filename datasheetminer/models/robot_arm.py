@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -146,7 +146,7 @@ class RobotArm(ProductBase):
     """
 
     # --- Product Identification ---
-    product_type: str = Field("robot_arm", description="Type of product")
+    product_type: Literal["robot_arm"] = "robot_arm"
     manufacturer: str = Field("Universal Robots", description="Manufacturer name")  #
     product_family: str = Field("e-Series", description="Product family or series")  #
 

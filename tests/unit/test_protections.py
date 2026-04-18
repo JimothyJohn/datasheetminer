@@ -4,7 +4,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cli.intake import IntakeScanResult, intake_single, MIN_SPEC_DENSITY
+from cli.intake import IntakeScanResult, intake_single
+from cli.intake_guards import _DENSITY_THRESHOLDS, _DEFAULT_DENSITY_THRESHOLD
+
+
+def _threshold_for(product_type: str) -> float:
+    """Resolve the per-product-type density threshold used by intake guards."""
+    return _DENSITY_THRESHOLDS.get(product_type, _DEFAULT_DENSITY_THRESHOLD)
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +36,12 @@ def _scan_result(*, valid: bool = True, **overrides) -> IntakeScanResult:
     return IntakeScanResult(**defaults)
 
 
-def _mock_s3(content: bytes = b"%PDF-fake-content"):
+# Must be ≥ 1024 bytes and start with %PDF to pass check_file_integrity in
+# cli/intake_guards.py — the guard rolled out after these tests were written.
+_VALID_PDF_BYTES = b"%PDF-1.4\n" + b"x" * 1200
+
+
+def _mock_s3(content: bytes = _VALID_PDF_BYTES):
     s3 = MagicMock()
     body = MagicMock()
     body.read.return_value = content
@@ -144,7 +155,7 @@ class TestSpecDensity:
         )
 
         assert result["status"] == "rejected"
-        assert "spec density too low" in result["reason"]
+        assert "spec density" in result["reason"]
         dynamo.create.assert_not_called()
 
     @patch("cli.intake._find_by_content_hash")
@@ -170,8 +181,12 @@ class TestSpecDensity:
     @patch("cli.intake._find_by_content_hash")
     @patch("cli.intake.scan_pdf")
     def test_density_at_threshold_passes(self, mock_scan, mock_find):
+        """At exactly the calibrated per-type threshold, the guard must pass."""
         mock_find.return_value = None
-        mock_scan.return_value = _scan_result(valid=True, spec_density=MIN_SPEC_DENSITY)
+        threshold = _threshold_for("motor")
+        mock_scan.return_value = _scan_result(
+            valid=True, product_type="motor", spec_density=threshold
+        )
 
         s3 = _mock_s3()
         dynamo = MagicMock()

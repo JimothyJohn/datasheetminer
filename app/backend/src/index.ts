@@ -97,6 +97,23 @@ app.use((_req: Request, res: Response) => {
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  // Malformed JSON body → 400. express.json in strict mode throws a
+  // SyntaxError for primitives (e.g. `"foo"`, `null`, `42`), invalid JSON,
+  // and the Content-Length mismatch case. All of those are client errors,
+  // not server errors — returning 500 would mask real failures.
+  const anyErr = err as Error & { type?: string; status?: number };
+  if (
+    anyErr instanceof SyntaxError ||
+    anyErr.type === 'entity.parse.failed' ||
+    anyErr.status === 400
+  ) {
+    res.status(400).json({
+      success: false,
+      error: 'Malformed JSON body',
+    });
+    return;
+  }
+
   console.error('Error:', err);
   res.status(500).json({
     success: false,

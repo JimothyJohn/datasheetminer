@@ -171,8 +171,24 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body;
 
+    // Reject primitives / null / malformed bodies up front — `[body]` on a
+    // primitive walks into `'url' in product`, which throws TypeError and
+    // bubbles into a 500. Keep the shape-check tight: object or object[].
+    const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+      typeof v === 'object' && v !== null && !Array.isArray(v);
+    const shapeOk =
+      isPlainObject(body) ||
+      (Array.isArray(body) && body.every(isPlainObject));
+    if (!shapeOk) {
+      res.status(400).json({
+        success: false,
+        error: 'Body must be a product object or an array of product objects',
+      });
+      return;
+    }
+
     // Handle both single product and array of products
-    const products: Product[] = Array.isArray(body) ? body : [body];
+    const products: Product[] = (Array.isArray(body) ? body : [body]) as unknown as Product[];
 
     // Validate products have required fields
     for (const product of products) {

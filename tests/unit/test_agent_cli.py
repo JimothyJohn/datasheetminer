@@ -224,8 +224,12 @@ class TestParsePages:
 
 @pytest.mark.unit
 class TestBuildMetadata:
+    # _build_metadata does a DynamoDB scan via _lookup_datasheet_by_s3_key.
+    # We mock it to None here so the tests stay offline; the "lookup wins over
+    # CLI args" path has its own integration test.
+    @patch("cli.agent._lookup_datasheet_by_s3_key", return_value=None)
     @patch.dict("os.environ", {}, clear=True)
-    def test_basic(self):
+    def test_basic(self, _mock_lookup):
         args = _make_args(
             product_name="EC-45",
             manufacturer="Maxon",
@@ -239,8 +243,9 @@ class TestBuildMetadata:
         assert meta["pages"] == [1, 3]
         assert "s3://" in meta["datasheet_url"]
 
+    @patch("cli.agent._lookup_datasheet_by_s3_key", return_value=None)
     @patch.dict("os.environ", {}, clear=True)
-    def test_no_pages(self):
+    def test_no_pages(self, _mock_lookup):
         args = _make_args()
         meta = _build_metadata(args)
         assert meta["pages"] is None

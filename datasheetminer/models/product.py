@@ -5,13 +5,30 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, BeforeValidator, Field, computed_field
+from typing_extensions import Annotated
 
 
 from datasheetminer.models.common import ProductType, ValueUnit
+from datasheetminer.placeholders import is_placeholder
+
+
+def _coerce_placeholder_to_none(v: Any) -> Any:
+    """Replace placeholder strings ("N/A", "TBD", ...) with None at ingest.
+
+    Keeps the database free of "N/A" literals, which would otherwise inflate
+    quality scores and render as garbage in the frontend table.
+    """
+    return None if is_placeholder(v) else v
+
+
+PlaceholderSanitizedStr = Annotated[
+    Optional[str],
+    BeforeValidator(_coerce_placeholder_to_none),
+]
 
 
 class Dimensions(BaseModel):
@@ -56,10 +73,10 @@ class ProductBase(BaseModel):
         ..., description="Type of product (e.g., 'motor', 'drive')"
     )
     product_name: str = Field(..., description="Product name")
-    product_family: Optional[str] = Field(
+    product_family: PlaceholderSanitizedStr = Field(
         None, description="Product family or sub-series"
     )
-    part_number: Optional[str] = Field(None, description="Part number")
+    part_number: PlaceholderSanitizedStr = Field(None, description="Part number")
     manufacturer: str = Field(..., description="Manufacturer name")
     release_year: Optional[int] = None
     dimensions: Optional[Dimensions] = None

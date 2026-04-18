@@ -9,6 +9,12 @@ import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesF
 import { formatValue } from '../utils/formatting';
 import { extractNumeric, numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
+import {
+  safeLoad,
+  safeSave,
+  safeLoadString,
+  isStringArray,
+} from '../utils/localStorage';
 import FilterBar from './FilterBar';
 import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
@@ -36,51 +42,36 @@ export default function ProductList() {
   //
   // Both sets persist across sessions. The old 'productListHiddenColumns'
   // key now stores userHiddenKeys.
-  const [userHiddenKeys, setUserHiddenKeys] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const raw = window.localStorage.getItem('productListHiddenColumns');
-      return raw ? (JSON.parse(raw) as string[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [userHiddenKeys, setUserHiddenKeys] = useState<string[]>(() =>
+    safeLoad('productListHiddenColumns', isStringArray, []),
+  );
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      'productListHiddenColumns',
-      JSON.stringify(userHiddenKeys),
-    );
+    safeSave('productListHiddenColumns', userHiddenKeys);
   }, [userHiddenKeys]);
 
-  const [userRestoredKeys, setUserRestoredKeys] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const raw = window.localStorage.getItem('productListRestoredColumns');
-      return raw ? (JSON.parse(raw) as string[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [userRestoredKeys, setUserRestoredKeys] = useState<string[]>(() =>
+    safeLoad('productListRestoredColumns', isStringArray, []),
+  );
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      'productListRestoredColumns',
-      JSON.stringify(userRestoredKeys),
-    );
+    safeSave('productListRestoredColumns', userRestoredKeys);
   }, [userRestoredKeys]);
 
   // Column sort direction — A→Z by default; toggle flips to Z→A.
   // Persisted so the user's preferred scan direction sticks.
-  const [columnSortDirection, setColumnSortDirection] = useState<'asc' | 'desc'>(() => {
-    if (typeof window === 'undefined') return 'asc';
-    return window.localStorage.getItem('productListColumnSortDirection') === 'desc'
-      ? 'desc'
-      : 'asc';
-  });
+  const [columnSortDirection, setColumnSortDirection] = useState<'asc' | 'desc'>(() =>
+    safeLoadString(
+      'productListColumnSortDirection',
+      (v): v is 'asc' | 'desc' => v === 'asc' || v === 'desc',
+      'asc',
+    ),
+  );
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('productListColumnSortDirection', columnSortDirection);
+    try {
+      window.localStorage.setItem('productListColumnSortDirection', columnSortDirection);
+    } catch {
+      // quota / access errors — fallback is in-memory state.
+    }
   }, [columnSortDirection]);
 
   // Cap on how many columns are displayed at once. null = no cap.
@@ -114,14 +105,20 @@ export default function ProductList() {
   // Row-height preference. Persisted across sessions so user doesn't
   // have to re-toggle on every page load. 'compact' matches the
   // historical density; 'comfy' bumps vertical padding for readability.
-  const [rowDensity, setRowDensity] = useState<'compact' | 'comfy'>(() => {
-    if (typeof window === 'undefined') return 'compact';
-    const stored = window.localStorage.getItem('productListRowDensity');
-    return stored === 'comfy' ? 'comfy' : 'compact';
-  });
+  const [rowDensity, setRowDensity] = useState<'compact' | 'comfy'>(() =>
+    safeLoadString(
+      'productListRowDensity',
+      (v): v is 'compact' | 'comfy' => v === 'compact' || v === 'comfy',
+      'compact',
+    ),
+  );
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('productListRowDensity', rowDensity);
+    try {
+      window.localStorage.setItem('productListRowDensity', rowDensity);
+    } catch {
+      // noop
+    }
   }, [rowDensity]);
 
   // Default column widths (px): part number + spec columns

@@ -18,6 +18,9 @@ Subcommands:
 
     purge   --stage prod [--type drive] [--manufacturer ABB]
             --confirm "yes delete prod drives" [--apply]
+
+    audit-units [--table ...] [-o out.jsonl]
+            Scan for value;unit strings with >1 semicolon (greedy-regex flaw).
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ import json
 import sys
 from typing import Optional
 
+from cli import audit_units
 from datasheetminer.admin.blacklist import Blacklist
 from datasheetminer.admin.operations import (
     PRODUCT_MODELS,
@@ -270,7 +274,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--apply", action="store_true")
 
+    # audit-units
+    p = sub.add_parser(
+        "audit-units",
+        help="Scan for value;unit strings with >1 semicolon (greedy-regex flaw)",
+    )
+    p.add_argument(
+        "--table", default=None, help="Table name (default: from env/config)"
+    )
+    p.add_argument(
+        "--region", default=None, help="AWS region (default: from env/config)"
+    )
+    p.add_argument("-o", "--output", default=None, help="Write findings to JSONL file")
+
     return parser
+
+
+def cmd_audit_units(args: argparse.Namespace) -> int:
+    from datasheetminer.config import REGION, TABLE_NAME
+
+    import os
+
+    table = args.table or os.environ.get("DYNAMODB_TABLE_NAME") or TABLE_NAME
+    region = args.region or os.environ.get("AWS_REGION") or REGION
+    return audit_units.audit(table, region, args.output)
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -283,6 +310,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "promote": cmd_promote,
         "demote": cmd_demote,
         "purge": cmd_purge,
+        "audit-units": cmd_audit_units,
     }
     return dispatch[args.command](args)
 

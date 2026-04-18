@@ -50,9 +50,12 @@ def validate_value_unit_str(v: str) -> str:
         return v
     parts = v.split(";")
     if len(parts) != 2:
-        # Try to recover if it's just a number string? No, strict format is safer for now,
-        # but let's allow the LLM's "2+;Years" by relaxing the float check.
-        raise ValueError('must be in "value;unit" format')
+        # Reject multi-semicolon strings at the writer. The reader's regex
+        # (`_parse_compact_units`) greedily captures the unit via `(.*)`, so
+        # "1;2;V" would read back as {value=1, unit="2;V"} — see
+        # todo/fundamental-flaws.md, flaw #1. Exactly one semicolon is the
+        # invariant; anything else is malformed LLM output.
+        raise ValueError('must be in "value;unit" format (exactly one semicolon)')
 
     # We used to enforce float(parts[0]), but "2+" or "approx 5" might occur.
     # Let's just ensure it's not empty.
@@ -110,7 +113,8 @@ def validate_min_max_unit_str(v: str) -> str:
         return v
     parts = v.split(";")
     if len(parts) != 2:
-        raise ValueError('must be in "range;unit" format')
+        # Same invariant as validate_value_unit_str — unit cannot contain ';'.
+        raise ValueError('must be in "range;unit" format (exactly one semicolon)')
 
     range_part = parts[0]
     # Handle " to " which LLM sometimes outputs

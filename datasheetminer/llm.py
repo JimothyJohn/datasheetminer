@@ -81,8 +81,11 @@ def generate_content(
         f"{context_block}"
         "Emit one entry per distinct product VARIANT found in the document — "
         "a distinct part number, voltage class, or form factor is a separate "
-        "entry. Leave optional fields unset when the specification is genuinely "
-        "absent from the document; do NOT fabricate values.\n\n"
+        "entry. Leave optional fields unset (null / omitted) when the "
+        "specification is genuinely absent from the document; do NOT fabricate "
+        'values, and NEVER emit placeholder strings like "N/A", "TBD", '
+        '"-", "None", "unknown", or "not applicable" — omit the field '
+        "or set it to null instead.\n\n"
         "Numeric specs with units (rated_current, input_voltage, etc.) must be "
         "emitted as structured objects:\n"
         '- single-valued fields: {"value": <number>, "unit": <string>}\n'

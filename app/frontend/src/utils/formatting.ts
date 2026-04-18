@@ -2,6 +2,8 @@
  * Formatting utilities for displaying product properties
  */
 
+import { isPlaceholder } from './sanitize';
+
 /**
  * Format a snake_case property key into a properly capitalized label
  *
@@ -64,8 +66,9 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
     return '[Max depth exceeded]';
   }
 
-  // Handle null/undefined
-  if (value === null || value === undefined) {
+  // Handle null/undefined and placeholder strings ("N/A", "TBD", etc. emitted
+  // by older rows that predate the backend's is_placeholder coercion).
+  if (isPlaceholder(value)) {
     return 'N/A';
   }
 

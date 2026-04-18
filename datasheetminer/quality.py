@@ -11,6 +11,7 @@ import logging
 from typing import List, Tuple, Type
 
 from datasheetminer.models.product import ProductBase
+from datasheetminer.placeholders import is_placeholder
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -59,7 +60,10 @@ def score_product(product: ProductBase) -> Tuple[float, int, int, list[str]]:
     missing: list[str] = []
     for name in fields:
         value = getattr(product, name, None)
-        if value is None:
+        # Placeholder strings like "N/A" or "TBD" count as missing, not filled.
+        # Without this check, a record whose LLM extraction punted on every
+        # field with "N/A" would score 100% and pass the quality gate.
+        if is_placeholder(value):
             missing.append(name)
 
     filled = total - len(missing)

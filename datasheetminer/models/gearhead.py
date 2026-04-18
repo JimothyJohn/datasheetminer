@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import Field, model_validator
 
@@ -25,12 +25,19 @@ class Gearhead(ProductBase):
     This model is pre-populated with defaults for the Sesame PHL series.
     """
 
+    product_type: Literal["gearhead"] = "gearhead"
+
     @model_validator(mode="before")
     @classmethod
     def coerce_string_fields(cls, data: Any) -> Any:
         """Convert dict-stored fields to strings when the model expects str."""
         if isinstance(data, dict):
-            for field_name in ("frame_size", "gear_type", "lubrication_type", "ip_rating"):
+            for field_name in (
+                "frame_size",
+                "gear_type",
+                "lubrication_type",
+                "ip_rating",
+            ):
                 val = data.get(field_name)
                 if isinstance(val, dict):
                     # Convert {value: X, unit: Y} to "X Y" string
