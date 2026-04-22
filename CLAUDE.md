@@ -55,6 +55,27 @@ The Python side auto-discovers, but the TypeScript side has four hardcoded allow
 
 Step 1 can be scaffolded with `./Quickstart schemagen <pdf>... --type <name>`, which runs the standard `page_finder → Gemini → ProposedModel` pipeline and writes the model file plus the `common.py` patch. **Pass 3-5 vendors' datasheets** (ABB, Schneider, Siemens, Allen-Bradley, etc.) so the LLM generalizes across vendors instead of tuning the schema to one catalog's quirks — a single-source proposal will happily hardcode vendor-specific voltage columns or frame codes. The CLI also writes a companion `<type>.md` doc citing the sources and explaining non-obvious design decisions; treat that `.md` as the schema's reviewable ADR, not scratchwork.
 
+### Smoke-testing a new type end-to-end
+
+After touching the six files above, run this loop locally before pushing. Skipping any step is how types silently 400 in prod.
+
+1. **Python auto-discovery.** `./Quickstart test` runs unit tests — `SCHEMA_CHOICES` coverage + model round-trip validation. A missing `common.py` patch fails here.
+2. **TypeScript type-check both workspaces:**
+
+        (cd app/backend && npx tsc --noEmit)
+        (cd app/frontend && npx tsc --noEmit)
+
+   A missing zod enum or interface fails here before runtime.
+3. **Seed at least one record.** Drop a PDF in `tests/benchmark/datasheets/`, add a fixture entry, and run `./Quickstart bench --live --update-cache --filter <slug>` — the extraction path writes nothing to DynamoDB but validates the model end-to-end. To actually populate dev DynamoDB, point `./Quickstart process` at a local S3 upload (see "Processing the upload queue" in `cli/processor.py`).
+4. **Start dev servers** with `./Quickstart dev` (backend: `localhost:3001`, frontend Vite: `localhost:5173`).
+5. **Verify API surface:**
+
+        curl -s localhost:3001/api/products/categories | jq '.data[].type'       # new type listed
+        curl -s "localhost:3001/api/v1/search?type=<new>" | jq '.success'         # returns true (not 400)
+
+   If `categories` omits the type, step 3 (`VALID_PRODUCT_TYPES`) is missing. If `search` 400s, step 5 (zod enum) is missing.
+6. **UI check.** Load `http://localhost:5173`, select the new type in the sidebar dropdown, confirm filter chips and table columns render. Missing frontend `ProductType` entry manifests as "type is not assignable" at compile time OR as the type silently filtered out by `deriveAttributesFromRecords`.
+
 ## Frontend UI conventions
 
 The filter chips and the results-table columns both derive their attribute list from a merge of **static per-type metadata** (rich display names, tuned units) and **records-derived attributes** (caught at runtime from the actual DynamoDB rows). See `app/frontend/src/types/filters.ts:deriveAttributesFromRecords` + `mergeAttributesByKey`. Adding a new product type no longer requires editing `filters.ts` — the table will auto-populate from whatever fields the records carry, with auto-generated display names from the snake_case keys. Curated `getXxxAttributes()` lists are an override, not a requirement. User preferences (hidden columns, row density, column cap, sort direction) persist in `localStorage`.
@@ -113,6 +134,45 @@ Results write to `outputs/benchmarks/<timestamp>.json` and `outputs/benchmarks/l
 - **`ambient_temp` validation bug**: Gemini emits `{"unit": "V"}` (dict) where Drive model expects MinMaxUnit string. Drops rows silently.
 - **Omron: 80% precision / 42% recall**: 13 variants extracted but missing over half the fields on matched ground-truth record.
 - **`scraper.py:batch_create(parsed_models)` bug**: the DB write passes `parsed_models` (raw) instead of `valid_models` (quality-filtered). Low-quality products get written anyway. The "Successfully pushed 99 items to DynamoDB, -75 items failed" log line is the tell — negative failure count means the filter was bypassed.
+
+## Post-deploy verification
+
+After `./Quickstart deploy --stage <stage>` returns, confirm the stack is actually live before closing the loop. `./Quickstart smoke <URL>` runs the full `tests/post_deploy/` suite; the ad-hoc checks below are what to reach for when a single endpoint is misbehaving.
+
+**URLs per stage.** Prod uses the configured custom domain; staging/dev come from the Frontend stack's `CloudFrontUrl` output:
+
+    # staging / dev
+    aws cloudformation describe-stacks \
+      --stack-name DatasheetMiner-<Stage>-Frontend \
+      --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text
+
+    # prod
+    https://datasheets.advin.io
+
+**Canonical endpoints** — each of these must 200 with the shape noted:
+
+| Endpoint                          | Expected (HTTP 200)                                                        |
+|-----------------------------------|----------------------------------------------------------------------------|
+| `/health`                         | `{"status": "healthy", "timestamp": "...", "environment": "production", "mode": "public"}` |
+| `/api/products/categories`        | `{"success": true, "data": [{type, count, display_name}, ...]}`            |
+| `/api/products/summary`           | `{"success": true, "data": {"total": N, ...}}`                              |
+| `/api/products`                   | `{"success": true, "data": [...]}` (array, possibly empty)                  |
+| `/api/v1/search?type=<valid>`     | `{"success": true, ...}` (400 if type not in the zod enum)                  |
+
+**One-shot smoke:**
+
+    ./Quickstart smoke https://datasheets.advin.io          # prod
+    ./Quickstart smoke "$(aws cloudformation describe-stacks \
+      --stack-name DatasheetMiner-Staging-Frontend \
+      --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
+      --output text)"                                       # staging
+
+**Common failure fingerprints:**
+
+- `/health` times out but `/api/products` 200s → CloudFront behavior for `/health` is wrong (it should route to API Gateway, same as `/api/*`). Check `frontend-stack.ts` behaviors.
+- `/health` returns `"mode": "admin"` → Lambda is running with the local dev env. `APP_MODE=public` is hardcoded in `api-stack.ts`; verify that code shipped.
+- `/api/products/categories` returns `data: []` → DynamoDB table is empty OR the Lambda is pointed at the wrong table. Check the `DYNAMODB_TABLE_NAME` env in the Lambda config.
+- `/api/v1/search?type=<new>` returns 400 → new product type wasn't added to the zod enum in `routes/search.ts` (see "Adding a new product type" above).
 
 ## Key directories
 
