@@ -56,30 +56,25 @@ required guessing during the 2026-04-18 prod migration session.
 
 ## Project docs that would save agent time
 
-11. **Add a `scripts/resurrect-orphan-table.sh`** that wraps the
-    `cdk import` dance we did twice this session. It was written ad-hoc
-    with throwaway `.import-*.json` files; next agent will re-derive it
-    from scratch.
-12. **Expand `CLAUDE.md`'s "Adding a new product type"** with "how to
-    test it locally end-to-end" — currently it lists the 6 files to
-    touch but not the smoke steps.
-13. **Add a "post-deploy verification" section to `CLAUDE.md`** listing
-    the exact URLs (`/health`, `/api/v1/categories`) and expected
-    responses per stage. The right paths were rediscovered twice this
-    session.
+11. ~~**Add a `scripts/resurrect-orphan-table.sh`** that wraps the
+    `cdk import` dance we did twice this session.~~ **DONE
+    2026-04-21** — `scripts/resurrect-orphan-table.sh`.
+12. ~~**Expand `CLAUDE.md`'s "Adding a new product type"** with "how to
+    test it locally end-to-end".~~ **DONE 2026-04-21** — see
+    "Smoke-testing a new type end-to-end" in `CLAUDE.md`.
+13. ~~**Add a "post-deploy verification" section to `CLAUDE.md`**.~~
+    **DONE 2026-04-21** — see "Post-deploy verification" in `CLAUDE.md`.
 
 ## Lower-stakes but quick wins
 
-14. **Decide fate of `/api/datasheets/:id/scrape`.** It's mounted in
-    public/prod mode but will always fail (no `GEMINI_API_KEY`). Either
-    delete the route + `scraper.ts`/`gemini.ts` from the backend
-    entirely (saves ~40MB of deps and removes an attack surface), or
-    gate it behind `APP_MODE === 'admin'`. Right now it's a trap.
+14. ~~**Decide fate of `/api/datasheets/:id/scrape`.**~~ **DONE
+    2026-04-21** — route, `scraper.ts`, `gemini.ts`, `gemini_schemas.ts`,
+    and the Gemini/PDF backend deps all deleted.
 
-## Top-4 by ROI for agent sessions
+## Top remaining ROI for agent sessions
 
 1. Item **5** (env files) — unblocks every fresh clone.
-2. Item **11** (resurrect script) — makes orphan recovery a one-liner.
-3. Item **14** (dead route cleanup) — removes a silent-failure trap.
-4. Item **3** (prod approval gate) — stops an agent from deploying
+2. Item **3** (prod approval gate) — stops an agent from deploying
    straight to prod without human review.
+3. Item **4** (branch protection on `master`).
+4. Item **1** (repo secrets).
