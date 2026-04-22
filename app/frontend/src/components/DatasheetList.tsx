@@ -6,7 +6,6 @@ import { useColumnResize } from '../utils/hooks';
 import DatasheetFilterBar from './DatasheetFilterBar';
 import DatasheetEditModal from './DatasheetEditModal';
 import { sanitizeUrl } from '../utils/sanitize';
-import { apiClient } from '../api/client';
 
 export default function DatasheetList() {
   const { products, loadProducts, loading, error, deleteProduct } = useApp();
@@ -16,7 +15,6 @@ export default function DatasheetList() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedDatasheet, setSelectedDatasheet] = useState<DatasheetEntry | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
-  const [scrapingMap, setScrapingMap] = useState<Record<string, boolean>>({});
 
   const { columnWidths, startResize } = useColumnResize({
     product_name: 250,
@@ -126,23 +124,7 @@ export default function DatasheetList() {
     return sort.direction === 'asc' ? ' ↑' : ' ↓';
   };
 
-  const handleScrape = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!id) return;
-    
-    try {
-      setScrapingMap(prev => ({ ...prev, [id]: true }));
-      await apiClient.scrapeDatasheet(id);
-      loadProducts('datasheet');
-    } catch (e: any) {
-      console.error(e);
-      alert(`Scraping failed: ${e.message}`);
-    } finally {
-      setScrapingMap(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
-  const headerStyle = { 
+  const headerStyle = {
     padding: '0.75rem', 
     fontWeight: 600, 
     fontSize: '0.85rem', 
@@ -263,26 +245,7 @@ export default function DatasheetList() {
                   </td>
                   <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                      <button 
-                        className="btn-icon"
-                        onClick={(e) => handleScrape(datasheet.product_id || '', e)}
-                        title="Scrape Datasheet"
-                        disabled={scrapingMap[datasheet.product_id || ''] || !!datasheet.is_scraped}
-                        style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)' }}
-                      >
-                        {scrapingMap[datasheet.product_id || ''] ? (
-                           <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                             <line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                           </svg>
-                        ) : (
-                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                             <polyline points="7 10 12 15 17 10"></polyline>
-                             <line x1="12" y1="15" x2="12" y2="3"></line>
-                           </svg>
-                        )}
-                      </button>
-                      <button 
+                      <button
                         className="btn-icon delete"
                         onClick={(e) => {
                           e.stopPropagation();

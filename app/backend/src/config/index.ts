@@ -36,9 +36,6 @@ export const config = {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
   },
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-  },
   stripe: {
     lambdaUrl: process.env.STRIPE_LAMBDA_URL || '',
   },

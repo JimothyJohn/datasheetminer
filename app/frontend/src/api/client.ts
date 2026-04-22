@@ -430,27 +430,6 @@ class ApiClient {
     });
   }
 
-  /**
-   * Scrape a datasheet by ID
-   * 
-   * Triggers the backend scraper to process the datasheet URL using Gemini.
-   * 
-   * @param id - Datasheet ID
-   * @returns Promise<ApiResponse<void>>
-   */
-  async scrapeDatasheet(id: string): Promise<ApiResponse<void>> {
-    console.log(`[ApiClient] Scraping datasheet: ${id}`);
-    
-    // Using explicit request method because this is a custom action
-    // Timeout extended to 5 minutes as PDF scraping & LLM processing is slow
-    const response = await this.request<void>(`/api/datasheets/${id}/scrape`, {
-      method: 'POST',
-      timeout: 300000 
-    });
-    
-    return response;
-  }
-
   // ========== Subscription Methods ==========
 
   /**
