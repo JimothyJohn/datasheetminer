@@ -46,8 +46,13 @@ export const config = {
 };
 
 /**
- * Load secrets from SSM Parameter Store (production only).
+ * Load runtime config from SSM Parameter Store (production only).
  * Call once at Lambda cold start before handling requests.
+ *
+ * GEMINI_API_KEY is intentionally NOT fetched here — the deployed app
+ * doesn't scrape datasheets, only reads already-extracted records from
+ * DynamoDB. Scraping runs locally via `./Quickstart process`, which reads
+ * the key from .env.
  */
 export async function loadSsmSecrets(): Promise<void> {
   if (process.env.NODE_ENV !== 'production') return;
@@ -55,10 +60,7 @@ export async function loadSsmSecrets(): Promise<void> {
   const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
   const ssm = new SSMClient({ region: config.aws.region });
 
-  const paramNames = [
-    `${ssmPrefix}/gemini-api-key`,
-    `${ssmPrefix}/stripe-lambda-url`,
-  ];
+  const paramNames = [`${ssmPrefix}/stripe-lambda-url`];
 
   try {
     const result = await ssm.send(new GetParametersCommand({
@@ -68,13 +70,8 @@ export async function loadSsmSecrets(): Promise<void> {
 
     for (const param of result.Parameters || []) {
       const key = param.Name?.split('/').pop();
-      switch (key) {
-        case 'gemini-api-key':
-          config.gemini.apiKey = param.Value;
-          break;
-        case 'stripe-lambda-url':
-          config.stripe.lambdaUrl = param.Value || '';
-          break;
+      if (key === 'stripe-lambda-url') {
+        config.stripe.lambdaUrl = param.Value || '';
       }
     }
 
@@ -84,11 +81,6 @@ export async function loadSsmSecrets(): Promise<void> {
   } catch (err) {
     console.error('Failed to load SSM secrets:', err);
   }
-}
-
-// Debug log for API Key presence
-if (!config.gemini.apiKey && process.env.NODE_ENV !== 'production') {
-  console.warn("GEMINI_API_KEY is missing in backend config!");
 }
 
 export default config;

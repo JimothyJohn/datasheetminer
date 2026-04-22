@@ -273,12 +273,6 @@ datasheets/
 jsons/
 outputs/
 
-# Track test suites
-!tests/
-!tests/**
-!app/backend/tests/
-!app/backend/tests/**
-!app/frontend/src/**/*.test.*
 .logs/
 output_*.json
 **/cdk-outputs.json

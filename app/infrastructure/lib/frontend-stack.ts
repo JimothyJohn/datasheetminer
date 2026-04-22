@@ -8,7 +8,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
@@ -17,7 +17,7 @@ import { AppConfig } from './config';
 import * as path from 'path';
 
 export interface FrontendStackProps extends cdk.StackProps {
-  api: apigateway.RestApi;
+  api: apigwv2.HttpApi;
 }
 
 export class FrontendStack extends cdk.Stack {
@@ -33,11 +33,12 @@ export class FrontendStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
-    // API Gateway origin for /api/* requests
+    // API Gateway (HTTP API v2) origin for /api/* requests.
+    // The $default auto-deploy stage has no URL path prefix, so there's no
+    // originPath — unlike RestApi v1, which needed /prod.
     const apiOrigin = new origins.HttpOrigin(
-      `${props.api.restApiId}.execute-api.${this.region}.amazonaws.com`,
+      `${props.api.apiId}.execute-api.${this.region}.amazonaws.com`,
       {
-        originPath: '/prod',
         protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
       }
     );

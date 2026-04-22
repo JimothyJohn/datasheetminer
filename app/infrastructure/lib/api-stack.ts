@@ -4,7 +4,6 @@ import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as apigwIntegrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { AppConfig } from './config';
@@ -23,27 +22,12 @@ export class ApiStack extends cdk.Stack {
 
     const { table, uploadBucket } = props;
 
-    // Reference SSM parameters (created outside CDK or by CI pipeline)
-    const geminiKeyParam = ssm.StringParameter.fromSecureStringParameterAttributes(this, 'GeminiKey', {
-      parameterName: `${config.ssmPrefix}/gemini-api-key`,
-    });
-
-    const stripeLambdaUrlParam = ssm.StringParameter.fromStringParameterName(this, 'StripeLambdaUrl',
-      `${config.ssmPrefix}/stripe-lambda-url`,
-    );
-
     // Lambda function (backend API)
     const handler = new lambda.Function(this, 'ApiHandler', {
       functionName: `datasheetminer-api-${config.stage}`,
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../backend/dist'), {
-        bundling: {
-          image: lambda.Runtime.NODEJS_18_X.bundlingImage,
-          command: ['bash', '-c', 'cp -au . /asset-output'],
-          user: 'root',
-        },
-      }),
+      handler: 'lambda.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../backend/dist')),
       memorySize: 512,
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -53,17 +37,16 @@ export class ApiStack extends cdk.Stack {
         DYNAMODB_TABLE_NAME: table.tableName,
         UPLOAD_BUCKET: uploadBucket.bucketName,
         AWS_ACCOUNT_ID: config.env.account,
-        // SSM paths — the Lambda reads secrets at startup
         SSM_PREFIX: config.ssmPrefix,
       },
     });
 
-    // Grant DynamoDB and S3 access
     table.grantReadWriteData(handler);
     uploadBucket.grantReadWrite(handler);
 
-    // Grant SSM read access for secrets
-    geminiKeyParam.grantRead(handler);
+    // SSM read access for runtime config (stripe-lambda-url). GEMINI_API_KEY
+    // is not provisioned in SSM — the deployed app doesn't scrape; scraping
+    // runs locally via the Python CLI with the key in .env.
     handler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParameter', 'ssm:GetParameters'],
       resources: [

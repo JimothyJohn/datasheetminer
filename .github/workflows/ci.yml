@@ -87,6 +87,9 @@ jobs:
         run: npm run build
 
   # ── Stage 2: Deploy to staging ─────────────────────────────────
+  # Deploy delegates to ./Quickstart deploy --stage staging so the
+  # CI flow matches the local flow exactly (single source of truth).
+  # SSM params are stage-scoped: /datasheetminer/staging/*.
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
@@ -104,6 +107,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install uv (for Quickstart CLI)
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
+        with:
+          version: "latest"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
@@ -111,44 +119,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install workspace dependencies
-        working-directory: app
-        run: npm ci
-
-      - name: Build frontend (public mode)
-        working-directory: app/frontend
-        run: VITE_API_URL="" VITE_APP_MODE=public npm run build
-
-      - name: Provision SSM secrets
+      - name: Provision staging SSM params
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          SSM_PREFIX: /datasheetminer/staging
+          STRIPE_LAMBDA_URL: ${{ secrets.STRIPE_LAMBDA_URL }}
         run: |
-          SSM_PREFIX="/datasheetminer/prod"
-
-          # Gemini API key (SecureString)
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            aws ssm put-parameter \
-              --name "${SSM_PREFIX}/gemini-api-key" \
-              --type SecureString \
-              --value "${{ secrets.GEMINI_API_KEY }}" \
-              --overwrite
-          fi
-
-          # Stripe Lambda URL (String — not a secret)
+          # Stripe Lambda URL (String, optional). Subscription middleware
+          # treats empty as 'unconfigured' and lets requests through.
           aws ssm put-parameter \
             --name "${SSM_PREFIX}/stripe-lambda-url" \
-            --type String \
-            --value "${{ secrets.STRIPE_LAMBDA_URL || '' }}" \
-            --overwrite
+            --type String --value "${STRIPE_LAMBDA_URL:-}" --overwrite
 
-      - name: CDK Deploy (staging)
-        working-directory: app/infrastructure
+      - name: Deploy staging via Quickstart
         env:
-          STAGE: staging
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
+        run: ./Quickstart deploy --stage staging
 
-      - name: Extract outputs
+      - name: Extract stack outputs
         id: extract
         working-directory: app/infrastructure
         run: |
@@ -197,18 +184,20 @@ jobs:
       - name: Install dependencies
         run: uv sync --quiet
 
-      - name: Wait for staging to be healthy
+      - name: Wait for /health to go 200
         env:
           URL: ${{ needs.deploy-staging.outputs.url }}
         run: |
           for i in $(seq 1 60); do
-            if curl -sf "$URL/health" >/dev/null 2>&1; then
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health" || true)
+            if [ "$CODE" = "200" ]; then
               echo "Healthy after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "::error::Staging health check timed out after 60s"
+          echo "::error::Staging /health returned $CODE after 60s (expected 200)"
+          curl -sv "$URL/health" || true
           exit 1
 
       - name: Run staging contract tests
@@ -222,6 +211,7 @@ jobs:
         run: uv run pytest tests/post_deploy/ -v
 
   # ── Stage 4: Deploy to production ──────────────────────────────
+  # Gated on smoke-staging success + environment approval.
   deploy-prod:
     name: Deploy Prod
     runs-on: ubuntu-latest
@@ -238,6 +228,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install uv (for Quickstart CLI)
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
+        with:
+          version: "latest"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
@@ -245,25 +240,44 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install workspace dependencies
-        working-directory: app
-        run: npm ci
-
-      - name: Build frontend (public mode)
-        working-directory: app/frontend
-        run: VITE_API_URL="" VITE_APP_MODE=public npm run build
-
-      - name: CDK Deploy (prod)
-        working-directory: app/infrastructure
+      - name: Validate prod deploy-time secrets
+        # Fail fast if required domain config is missing — Quickstart would
+        # refuse anyway, but catching it here surfaces it before asset builds.
+        run: |
+          missing=()
+          for s in AWS_ACCOUNT_ID DOMAIN_NAME CERTIFICATE_ARN HOSTED_ZONE_ID; do
+            eval "val=\${$s:-}"
+            [ -z "$val" ] && missing+=("$s")
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required prod secrets: ${missing[*]}"
+            exit 1
+          fi
         env:
-          STAGE: prod
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
           HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
-        run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 
-      - name: Extract outputs
+      - name: Provision prod SSM params
+        env:
+          SSM_PREFIX: /datasheetminer/prod
+          STRIPE_LAMBDA_URL: ${{ secrets.STRIPE_LAMBDA_URL }}
+        run: |
+          aws ssm put-parameter \
+            --name "${SSM_PREFIX}/stripe-lambda-url" \
+            --type String --value "${STRIPE_LAMBDA_URL:-}" --overwrite
+
+      - name: Deploy prod via Quickstart
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
+          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+          HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
+        run: ./Quickstart deploy --stage prod
+
+      - name: Extract stack outputs
         id: extract
         working-directory: app/infrastructure
         run: |
@@ -315,18 +329,20 @@ jobs:
       - name: Install dependencies
         run: uv sync --quiet
 
-      - name: Wait for production to be healthy
+      - name: Wait for /health to go 200
         env:
           URL: ${{ needs.deploy-prod.outputs.url }}
         run: |
           for i in $(seq 1 60); do
-            if curl -sf "$URL/health" >/dev/null 2>&1; then
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health" || true)
+            if [ "$CODE" = "200" ]; then
               echo "Healthy after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "::error::Production health check timed out after 60s"
+          echo "::error::Production /health returned $CODE after 60s (expected 200)"
+          curl -sv "$URL/health" || true
           exit 1
 
       - name: Run smoke tests

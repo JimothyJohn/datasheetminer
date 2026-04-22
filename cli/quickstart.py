@@ -366,16 +366,18 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             stage_env.get("DYNAMODB_TABLE_NAME", f"products-{stage}"),
         ),
     }
-    # Domain config: os.environ > stage env file
-    domain_keys = ("DOMAIN_NAME", "CERTIFICATE_ARN", "HOSTED_ZONE_ID")
-    for key in domain_keys:
+    # Domain config: os.environ > stage env file. HOSTED_ZONE_NAME is
+    # optional — the CDK defaults to the parent of DOMAIN_NAME.
+    required_domain_keys = ("DOMAIN_NAME", "CERTIFICATE_ARN", "HOSTED_ZONE_ID")
+    optional_domain_keys = ("HOSTED_ZONE_NAME",)
+    for key in required_domain_keys + optional_domain_keys:
         val = os.environ.get(key) or stage_env.get(key)
         if val:
             deploy_env[key] = val
 
     # Prod must have domain config — refuse to deploy without it
     if stage == "prod":
-        missing = [k for k in domain_keys if k not in deploy_env]
+        missing = [k for k in required_domain_keys if k not in deploy_env]
         if missing:
             fail(
                 f"Production deploy requires domain config: {', '.join(missing)}. "
@@ -390,6 +392,29 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         ["npm", "run", "build"],
         cwd=APP / "frontend",
         env={"VITE_API_URL": "", "VITE_APP_MODE": "public"},
+    )
+
+    # Lambda bundle: tsc → dist/, then install prod deps into dist/ so the
+    # asset CDK zips is self-contained. Without this the Lambda boots with
+    # `Cannot find module 'express'`. Clean dist/ first so stale compiled
+    # files from removed sources don't leak into the zip.
+    info("Building backend Lambda bundle")
+    backend_dist = APP / "backend" / "dist"
+    if backend_dist.exists():
+        shutil.rmtree(backend_dist)
+    run(["npm", "run", "build"], cwd=APP / "backend")
+    shutil.copy(APP / "backend" / "package.json", backend_dist / "package.json")
+    run(
+        [
+            "npm",
+            "install",
+            "--omit=dev",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--silent",
+        ],
+        cwd=backend_dist,
     )
 
     info("Bootstrapping CDK")

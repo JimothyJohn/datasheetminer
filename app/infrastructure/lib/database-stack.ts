@@ -18,20 +18,12 @@ export class DatabaseStack extends cdk.Stack {
 
     this.table = new dynamodb.Table(this, 'ProductsTable', {
       tableName: config.tableName,
-      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: config.stage === 'prod'
         ? cdk.RemovalPolicy.RETAIN
         : cdk.RemovalPolicy.DESTROY,
-    });
-
-    // GSI for querying by manufacturer
-    this.table.addGlobalSecondaryIndex({
-      indexName: 'gsi-manufacturer',
-      partitionKey: { name: 'manufacturer', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL,
     });
 
     this.uploadBucket = new s3.Bucket(this, 'UploadBucket', {
@@ -40,9 +32,14 @@ export class DatabaseStack extends cdk.Stack {
         ? cdk.RemovalPolicy.RETAIN
         : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: config.stage !== 'prod',
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      lifecycleRules: [
+        { prefix: 'done/', expiration: cdk.Duration.days(90) },
+      ],
       cors: [
         {
-          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET],
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
           allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           maxAge: 3600,
