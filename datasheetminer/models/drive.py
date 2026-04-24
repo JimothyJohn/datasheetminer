@@ -10,8 +10,13 @@ from __future__ import annotations
 from typing import List, Literal, Optional
 
 from datasheetminer.models.common import (
-    MinMaxUnit,
-    ValueUnit,
+    Current,
+    Frequency,
+    FrequencyRange,
+    IpRating,
+    Power,
+    TemperatureRange,
+    VoltageRange,
 )
 from datasheetminer.models.communication_protocol import CommunicationProtocol
 from datasheetminer.models.product import ProductBase
@@ -31,13 +36,13 @@ class Drive(ProductBase):
     product_type: Literal["drive"] = "drive"
     type: Optional[Literal["servo", "variable frequency"]] = None
     series: Optional[str] = None
-    input_voltage: Optional[MinMaxUnit] = None
-    input_voltage_frequency: Optional[List[MinMaxUnit]] = None
+    input_voltage: VoltageRange = None
+    input_voltage_frequency: Optional[List[FrequencyRange]] = None
     input_voltage_phases: Optional[List[int]] = None
-    rated_current: Optional[ValueUnit] = None
-    peak_current: Optional[ValueUnit] = None
-    output_power: Optional[ValueUnit] = None
-    switching_frequency: Optional[List[ValueUnit]] = None
+    rated_current: Current = None
+    peak_current: Current = None
+    rated_power: Power = None
+    switching_frequency: Optional[List[Frequency]] = None
     fieldbus: Optional[List[CommunicationProtocol]] = None
     # control_modes: Optional[List[str]] = None
     encoder_feedback_support: Optional[List[str]] = None
@@ -50,5 +55,5 @@ class Drive(ProductBase):
     safety_rating: Optional[List[str]] = None
     approvals: Optional[List[str]] = None
     max_humidity: Optional[float] = None
-    ip_rating: Optional[int] = None
-    ambient_temp: Optional[MinMaxUnit] = None
+    ip_rating: IpRating = None
+    operating_temp: TemperatureRange = None

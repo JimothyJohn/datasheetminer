@@ -12,7 +12,7 @@ from pydantic import BaseModel, BeforeValidator, Field, computed_field
 from typing_extensions import Annotated
 
 
-from datasheetminer.models.common import ProductType, ValueUnit
+from datasheetminer.models.common import Mass, ProductType, ValueUnit
 from datasheetminer.placeholders import is_placeholder
 
 
@@ -80,8 +80,8 @@ class ProductBase(BaseModel):
     manufacturer: str = Field(..., description="Manufacturer name")
     release_year: Optional[int] = None
     dimensions: Optional[Dimensions] = None
-    weight: Optional[ValueUnit] = None
-    msrp: Optional[ValueUnit] = None
+    weight: Mass = None
+    msrp: ValueUnit = None
     msrp_source_url: Optional[str] = Field(
         None,
         description="URL the MSRP was scraped from. Populated by price-enrich.",
@@ -89,7 +89,7 @@ class ProductBase(BaseModel):
     msrp_fetched_at: Optional[str] = Field(
         None, description="ISO 8601 timestamp when MSRP was last fetched."
     )
-    warranty: Optional[ValueUnit] = None
+    warranty: ValueUnit = None
     datasheet_url: Optional[str] = Field(
         None, description="URL of the source datasheet"
     )

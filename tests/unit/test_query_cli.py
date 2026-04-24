@@ -56,7 +56,7 @@ def _make_drive(**overrides):
         "product_name": "EPOS4",
         "manufacturer": MFG,
         "part_number": "607160",
-        "output_power": "500;W",
+        "rated_power": "500;W",
         "input_voltage": "10-50;VDC",
         "rated_current": "15;A",
         "peak_current": "30;A",
@@ -379,7 +379,7 @@ class TestProductSummary:
         drive = _make_drive()
         summary = product_summary(drive)
         assert summary["product_type"] == "drive"
-        assert "output_power" in summary
+        assert "rated_power" in summary
 
     def test_summary_excludes_none_specs(self):
         motor = _make_motor(peak_torque=None)

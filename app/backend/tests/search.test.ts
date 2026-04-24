@@ -61,7 +61,7 @@ const mockDrive: Product = {
   PK: 'PRODUCT#DRIVE',
   SK: 'PRODUCT#ghi-789',
   type: 'variable frequency',
-  output_power: { value: 500, unit: 'W' },
+  rated_power: { value: 500, unit: 'W' },
   rated_current: { value: 10, unit: 'A' },
 } as unknown as Product;
 
@@ -290,9 +290,11 @@ describe('Search Service', () => {
     });
 
     it('filter-only returns matching products', () => {
+      // rated_torque is motor-specific; rated_power is now shared with drives
+      // after the rename from output_power, so we filter on the motor-only spec.
       const result = searchProducts({
         products,
-        where: ['rated_power>=200'],
+        where: ['rated_torque>=1.0'],
       });
       expect(result.count).toBe(1);
       expect(result.products[0].manufacturer).toBe('Siemens');

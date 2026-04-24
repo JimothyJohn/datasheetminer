@@ -12,7 +12,17 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.common import (
+    Current,
+    IpRating,
+    MinMaxUnit,
+    Power,
+    Temperature,
+    TemperatureRange,
+    ValueUnit,
+    Voltage,
+    VoltageRange,
+)
 from datasheetminer.models.product import ProductBase
 
 
@@ -27,7 +37,7 @@ class ContactorPowerRating(BaseModel):
     on depends on the market.
     """
 
-    voltage: Optional[ValueUnit] = Field(
+    voltage: Voltage = Field(
         None, description="Operational voltage for this rating row (e.g. 400 V)."
     )
     voltage_group: Optional[str] = Field(
@@ -37,20 +47,20 @@ class ContactorPowerRating(BaseModel):
             "(e.g. '380-415', '220-240', '500-525')."
         ),
     )
-    current: Optional[ValueUnit] = Field(
+    current: Current = Field(
         None, description="Rated operational current Ie at this voltage (A)."
     )
-    power_kw: Optional[ValueUnit] = Field(
+    power_kw: Power = Field(
         None, description="Motor power rating at this voltage (kW, IEC)."
     )
-    power_hp: Optional[ValueUnit] = Field(
+    power_hp: Power = Field(
         None,
         description=(
             "Motor power rating at this voltage (hp, UL/NEMA market). "
             "Store as float; fractional hp like '7-1/2 hp' → 7.5."
         ),
     )
-    ambient_temp: Optional[ValueUnit] = Field(
+    ambient_temp: Temperature = Field(
         None,
         description=(
             "Ambient temperature the row applies to (°C). AC-1 tables on "
@@ -67,10 +77,9 @@ class ContactorIcwRating(BaseModel):
     short-circuit current rating), which is a single value.
     """
 
+    # Time family not introduced — leave generic.
     duration: ValueUnit = Field(..., description="Withstand duration, e.g. 10 s.")
-    current: ValueUnit = Field(
-        ..., description="Withstand current for the duration (A)."
-    )
+    current: Current = Field(..., description="Withstand current for the duration (A).")
 
 
 class Contactor(ProductBase):
@@ -120,14 +129,14 @@ class Contactor(ProductBase):
     )
 
     # --- Insulation & voltage ---
-    rated_insulation_voltage: Optional[ValueUnit] = Field(
+    rated_insulation_voltage: Voltage = Field(
         None,
         description="Rated insulation voltage Ui (V). Typically 690 V IEC / 600 V UL.",
     )
-    rated_impulse_withstand_voltage: Optional[ValueUnit] = Field(
+    rated_impulse_withstand_voltage: Voltage = Field(
         None, description="Rated impulse withstand voltage Uimp (kV). Typically 6 kV."
     )
-    rated_operational_voltage_max: Optional[ValueUnit] = Field(
+    rated_operational_voltage_max: Voltage = Field(
         None,
         description=(
             "Maximum rated operational voltage Ue (V). Distinct from Ui; "
@@ -145,21 +154,21 @@ class Contactor(ProductBase):
     # These are the single-scalar numbers that vendors lead with in the
     # product name and that users sort the catalog by. The full tables
     # live in ratings_ac3 / ratings_ac1 below.
-    ie_ac3_400v: Optional[ValueUnit] = Field(
+    ie_ac3_400v: Current = Field(
         None,
         description=(
             "Rated operational current at AC-3, Ue = 400 V (A). IEC "
             "headline figure — use this for filtering / comparing."
         ),
     )
-    motor_power_ac3_400v_kw: Optional[ValueUnit] = Field(
+    motor_power_ac3_400v_kw: Power = Field(
         None,
         description=(
             "Rated motor power at AC-3, Ue = 400 V (kW). Appears in the "
             "product name on most Siemens/Schneider SKUs."
         ),
     )
-    motor_power_ac3_480v_hp: Optional[ValueUnit] = Field(
+    motor_power_ac3_480v_hp: Power = Field(
         None,
         description=(
             "Rated motor power at AC-3, Ue = 480 V (hp). NEMA/UL headline "
@@ -192,7 +201,7 @@ class Contactor(ProductBase):
     )
 
     # --- Thermal / short-circuit ---
-    conventional_thermal_current: Optional[ValueUnit] = Field(
+    conventional_thermal_current: Current = Field(
         None,
         description=(
             "Conventional free-air thermal current Ith (A) — continuous "
@@ -207,7 +216,7 @@ class Contactor(ProductBase):
             "ABB/Allen-Bradley publish 4+ points; capture the full curve."
         ),
     )
-    sccr: Optional[ValueUnit] = Field(
+    sccr: Current = Field(
         None,
         description=(
             "UL short-circuit current rating (kA). North-American metric "
@@ -216,14 +225,14 @@ class Contactor(ProductBase):
     )
 
     # --- Coil (control circuit) ---
-    coil_voltage_range_ac: Optional[MinMaxUnit] = Field(
+    coil_voltage_range_ac: VoltageRange = Field(
         None,
         description=(
             "AC coil voltage range offered across the SKU family "
             "(e.g. 24–500 V AC). Individual SKUs will have a single Uc."
         ),
     )
-    coil_voltage_range_dc: Optional[MinMaxUnit] = Field(
+    coil_voltage_range_dc: VoltageRange = Field(
         None, description="DC coil voltage range offered across the SKU family (V)."
     )
     coil_voltage_options: Optional[List[str]] = Field(
@@ -234,33 +243,33 @@ class Contactor(ProductBase):
             "discrete options rather than a continuous range."
         ),
     )
-    coil_pickup_factor: Optional[MinMaxUnit] = Field(
+    coil_pickup_factor: MinMaxUnit = Field(
         None,
         description=(
             "Operating range for reliable pickup as a fraction of Uc "
             "(e.g. 0.85–1.1 ×Uc). Unitless ratio — use unit='×Uc'."
         ),
     )
-    coil_dropout_factor: Optional[MinMaxUnit] = Field(
+    coil_dropout_factor: MinMaxUnit = Field(
         None,
         description=(
             "Drop-out voltage as a fraction of Uc (e.g. 0.2–0.75 ×Uc). Unitless ratio."
         ),
     )
-    coil_time_constant: Optional[ValueUnit] = Field(
+    coil_time_constant: ValueUnit = Field(
         None,
         description=(
             "DC coil time constant (ms). Schneider TeSys D publishes this "
             "for DC coils; rarely meaningful for AC."
         ),
     )
-    coil_power_consumption_sealed: Optional[ValueUnit] = Field(
+    coil_power_consumption_sealed: ValueUnit = Field(
         None,
         description=(
             "Sealed (energized steady-state) coil consumption. W for DC, VA for AC."
         ),
     )
-    coil_power_consumption_inrush: Optional[ValueUnit] = Field(
+    coil_power_consumption_inrush: ValueUnit = Field(
         None,
         description="Inrush coil consumption at pickup. VA for AC, W for DC.",
     )
@@ -278,40 +287,40 @@ class Contactor(ProductBase):
     )
 
     # --- Durability / switching performance ---
-    mechanical_durability: Optional[ValueUnit] = Field(
+    mechanical_durability: ValueUnit = Field(
         None,
         description="Mechanical endurance (operations) without load.",
     )
-    electrical_durability_ac3: Optional[ValueUnit] = Field(
+    electrical_durability_ac3: ValueUnit = Field(
         None, description="Electrical endurance under AC-3 duty (operations)."
     )
-    operating_frequency_ac3: Optional[ValueUnit] = Field(
+    operating_frequency_ac3: ValueUnit = Field(
         None, description="Maximum switching frequency under AC-3 (operations/hour)."
     )
-    making_capacity: Optional[ValueUnit] = Field(
+    making_capacity: Current = Field(
         None, description="Making (closing) current capacity at rated voltage (A)."
     )
-    breaking_capacity: Optional[ValueUnit] = Field(
+    breaking_capacity: Current = Field(
         None, description="Breaking (opening) current capacity at rated voltage (A)."
     )
-    operating_time_close: Optional[MinMaxUnit] = Field(
+    operating_time_close: MinMaxUnit = Field(
         None, description="Close operate time from coil-on to main-contact-on (ms)."
     )
-    operating_time_open: Optional[MinMaxUnit] = Field(
+    operating_time_open: MinMaxUnit = Field(
         None, description="Open operate time from coil-off to main-contact-off (ms)."
     )
 
     # --- Environmental ---
-    operating_temp: Optional[MinMaxUnit] = Field(
+    operating_temp: TemperatureRange = Field(
         None, description="Operating ambient temperature range (°C)."
     )
-    storage_temp: Optional[MinMaxUnit] = Field(
+    storage_temp: TemperatureRange = Field(
         None, description="Storage temperature range (°C)."
     )
-    ip_rating: Optional[int] = Field(
+    ip_rating: IpRating = Field(
         None, description="IP protection rating (typically 20 for front of panel)."
     )
-    altitude_max: Optional[ValueUnit] = Field(
+    altitude_max: ValueUnit = Field(
         None, description="Maximum operating altitude without derating (m)."
     )
 

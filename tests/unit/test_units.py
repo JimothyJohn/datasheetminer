@@ -266,7 +266,9 @@ class TestPydanticIntegration:
     def test_motor_inertia_gcm2_normalized(self):
         from datasheetminer.models.motor import Motor
 
-        motor = Motor(product_name="Test", manufacturer="Test", rotor_inertia="500;g·cm²")
+        motor = Motor(
+            product_name="Test", manufacturer="Test", rotor_inertia="500;g·cm²"
+        )
         assert motor.rotor_inertia == "0.5;kg·cm²"
 
     def test_drive_current_mA_normalized(self):
@@ -278,8 +280,8 @@ class TestPydanticIntegration:
     def test_drive_power_kW_normalized(self):
         from datasheetminer.models.drive import Drive
 
-        drive = Drive(product_name="Test", manufacturer="Test", output_power="2;kW")
-        assert drive.output_power == "2000;W"
+        drive = Drive(product_name="Test", manufacturer="Test", rated_power="2;kW")
+        assert drive.rated_power == "2000;W"
 
     def test_gearhead_torque_oz_in_normalized(self):
         from datasheetminer.models.gearhead import Gearhead
@@ -288,9 +290,9 @@ class TestPydanticIntegration:
             product_name="Test",
             manufacturer="Test",
             product_type="gearhead",
-            max_continuous_torque="100;oz-in",
+            rated_torque="100;oz-in",
         )
-        parts = gh.max_continuous_torque.split(";")
+        parts = gh.rated_torque.split(";")
         assert parts[1] == "Nm"
         assert float(parts[0]) == pytest.approx(0.706155, rel=1e-3)
 

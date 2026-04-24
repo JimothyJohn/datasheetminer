@@ -180,6 +180,8 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
   { key: 'resistance', displayName: 'Resistance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Ω', defaultVisible: false },
   { key: 'inductance', displayName: 'Inductance', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'mH', defaultVisible: false },
   { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['motor'] },
+  { key: 'shaft_diameter', displayName: 'Shaft Diameter', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'mm', defaultVisible: false },
+  { key: 'frame_size', displayName: 'Frame Size', type: 'string', applicableTypes: ['motor'] },
   { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
@@ -212,7 +214,7 @@ export const getRobotArmAttributes = (): AttributeMetadata[] => [
   { key: 'degrees_of_freedom', displayName: 'Degrees of Freedom', type: 'number', applicableTypes: ['robot_arm'], defaultVisible: true },
   { key: 'pose_repeatability', displayName: 'Pose Repeatability', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'mm', defaultVisible: true },
   { key: 'max_tcp_speed', displayName: 'Max TCP Speed', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'm/s', defaultVisible: true },
-  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['robot_arm'], defaultVisible: true },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['robot_arm'], defaultVisible: true },
   { key: 'cleanroom_class', displayName: 'Cleanroom Class', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'dB(A)', defaultVisible: false },
   { key: 'mounting_position', displayName: 'Mounting Position', type: 'string', applicableTypes: ['robot_arm'] },
@@ -231,7 +233,7 @@ export const getRobotArmAttributes = (): AttributeMetadata[] => [
  * Categories:
  * - Identification: manufacturer, part_number, frame_size
  * - Performance: gear_ratio, gear_type, stages, nominal_input_speed, max_input_speed
- * - Torque & Power: max_continuous_torque, max_peak_torque, efficiency
+ * - Torque & Power: rated_torque, peak_torque, efficiency
  * - Mechanical: backlash, torsional_rigidity, rotor_inertia
  * - Shafts & Loads: input_shaft_diameter, output_shaft_diameter, max_radial_load, max_axial_load
  * - Environmental: ip_rating, operating_temp, noise_level, service_life
@@ -250,8 +252,8 @@ export const getGearheadAttributes = (): AttributeMetadata[] => [
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['gearhead'] },
   { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['gearhead'], defaultVisible: true },
   { key: 'gear_type', displayName: 'Gear Type', type: 'string', applicableTypes: ['gearhead'], defaultVisible: true },
-  { key: 'max_continuous_torque', displayName: 'Max Continuous Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
-  { key: 'max_peak_torque', displayName: 'Max Peak Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'rated_torque', displayName: 'Rated Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'peak_torque', displayName: 'Peak Torque', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'Nm', defaultVisible: true },
   { key: 'backlash', displayName: 'Backlash', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'arcmin', defaultVisible: true },
   { key: 'efficiency', displayName: 'Efficiency', type: 'number', applicableTypes: ['gearhead'], unit: '%', defaultVisible: true },
   { key: 'nominal_input_speed', displayName: 'Nominal Input Speed', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'rpm', defaultVisible: false },
@@ -265,7 +267,7 @@ export const getGearheadAttributes = (): AttributeMetadata[] => [
   { key: 'output_shaft_diameter', displayName: 'Output Shaft Diameter', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'mm', defaultVisible: false },
   { key: 'max_radial_load', displayName: 'Max Radial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N', defaultVisible: false },
   { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'N', defaultVisible: false },
-  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['gearhead'] },
   { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['gearhead'], nested: true, unit: '°C', defaultVisible: false },
   { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['gearhead'], nested: true, unit: 'hours', defaultVisible: false },
   { key: 'lubrication_type', displayName: 'Lubrication Type', type: 'string', applicableTypes: ['gearhead'] },
@@ -357,16 +359,16 @@ export const getContactorAttributes = (): AttributeMetadata[] => [
  *
  * Categories:
  * - Identification: manufacturer, part_number, type, series
- * - Electrical: input_voltage, input_voltage_phases, rated_current, peak_current, output_power
+ * - Electrical: input_voltage, input_voltage_phases, rated_current, peak_current, rated_power
  * - I/O & Connectivity: ethernet_ports, digital_inputs, digital_outputs, analog_inputs, analog_outputs
  * - Communication: fieldbus, control_modes, encoder_feedback_support
  * - Safety & Ratings: safety_features, safety_rating, approvals, ip_rating
- * - Environmental: max_humidity, ambient_temp
+ * - Environmental: max_humidity, operating_temp
  * - Physical: weight
  *
  * @returns Array of 23 drive attribute metadata objects
  */
-// Drive default-visible set: output_power + input_voltage + currents
+// Drive default-visible set: rated_power + input_voltage + currents
 // + IP rating. I/O counts (digital_inputs/outputs, analog_*,
 // ethernet_ports) are buried detail that nobody sorts the table by —
 // they matter for a specific integration, not product discovery. Same
@@ -377,7 +379,7 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['drive'] },
   { key: 'type', displayName: 'Drive Type', type: 'string', applicableTypes: ['drive'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['drive'] },
-  { key: 'output_power', displayName: 'Output Power', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'W', defaultVisible: true },
+  { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'W', defaultVisible: true },
   { key: 'input_voltage', displayName: 'Input Voltage', type: 'range', applicableTypes: ['drive'], nested: true, unit: 'V', defaultVisible: true },
   { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
   { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
@@ -395,7 +397,7 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'safety_rating', displayName: 'Safety Rating', type: 'array', applicableTypes: ['drive'] },
   { key: 'approvals', displayName: 'Approvals', type: 'array', applicableTypes: ['drive'] },
   { key: 'max_humidity', displayName: 'Max Humidity', type: 'number', applicableTypes: ['drive'], unit: '%' },
-  { key: 'ambient_temp', displayName: 'Ambient Temperature', type: 'range', applicableTypes: ['drive'], nested: true, unit: '°C', defaultVisible: false },
+  { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['drive'], nested: true, unit: '°C', defaultVisible: false },
   { key: 'weight', displayName: 'Weight', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'kg', defaultVisible: false },
 ];
 
@@ -427,7 +429,7 @@ export const getElectricCylinderAttributes = (): AttributeMetadata[] => [
   { key: 'max_axial_load', displayName: 'Max Axial Load', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'N', defaultVisible: false },
   { key: 'encoder_feedback_support', displayName: 'Encoder Feedback', type: 'string', applicableTypes: ['electric_cylinder'] },
   { key: 'fieldbus', displayName: 'Fieldbus', type: 'string', applicableTypes: ['electric_cylinder'] },
-  { key: 'ip_rating', displayName: 'IP Rating', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['electric_cylinder'] },
   { key: 'operating_temp', displayName: 'Operating Temperature', type: 'range', applicableTypes: ['electric_cylinder'], nested: true, unit: '°C', defaultVisible: false },
   { key: 'service_life', displayName: 'Service Life', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'h', defaultVisible: false },
   { key: 'noise_level', displayName: 'Noise Level', type: 'object', applicableTypes: ['electric_cylinder'], nested: true, unit: 'dBA', defaultVisible: false },

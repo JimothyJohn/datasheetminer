@@ -4,7 +4,16 @@ from typing import Literal, Optional
 
 from pydantic import Field
 
-from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.common import (
+    Current,
+    Force,
+    IpRating,
+    Length,
+    Power,
+    TemperatureRange,
+    ValueUnit,
+    VoltageRange,
+)
 from datasheetminer.models.product import ProductBase
 
 
@@ -29,60 +38,52 @@ class ElectricCylinder(ProductBase):
     series: Optional[str] = None
 
     # --- Linear output specs ---
-    stroke: Optional[ValueUnit] = Field(
-        None, description="Maximum linear travel (e.g., in mm)"
-    )
-    max_push_force: Optional[ValueUnit] = Field(
+    stroke: Length = Field(None, description="Maximum linear travel (e.g., in mm)")
+    max_push_force: Force = Field(
         None, description="Maximum push/extend force (e.g., in N)"
     )
-    max_pull_force: Optional[ValueUnit] = Field(
+    max_pull_force: Force = Field(
         None, description="Maximum pull/retract force (e.g., in N)"
     )
-    continuous_force: Optional[ValueUnit] = Field(
+    continuous_force: Force = Field(
         None, description="Continuous rated force (e.g., in N)"
     )
-    max_linear_speed: Optional[ValueUnit] = Field(
+    # mm/s is compound (length/time) — keep generic.
+    max_linear_speed: ValueUnit = Field(
         None, description="Maximum linear speed unloaded (e.g., in mm/s)"
     )
-    linear_speed_at_rated_load: Optional[ValueUnit] = Field(
+    linear_speed_at_rated_load: ValueUnit = Field(
         None, description="Linear speed at rated load (e.g., in mm/s)"
     )
-    positioning_repeatability: Optional[ValueUnit] = Field(
+    positioning_repeatability: Length = Field(
         None, description="Repeatability of positioning (e.g., in mm)"
     )
 
     # --- Integrated motor specs ---
-    rated_voltage: Optional[MinMaxUnit] = Field(
+    rated_voltage: VoltageRange = Field(
         None, description="Rated input voltage (e.g., in V)"
     )
-    rated_current: Optional[ValueUnit] = Field(
-        None, description="Rated current draw (e.g., in A)"
-    )
-    peak_current: Optional[ValueUnit] = Field(
-        None, description="Peak current draw (e.g., in A)"
-    )
-    rated_power: Optional[ValueUnit] = Field(
-        None, description="Rated motor power (e.g., in W)"
-    )
+    rated_current: Current = Field(None, description="Rated current draw (e.g., in A)")
+    peak_current: Current = Field(None, description="Peak current draw (e.g., in A)")
+    rated_power: Power = Field(None, description="Rated motor power (e.g., in W)")
     motor_type: Optional[str] = Field(
         None,
         description="Type of integrated motor (e.g., 'brushless dc', 'brushed dc')",
     )
 
     # --- Mechanical ---
-    lead_screw_pitch: Optional[ValueUnit] = Field(
+    # mm/rev is compound — keep generic.
+    lead_screw_pitch: ValueUnit = Field(
         None, description="Lead screw pitch (e.g., in mm/rev)"
     )
     gear_ratio: Optional[float] = Field(
         None, description="Internal gear ratio if geared (e.g., 14.0 for 14:1)"
     )
-    backlash: Optional[ValueUnit] = Field(
-        None, description="Mechanical backlash (e.g., in mm)"
-    )
-    max_radial_load: Optional[ValueUnit] = Field(
+    backlash: Length = Field(None, description="Mechanical backlash (e.g., in mm)")
+    max_radial_load: Force = Field(
         None, description="Maximum radial load on output shaft (e.g., in N)"
     )
-    max_axial_load: Optional[ValueUnit] = Field(
+    max_axial_load: Force = Field(
         None, description="Maximum static axial load (e.g., in N)"
     )
 
@@ -95,13 +96,14 @@ class ElectricCylinder(ProductBase):
     )
 
     # --- Environmental ---
-    ip_rating: Optional[str] = Field(None, description="Ingress Protection rating")
-    operating_temp: Optional[MinMaxUnit] = Field(
+    ip_rating: IpRating = Field(None, description="Ingress Protection rating")
+    operating_temp: TemperatureRange = Field(
         None, description="Operating temperature range"
     )
-    service_life: Optional[ValueUnit] = Field(
+    # Time family not introduced — hours/cycles stay generic.
+    service_life: ValueUnit = Field(
         None, description="Expected service life (e.g., in hours or cycles)"
     )
-    noise_level: Optional[ValueUnit] = Field(
+    noise_level: ValueUnit = Field(
         None, description="Noise level (e.g., in dBA)"
     )

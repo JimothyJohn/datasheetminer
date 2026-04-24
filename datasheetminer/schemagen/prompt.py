@@ -17,9 +17,11 @@ from datasheetminer.models.product import ProductBase
 from datasheetminer.schemagen.meta_schema import RESERVED_FIELD_NAMES
 
 
-# Canonical units, pulled from the csv_schema.py legacy reference. Kept
-# here so the system prompt can list them without depending on that file
-# (which is on its way out — see the plan).
+# Canonical units surfaced to the LLM so it doesn't invent alternatives.
+# Kept local to schemagen — the narrowed quantity aliases in
+# ``datasheetminer/models/common.py`` (``Voltage``, ``Current``, ...) are
+# the runtime source of truth; this list just helps the LLM pick from a
+# consistent vocabulary when proposing a brand-new model.
 CANONICAL_UNITS: List[str] = [
     "V",
     "A",

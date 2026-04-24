@@ -425,7 +425,9 @@
               "encoder_feedback_support": { "type": "string" },
               "poles": { "type": "integer" },
               "ip_rating": { "type": "integer" },
-              "rotor_inertia": { "$ref": "#/components/schemas/ValueUnit" }
+              "rotor_inertia": { "$ref": "#/components/schemas/ValueUnit" },
+              "shaft_diameter": { "$ref": "#/components/schemas/ValueUnit" },
+              "frame_size": { "type": "string" }
             }
           }
         ]
@@ -443,7 +445,7 @@
               "input_voltage_phases": { "type": "array", "items": { "type": "integer" } },
               "rated_current": { "$ref": "#/components/schemas/ValueUnit" },
               "peak_current": { "$ref": "#/components/schemas/ValueUnit" },
-              "output_power": { "$ref": "#/components/schemas/ValueUnit" },
+              "rated_power": { "$ref": "#/components/schemas/ValueUnit" },
               "switching_frequency": { "type": "array", "items": { "$ref": "#/components/schemas/ValueUnit" } },
               "fieldbus": { "type": "array", "items": { "type": "string", "enum": ["EtherCAT", "EtherNet/IP", "PROFINET", "Modbus TCP", "POWERLINK", "Sercos III", "CC-Link IE"] } },
               "control_modes": { "type": "array", "items": { "type": "string" } },
@@ -457,7 +459,7 @@
               "approvals": { "type": "array", "items": { "type": "string" } },
               "max_humidity": { "type": "number" },
               "ip_rating": { "type": "integer" },
-              "ambient_temp": { "$ref": "#/components/schemas/MinMaxUnit" }
+              "operating_temp": { "$ref": "#/components/schemas/MinMaxUnit" }
             }
           }
         ]
@@ -473,8 +475,8 @@
               "stages": { "type": "integer" },
               "nominal_input_speed": { "$ref": "#/components/schemas/ValueUnit" },
               "max_input_speed": { "$ref": "#/components/schemas/ValueUnit" },
-              "max_continuous_torque": { "$ref": "#/components/schemas/ValueUnit" },
-              "max_peak_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "rated_torque": { "$ref": "#/components/schemas/ValueUnit" },
+              "peak_torque": { "$ref": "#/components/schemas/ValueUnit" },
               "backlash": { "$ref": "#/components/schemas/ValueUnit" },
               "efficiency": { "type": "number" },
               "torsional_rigidity": { "$ref": "#/components/schemas/ValueUnit" },
@@ -485,7 +487,7 @@
               "output_shaft_diameter": { "$ref": "#/components/schemas/ValueUnit" },
               "max_radial_load": { "$ref": "#/components/schemas/ValueUnit" },
               "max_axial_load": { "$ref": "#/components/schemas/ValueUnit" },
-              "ip_rating": { "type": "string" },
+              "ip_rating": { "type": "integer" },
               "operating_temp": { "$ref": "#/components/schemas/MinMaxUnit" },
               "service_life": { "$ref": "#/components/schemas/ValueUnit" },
               "lubrication_type": { "type": "string" }
@@ -504,7 +506,7 @@
               "degrees_of_freedom": { "type": "integer" },
               "pose_repeatability": { "$ref": "#/components/schemas/ValueUnit" },
               "max_tcp_speed": { "$ref": "#/components/schemas/ValueUnit" },
-              "ip_rating": { "type": "string" },
+              "ip_rating": { "type": "integer" },
               "cleanroom_class": { "type": "string" },
               "noise_level": { "$ref": "#/components/schemas/ValueUnit" },
               "mounting_position": { "type": "string" },

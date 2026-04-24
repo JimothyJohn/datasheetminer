@@ -65,6 +65,8 @@ export interface Motor extends ProductBase {
   inductance?: ValueUnit;
   ip_rating?: number;
   rotor_inertia?: ValueUnit;
+  shaft_diameter?: ValueUnit;
+  frame_size?: string;
 }
 
 export type DriveType = 'servo' | 'variable frequency';
@@ -90,7 +92,7 @@ export interface Drive extends ProductBase {
   input_voltage_phases?: number[];
   rated_current?: ValueUnit;
   peak_current?: ValueUnit;
-  output_power?: ValueUnit;
+  rated_power?: ValueUnit;
   switching_frequency?: (ValueUnit | MinMaxUnit)[];
   fieldbus?: CommunicationProtocol[];
   control_modes?: string[];
@@ -105,7 +107,7 @@ export interface Drive extends ProductBase {
   approvals?: string[];
   max_humidity?: number;
   ip_rating?: number;
-  ambient_temp?: MinMaxUnit;
+  operating_temp?: MinMaxUnit;
 }
 
 export interface RobotArm extends ProductBase {
@@ -116,7 +118,7 @@ export interface RobotArm extends ProductBase {
   degrees_of_freedom?: number;
   pose_repeatability?: ValueUnit;
   max_tcp_speed?: ValueUnit;
-  ip_rating?: string;
+  ip_rating?: number;
   cleanroom_class?: string;
   noise_level?: ValueUnit;
   mounting_position?: string;
@@ -132,8 +134,8 @@ export interface Gearhead extends ProductBase {
   stages?: number;
   nominal_input_speed?: ValueUnit;
   max_input_speed?: ValueUnit;
-  max_continuous_torque?: ValueUnit;
-  max_peak_torque?: ValueUnit;
+  rated_torque?: ValueUnit;
+  peak_torque?: ValueUnit;
   backlash?: ValueUnit;
   efficiency?: number;
   torsional_rigidity?: ValueUnit;
@@ -144,7 +146,7 @@ export interface Gearhead extends ProductBase {
   output_shaft_diameter?: ValueUnit;
   max_radial_load?: ValueUnit;
   max_axial_load?: ValueUnit;
-  ip_rating?: string;
+  ip_rating?: number;
   operating_temp?: MinMaxUnit;
   service_life?: ValueUnit;
   lubrication_type?: string;
@@ -160,7 +162,7 @@ export interface DatasheetEntry extends ProductBase {
 }
 
 export type Product = Motor | Drive | RobotArm | Gearhead | DatasheetEntry;
-export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'datasheet' | 'all' | null;
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'electric_cylinder' | 'datasheet' | 'all' | null;
 
 /**
  * Product summary with dynamic counts per type

@@ -67,7 +67,6 @@ class DataPusher:
         # Drive-specific fields
         drive_fields = {
             "input_voltage",
-            "output_power",
             "fieldbus",
             "control_modes",
             "switching_frequency",

@@ -57,7 +57,7 @@ class TestMergePerPageProducts:
             pages=[6],
             rated_current={"value": 10, "unit": "A"},
             peak_current={"value": 20, "unit": "A"},
-            output_power={"value": 500, "unit": "W"},
+            rated_power={"value": 500, "unit": "W"},
         )
         result = merge_per_page_products([d_sparse, d_rich])
         assert len(result) == 1

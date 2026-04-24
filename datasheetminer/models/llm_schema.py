@@ -9,10 +9,6 @@ inputs of shape ``{"value": N, "unit": S}`` / ``{"min": N, "max": M,
 "unit": S}``. So we tell the LLM to emit objects of those shapes and the
 existing validator chain converts them to the canonical ``"value;unit"``
 compact strings. Zero changes in the downstream models.
-
-The CSV approach in ``csv_schema.py`` is the legacy path; this emitter
-replaced it because Gemini's CSV output silently misaligned columns when
-it dropped empty cells.
 """
 
 from __future__ import annotations
@@ -22,7 +18,12 @@ from typing import Any, Dict, List, Literal, Optional, Type, Union, get_args, ge
 
 from pydantic import BaseModel
 
-from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.common import (
+    MinMaxUnitMarker,
+    ValueUnitMarker,
+    find_min_max_unit_marker,
+    find_value_unit_marker,
+)
 
 
 # Fields the application injects after extraction (caller-provided context,
@@ -126,6 +127,23 @@ def _scalar_schema(annotation: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _annotation_markers(annotation: Any) -> tuple:
+    """Return Annotated __metadata__ for annotation or its Optional-unwrapped form."""
+    md = getattr(annotation, "__metadata__", None) or ()
+    if md:
+        return md
+    inner = _unwrap_optional(annotation)
+    return getattr(inner, "__metadata__", None) or ()
+
+
+def _is_value_unit_annotation(annotation: Any) -> bool:
+    return any(isinstance(m, ValueUnitMarker) for m in _annotation_markers(annotation))
+
+
+def _is_min_max_unit_annotation(annotation: Any) -> bool:
+    return any(isinstance(m, MinMaxUnitMarker) for m in _annotation_markers(annotation))
+
+
 def _field_schema(annotation: Any) -> Optional[Dict[str, Any]]:
     """Build the Gemini schema fragment for one field annotation.
 
@@ -133,13 +151,15 @@ def _field_schema(annotation: Any) -> Optional[Dict[str, Any]]:
     nested types, BaseModel lists, etc.). Callers should skip the field
     entirely in that case.
     """
-    # ValueUnit / MinMaxUnit are Annotated[Optional[str], ...] aliases in
-    # common.py. Identity-compare against the originals BEFORE any other
-    # handling so we don't fall through to scalar string mapping.
+    # ValueUnit / MinMaxUnit (and all per-quantity narrowed aliases
+    # derived from them) are Annotated[Optional[str], ...] in common.py.
+    # Each carries a ValueUnitMarker / MinMaxUnitMarker in __metadata__;
+    # detect by marker rather than identity so Pydantic's annotation
+    # stripping doesn't defeat us.
     inner = _unwrap_optional(annotation)
-    if annotation is ValueUnit or inner is ValueUnit:
+    if _is_value_unit_annotation(annotation):
         return _value_unit_schema()
-    if annotation is MinMaxUnit or inner is MinMaxUnit:
+    if _is_min_max_unit_annotation(annotation):
         return _min_max_unit_schema()
 
     # List[X] — recurse into the item type.
@@ -148,11 +168,11 @@ def _field_schema(annotation: Any) -> Optional[Dict[str, Any]]:
         if len(args) != 1:
             return None
         item_type = args[0]
-        # Special-case List[ValueUnit] / List[MinMaxUnit] up front so
-        # recursion doesn't trip over the Annotated alias.
-        if item_type is ValueUnit:
+        # Special-case List[<ValueUnit-alias>] / List[<MinMaxUnit-alias>]
+        # up front so recursion doesn't trip over the Annotated aliases.
+        if _is_value_unit_annotation(item_type):
             return {"type": "ARRAY", "items": _value_unit_schema()}
-        if item_type is MinMaxUnit:
+        if _is_min_max_unit_annotation(item_type):
             return {"type": "ARRAY", "items": _min_max_unit_schema()}
         item_schema = _field_schema(item_type)
         if item_schema is None:
@@ -193,7 +213,17 @@ def to_gemini_schema(
     for name, field in model_class.model_fields.items():
         if not include_excluded and name in EXCLUDED_FIELDS:
             continue
-        schema = _field_schema(field.annotation)
+        # Pydantic lifts our ValueUnitMarker / MinMaxUnitMarker into
+        # ``field.metadata`` for scalar Annotated aliases (stripping the
+        # outer Annotated off ``field.annotation``). Detect at the field
+        # level before falling through to the annotation-based recursion
+        # which still works for List[<alias>] and nested BaseModels.
+        if find_value_unit_marker(field.metadata):
+            schema = _value_unit_schema()
+        elif find_min_max_unit_marker(field.metadata):
+            schema = _min_max_unit_schema()
+        else:
+            schema = _field_schema(field.annotation)
         if schema is None:
             continue  # Silently skip fields we can't represent.
         # Prefer the pydantic Field description when the user set one;

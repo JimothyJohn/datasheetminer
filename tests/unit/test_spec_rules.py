@@ -69,18 +69,20 @@ class TestParseCompact:
 
 @pytest.mark.unit
 class TestUnitMismatch:
-    def test_rpm_in_voltage_field_is_rejected(self):
-        """The exact bug: rated_speed value copied into rated_voltage."""
-        m = _motor(rated_voltage="4500;rpm")
-        violations = validate_product(m)
-        assert m.rated_voltage is None
-        assert any("rated_voltage" in v and "rpm" in v for v in violations)
+    """Wrong-family unit rejection moved to the typed Pydantic aliases
+    in ``datasheetminer.models.common``. The field is nulled at
+    construction time before ``validate_product`` ever sees it — no
+    violation is emitted because there's nothing left to flag.
+    """
 
-    def test_voltage_in_speed_field_is_rejected(self):
+    def test_rpm_in_voltage_field_is_rejected_at_model(self):
+        """rpm on rated_voltage → field becomes None at validation time."""
+        m = _motor(rated_voltage="4500;rpm")
+        assert m.rated_voltage is None
+
+    def test_voltage_in_speed_field_is_rejected_at_model(self):
         m = _motor(rated_speed="480;Vac")
-        violations = validate_product(m)
         assert m.rated_speed is None
-        assert any("rated_speed" in v for v in violations)
 
     def test_valid_units_pass(self):
         m = _motor(rated_voltage="200-240;Vrms", rated_speed="6000;rpm")
@@ -111,7 +113,7 @@ class TestImplausibleRange:
 
     def test_range_max_exceeds_limit(self):
         m = _motor(rated_voltage="200-2000;V")
-        violations = validate_product(m)
+        validate_product(m)
         assert m.rated_voltage is None
 
     def test_low_voltage_valid(self):
@@ -121,7 +123,7 @@ class TestImplausibleRange:
 
     def test_zero_voltage_rejected(self):
         m = _motor(rated_voltage="0;V")
-        violations = validate_product(m)
+        validate_product(m)
         assert m.rated_voltage is None
 
 
@@ -133,9 +135,15 @@ class TestImplausibleRange:
 @pytest.mark.unit
 class TestCrossFieldDuplication:
     def test_voltage_equals_speed_is_rejected(self):
-        """If rated_voltage and rated_speed are identical, voltage is nulled."""
+        """If rated_voltage and rated_speed are identical, voltage is nulled.
+
+        Unit-family enforcement now runs at the model validator, so
+        rated_voltage="6000;rpm" is nulled at construction before
+        validate_product even sees it. Cross-field duplication check
+        runs after but has nothing to flag.
+        """
         m = _motor(rated_voltage="6000;rpm", rated_speed="6000;rpm")
-        violations = validate_product(m)
+        validate_product(m)
         assert m.rated_voltage is None
         assert m.rated_speed is not None  # speed is preserved
 
@@ -202,9 +210,10 @@ class TestNoneFieldsSkipped:
 @pytest.mark.unit
 class TestFieldRuleCoverage:
     def test_all_rules_have_valid_bounds(self):
-        for name, (units, lo, hi) in FIELD_RULES.items():
+        # Unit-family enforcement moved to the typed Pydantic aliases, so
+        # the rule tuple is now (min, max) without the unit set.
+        for name, (lo, hi) in FIELD_RULES.items():
             assert lo <= hi, f"{name}: min ({lo}) > max ({hi})"
-            assert len(units) > 0, f"{name}: empty unit set"
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +230,7 @@ def _drive(**overrides) -> Drive:
         "part_number": "DRV-001",
         "input_voltage": "380-480;V",
         "rated_current": "10;A",
-        "output_power": "5000;W",
+        "rated_power": "5000;W",
     }
     defaults.update(overrides)
     return Drive(**defaults)
@@ -243,7 +252,7 @@ class TestIdentityValidation:
         # All spec fields should be nulled
         assert d.input_voltage is None
         assert d.rated_current is None
-        assert d.output_power is None
+        assert d.rated_power is None
 
     def test_no_part_number_empty_manufacturer_rejected(self):
         d = _drive(

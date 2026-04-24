@@ -71,7 +71,7 @@ SUMMARY_SPECS: dict[str, list[str]] = {
     ],
     "drive": [
         "type",
-        "output_power",
+        "rated_power",
         "input_voltage",
         "rated_current",
         "peak_current",
@@ -81,7 +81,7 @@ SUMMARY_SPECS: dict[str, list[str]] = {
         "gear_ratio",
         "gear_type",
         "stages",
-        "max_continuous_torque",
+        "rated_torque",
         "backlash",
         "efficiency",
     ],
@@ -320,11 +320,46 @@ def apply_where(product: Any, field: str, op: str, value: str) -> bool:
     return False
 
 
+_VALUE_UNIT_ALIAS_NAMES = frozenset(
+    {
+        "ValueUnit",
+        "Voltage",
+        "Current",
+        "Power",
+        "Torque",
+        "Speed",
+        "Force",
+        "Length",
+        "Mass",
+        "Temperature",
+        "Frequency",
+        "Inertia",
+        "Resistance",
+        "Inductance",
+    }
+)
+
+_MIN_MAX_UNIT_ALIAS_NAMES = frozenset(
+    {
+        "MinMaxUnit",
+        "VoltageRange",
+        "CurrentRange",
+        "TemperatureRange",
+        "FrequencyRange",
+        "ForceRange",
+    }
+)
+
+
 def _field_type_from_annotation(ann_str: str) -> tuple[str, str]:
-    """Derive field type and hint from annotation string."""
-    if "MinMaxUnit" in ann_str:
+    """Derive field type and hint from annotation string.
+
+    Matches any per-quantity narrowed alias (Voltage, Current, ...) as
+    well as the bare ValueUnit / MinMaxUnit names.
+    """
+    if any(name in ann_str for name in _MIN_MAX_UNIT_ALIAS_NAMES):
         return "range", "min-max;unit (e.g. '20-40;V')"
-    if "ValueUnit" in ann_str:
+    if any(name in ann_str for name in _VALUE_UNIT_ALIAS_NAMES):
         return "numeric", "value;unit (e.g. '24;V')"
     if "List[" in ann_str or "list[" in ann_str:
         return "list", "list of values"

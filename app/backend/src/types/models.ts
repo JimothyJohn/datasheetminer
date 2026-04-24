@@ -88,6 +88,8 @@ export interface Motor extends ProductBase {
   inductance?: ValueUnit;
   ip_rating?: number;
   rotor_inertia?: ValueUnit;
+  shaft_diameter?: ValueUnit;
+  frame_size?: string;
 }
 
 /**
@@ -119,7 +121,7 @@ export interface Drive extends ProductBase {
   input_voltage_phases?: number[];
   rated_current?: ValueUnit;
   peak_current?: ValueUnit;
-  output_power?: ValueUnit;
+  rated_power?: ValueUnit;
   switching_frequency?: ValueUnit[];
   fieldbus?: CommunicationProtocol[];
   control_modes?: string[];
@@ -134,7 +136,7 @@ export interface Drive extends ProductBase {
   approvals?: string[];
   max_humidity?: number;
   ip_rating?: number;
-  ambient_temp?: MinMaxUnit;
+  operating_temp?: MinMaxUnit;
 }
 
 /**
@@ -147,8 +149,8 @@ export interface Gearhead extends ProductBase {
   stages?: number;
   nominal_input_speed?: ValueUnit;
   max_input_speed?: ValueUnit;
-  max_continuous_torque?: ValueUnit;
-  max_peak_torque?: ValueUnit;
+  rated_torque?: ValueUnit;
+  peak_torque?: ValueUnit;
   backlash?: ValueUnit;
   efficiency?: number;
   torsional_rigidity?: ValueUnit;
@@ -159,7 +161,7 @@ export interface Gearhead extends ProductBase {
   output_shaft_diameter?: ValueUnit;
   max_radial_load?: ValueUnit;
   max_axial_load?: ValueUnit;
-  ip_rating?: string;
+  ip_rating?: number;
   operating_temp?: MinMaxUnit;
   service_life?: ValueUnit;
   lubrication_type?: string;
@@ -175,7 +177,7 @@ export interface RobotArm extends ProductBase {
   degrees_of_freedom?: number;
   pose_repeatability?: ValueUnit;
   max_tcp_speed?: ValueUnit;
-  ip_rating?: string;
+  ip_rating?: number;
   cleanroom_class?: string;
   noise_level?: ValueUnit;
   mounting_position?: string;
@@ -193,7 +195,23 @@ export type ContactorType =
   | 'mechanically latched'
   | 'reversing'
   | 'delay open'
-  | 'solid state';
+  | 'solid state'
+  | 'vacuum'
+  | 'definite purpose';
+
+export interface ContactorPowerRating {
+  voltage?: ValueUnit;
+  voltage_group?: string;
+  current?: ValueUnit;
+  power_kw?: ValueUnit;
+  power_hp?: ValueUnit;
+  ambient_temp?: ValueUnit;
+}
+
+export interface ContactorIcwRating {
+  duration: ValueUnit;
+  current: ValueUnit;
+}
 
 /**
  * Contactor model matching datasheetminer/models/contactor.py
@@ -202,42 +220,95 @@ export interface Contactor extends ProductBase {
   product_type: 'contactor';
   type?: ContactorType;
   series?: string;
-  frame_size?: string;
+
+  vendor_frame_size?: string;
+  nema_size?: string;
+
   rated_insulation_voltage?: ValueUnit;
   rated_impulse_withstand_voltage?: ValueUnit;
+  rated_operational_voltage_max?: ValueUnit;
   rated_frequency?: string;
   pollution_degree?: number;
-  rated_operating_current_ac3_220v?: ValueUnit;
-  rated_operating_current_ac3_440v?: ValueUnit;
-  rated_operating_current_ac3_500v?: ValueUnit;
-  rated_operating_current_ac3_690v?: ValueUnit;
-  rated_capacity_ac3_220v?: ValueUnit;
-  rated_capacity_ac3_440v?: ValueUnit;
-  rated_operating_current_ac1?: ValueUnit;
-  conventional_free_air_thermal_current?: ValueUnit;
-  coil_voltage_designations?: string[];
+
+  ie_ac3_400v?: ValueUnit;
+  motor_power_ac3_400v_kw?: ValueUnit;
+  motor_power_ac3_480v_hp?: ValueUnit;
+
+  ratings_ac3?: ContactorPowerRating[];
+  ratings_ac1?: ContactorPowerRating[];
+  ratings_ac4?: ContactorPowerRating[];
+
+  conventional_thermal_current?: ValueUnit;
+  short_circuit_withstand_icw?: ContactorIcwRating[];
+  sccr?: ValueUnit;
+
+  coil_voltage_range_ac?: MinMaxUnit;
+  coil_voltage_range_dc?: MinMaxUnit;
+  coil_voltage_options?: string[];
+  coil_pickup_factor?: MinMaxUnit;
+  coil_dropout_factor?: MinMaxUnit;
+  coil_time_constant?: ValueUnit;
   coil_power_consumption_sealed?: ValueUnit;
-  coil_consumption_inrush?: ValueUnit;
+  coil_power_consumption_inrush?: ValueUnit;
+
   number_of_poles?: number;
-  auxiliary_contact_arrangement?: string;
+  auxiliary_contact_configuration?: string;
+
   mechanical_durability?: ValueUnit;
   electrical_durability_ac3?: ValueUnit;
-  switching_frequency_ac3?: string;
+  operating_frequency_ac3?: ValueUnit;
   making_capacity?: ValueUnit;
   breaking_capacity?: ValueUnit;
-  operating_time_close?: string;
-  operating_time_open?: string;
-  iec_rail_mounting?: boolean;
+  operating_time_close?: MinMaxUnit;
+  operating_time_open?: MinMaxUnit;
+
+  operating_temp?: MinMaxUnit;
+  storage_temp?: MinMaxUnit;
+  ip_rating?: number;
+  altitude_max?: ValueUnit;
+
+  standards_compliance?: string[];
+  certifications?: string[];
+  mounting_types?: string[];
+}
+
+/**
+ * ElectricCylinder model matching datasheetminer/models/electric_cylinder.py
+ */
+export interface ElectricCylinder extends ProductBase {
+  product_type: 'electric_cylinder';
+  type?: 'linear actuator' | 'linear servo' | 'micro linear actuator' | 'tubular linear motor';
+  series?: string;
+  stroke?: ValueUnit;
+  max_push_force?: ValueUnit;
+  max_pull_force?: ValueUnit;
+  continuous_force?: ValueUnit;
+  max_linear_speed?: ValueUnit;
+  linear_speed_at_rated_load?: ValueUnit;
+  positioning_repeatability?: ValueUnit;
+  rated_voltage?: MinMaxUnit;
+  rated_current?: ValueUnit;
+  peak_current?: ValueUnit;
+  rated_power?: ValueUnit;
+  motor_type?: string;
+  lead_screw_pitch?: ValueUnit;
+  gear_ratio?: number;
+  backlash?: ValueUnit;
+  max_radial_load?: ValueUnit;
+  max_axial_load?: ValueUnit;
+  encoder_feedback_support?: string;
+  fieldbus?: string;
   ip_rating?: number;
   operating_temp?: MinMaxUnit;
-  approvals?: string[];
+  service_life?: ValueUnit;
+  noise_level?: ValueUnit;
 }
 
 /**
  * Union type for all products
  */
-export type Product = Motor | Drive | Gearhead | RobotArm | Contactor | Datasheet;
-export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'contactor' | 'datasheet' | 'all';
+export type Product = Motor | Drive | Gearhead | RobotArm | Contactor | ElectricCylinder | Datasheet;
+export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'contactor' | 'electric_cylinder' | 'datasheet' | 'all';
 
 /**
  * Manufacturer record — first-class entity in the single-table design.

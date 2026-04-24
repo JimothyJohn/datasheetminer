@@ -10,7 +10,18 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from datasheetminer.models.common import MinMaxUnit, ValueUnit
+from datasheetminer.models.common import (
+    Current,
+    Force,
+    IpRating,
+    Length,
+    Mass,
+    TemperatureRange,
+    Torque,
+    ValueUnit,
+    Voltage,
+    VoltageRange,
+)
 from datasheetminer.models.product import ProductBase
 
 
@@ -20,10 +31,10 @@ class JointSpecs(BaseModel):
     joint_name: str = Field(
         ..., description="Name of the joint (e.g., 'Base', 'Wrist 1')"
     )
-    working_range: Optional[ValueUnit] = Field(
+    working_range: ValueUnit = Field(
         None, description="The rotational range of the joint"
     )
-    max_speed: Optional[ValueUnit] = Field(
+    max_speed: ValueUnit = Field(
         None, description="Maximum speed of the joint"
     )
 
@@ -31,16 +42,16 @@ class JointSpecs(BaseModel):
 class ForceTorqueSensor(BaseModel):
     """Defines the specifications of the built-in force/torque sensor."""
 
-    force_range: Optional[ValueUnit] = Field(
+    force_range: Force = Field(
         None, description="Measurement range for force (e.g., in N)"
     )
-    force_precision: Optional[ValueUnit] = Field(
+    force_precision: Force = Field(
         None, description="Precision (repeatability) of force measurement (e.g., in N)"
     )
-    torque_range: Optional[ValueUnit] = Field(
+    torque_range: Torque = Field(
         None, description="Measurement range for torque (e.g., in Nm)"
     )
-    torque_precision: Optional[ValueUnit] = Field(
+    torque_precision: Torque = Field(
         None,
         description="Precision (repeatability) of torque measurement (e.g., in Nm)",
     )
@@ -52,11 +63,11 @@ class ToolIO(BaseModel):
     digital_in: int = Field(None, description="Number of digital inputs")  #
     digital_out: int = Field(None, description="Number of digital outputs")  #
     analog_in: int = Field(None, description="Number of analog inputs")  #
-    power_supply_voltage: Optional[ValueUnit] = Field(
+    power_supply_voltage: Voltage = Field(
         None,  #
         description="Selectable power supply voltage (e.g., 12V or 24V)",
     )
-    power_supply_current: Optional[ValueUnit] = Field(
+    power_supply_current: Current = Field(
         None, description="Maximum current for the tool power supply (e.g., in mA or A)"
     )
     connector_type: Optional[str] = Field(
@@ -78,7 +89,7 @@ class ControllerIO(BaseModel):
     quadrature_inputs: int = Field(
         4, description="Number of quadrature digital inputs"
     )  #
-    power_supply: Optional[ValueUnit] = Field(
+    power_supply: Current = Field(
         "2;A",
         description="I/O power supply current at 24V",  #
     )
@@ -87,14 +98,12 @@ class ControllerIO(BaseModel):
 class Controller(BaseModel):
     """Defines the specifications for the robot's control box."""
 
-    ip_rating: Optional[str] = Field(
-        "IP44", description="IP rating of the control box"
-    )  #
+    ip_rating: IpRating = Field(44, description="IP rating of the control box")  #
     cleanroom_class: Optional[str] = Field(
         "ISO Class 6",
         description="Cleanroom classification (ISO 14644-1)",  #
     )
-    operating_temp: Optional[MinMaxUnit] = Field(
+    operating_temp: TemperatureRange = Field(
         "0-50;°C",  #
         description="Operating temperature range for the controller",
     )
@@ -106,7 +115,7 @@ class Controller(BaseModel):
         ["Modbus TCP", "PROFINET", "Ethernet/IP"],  #
         description="List of supported communication protocols",
     )
-    power_source: Optional[MinMaxUnit] = Field(
+    power_source: VoltageRange = Field(
         ";VAC",
         description="Main power source requirements (e.g., 100-240VAC)",  #
     )
@@ -115,22 +124,20 @@ class Controller(BaseModel):
 class TeachPendant(BaseModel):
     """Defines the specifications for the teach pendant."""
 
-    ip_rating: Optional[str] = Field(
-        "IP54", description="IP rating of the teach pendant"
-    )  #
+    ip_rating: IpRating = Field(54, description="IP rating of the teach pendant")  #
     display_resolution: Optional[str] = Field(
         "1280 x 800",
         description="Screen resolution in pixels",  #
     )
-    display_size: Optional[ValueUnit] = Field(
+    display_size: Length = Field(
         "12;in",
         description="Diagonal screen size",  #
     )
-    weight: Optional[ValueUnit] = Field(
+    weight: Mass = Field(
         "1.6;kg",
         description="Weight of the pendant",  #
     )
-    cable_length: Optional[ValueUnit] = Field(
+    cable_length: Length = Field(
         "4.5;m",
         description="Cable length",  #
     )
@@ -151,30 +158,29 @@ class RobotArm(ProductBase):
     product_family: str = Field("e-Series", description="Product family or series")  #
 
     # --- Core Performance ---
-    payload: Optional[ValueUnit] = Field(
-        None, description="Rated payload capacity (e.g., in kg)"
-    )
-    reach: Optional[ValueUnit] = Field(
+    payload: Mass = Field(None, description="Rated payload capacity (e.g., in kg)")
+    reach: Length = Field(
         None, description="Maximum reach from center of base (e.g., in mm)"
     )
     degrees_of_freedom: int = Field(6, description="Number of rotating joints")  #
-    pose_repeatability: Optional[ValueUnit] = Field(
+    pose_repeatability: Length = Field(
         None, description="Pose repeatability per ISO 9283 (e.g., in mm)"
     )
-    max_tcp_speed: Optional[ValueUnit] = Field(
+    # m/s is compound — keep generic.
+    max_tcp_speed: ValueUnit = Field(
         None, description="Maximum speed of the Tool Center Point (e.g., in m/s)"
     )
 
     # --- Arm Specifications ---
-    ip_rating: Optional[str] = Field(
-        "IP54",
+    ip_rating: IpRating = Field(
+        54,
         description="IP rating of the robot arm",  #
     )
     cleanroom_class: Optional[str] = Field(
         "ISO Class 5",
         description="Cleanroom classification (ISO 14644-1)",  #
     )
-    noise_level: Optional[ValueUnit] = Field(
+    noise_level: ValueUnit = Field(
         None,
         description="Typical noise level (e.g., in dB(A))",  #
     )
@@ -182,7 +188,7 @@ class RobotArm(ProductBase):
         "Any Orientation",
         description="Allowed mounting positions",  #
     )
-    operating_temp: Optional[MinMaxUnit] = Field(
+    operating_temp: TemperatureRange = Field(
         "0-50;°C",  #
         description="Operating temperature range for the arm",
     )

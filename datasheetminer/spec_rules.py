@@ -1,9 +1,16 @@
 """Spec-level validation rules for extracted product data.
 
-Catches semantic errors that pass structural validation — wrong units on
-fields (e.g. "rpm" on a voltage field), implausible magnitudes,
-cross-field duplication where the LLM copied one field into another,
-and unidentifiable products extracted from informational PDFs.
+Catches semantic errors that pass structural validation:
+
+- **Implausible magnitudes** (e.g. 4500 V on a motor rated_voltage).
+- **Cross-field duplication** where the LLM copied one field into another.
+- **Unidentifiable products** extracted from informational PDFs.
+
+Wrong-unit rejection (e.g. "rpm" on a voltage field) used to live here
+but now runs inside the per-quantity Pydantic aliases (``Voltage``,
+``Current``, etc. in ``datasheetminer.models.common``). By the time
+``validate_product`` sees a field, the validator has already nulled
+wrong-family values.
 
 Runs after Pydantic model validation but before quality scoring so that
 nulled-out fields correctly reduce the quality score.
@@ -21,133 +28,39 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Unit families — sets of units considered valid for a given physical quantity
-# ---------------------------------------------------------------------------
-
-VOLTAGE_UNITS = frozenset(
-    {
-        "V",
-        "Vac",
-        "Vdc",
-        "Vrms",
-        "VAC",
-        "VDC",
-        "VRMS",
-    }
-)
-SPEED_UNITS = frozenset(
-    {
-        "rpm",
-        "RPM",
-        "rad/s",
-        "rps",
-    }
-)
-CURRENT_UNITS = frozenset(
-    {
-        "A",
-        "Arms",
-        "Adc",
-        "ARMS",
-        "mA",
-    }
-)
-TORQUE_UNITS = frozenset(
-    {
-        "Nm",
-        "N-m",
-        "N·m",
-        "mNm",
-        "mN-m",
-        "mN·m",
-    }
-)
-POWER_UNITS = frozenset(
-    {
-        "W",
-        "kW",
-        "mW",
-        "hp",
-        "HP",
-    }
-)
-RESISTANCE_UNITS = frozenset(
-    {
-        "Ω",
-        "mΩ",
-        "kΩ",
-        "ohm",
-        "ohms",
-        "Ohm",
-        "Ohms",
-    }
-)
-INDUCTANCE_UNITS = frozenset(
-    {
-        "mH",
-        "H",
-        "μH",
-        "uH",
-        "nH",
-    }
-)
-INERTIA_UNITS = frozenset(
-    {
-        "kg·cm²",
-        "kg-cm²",
-        "g·cm²",
-        "g-cm²",
-        "gcm²",
-        "kgcm²",
-        "kg·m²",
-        "kgm²",
-        "oz-in²",
-        "oz·in²",
-    }
-)
-FORCE_UNITS = frozenset(
-    {
-        "N",
-        "kN",
-        "mN",
-        "lbf",
-        "kgf",
-    }
-)
-
-
-# ---------------------------------------------------------------------------
-# Per-field rules: (valid_units, min_plausible, max_plausible)
+# Per-field magnitude rules: (min_plausible, max_plausible)
 #
-# The range bounds are intentionally generous to avoid false positives.
-# They catch order-of-magnitude errors (e.g. 4500 "V") not borderline
-# values (e.g. 520 V on a 480-class motor).
+# The bounds are intentionally generous to avoid false positives; they
+# catch order-of-magnitude errors (e.g. 4500 V on a 480-class motor),
+# not borderline values. Unit-family is enforced upstream by the typed
+# Pydantic aliases, so by the time we read a field the unit is already
+# known-good and we only need to parse the numeric value.
 # ---------------------------------------------------------------------------
 
-FieldRule = tuple[frozenset[str], float, float]
+FieldRule = tuple[float, float]
 
 FIELD_RULES: dict[str, FieldRule] = {
     # Voltage fields — motors/drives top out around 800 Vac, 1000 Vdc
-    "rated_voltage": (VOLTAGE_UNITS, 1.0, 1500.0),
-    "input_voltage": (VOLTAGE_UNITS, 1.0, 1500.0),
+    "rated_voltage": (1.0, 1500.0),
+    "input_voltage": (1.0, 1500.0),
     # Speed
-    "rated_speed": (SPEED_UNITS, 0.1, 300_000.0),
-    "max_speed": (SPEED_UNITS, 0.1, 500_000.0),
+    "rated_speed": (0.1, 300_000.0),
+    "max_speed": (0.1, 500_000.0),
     # Current
-    "rated_current": (CURRENT_UNITS, 0.001, 10_000.0),
-    "peak_current": (CURRENT_UNITS, 0.001, 20_000.0),
+    "rated_current": (0.001, 10_000.0),
+    "peak_current": (0.001, 20_000.0),
     # Torque
-    "rated_torque": (TORQUE_UNITS, 0.0, 100_000.0),
-    "peak_torque": (TORQUE_UNITS, 0.0, 200_000.0),
+    "rated_torque": (0.0, 100_000.0),
+    "peak_torque": (0.0, 200_000.0),
     # Power
-    "rated_power": (POWER_UNITS, 0.0, 5_000_000.0),
+    "rated_power": (0.0, 5_000_000.0),
     # Electrical
-    "resistance": (RESISTANCE_UNITS, 0.0, 100_000.0),
-    "inductance": (INDUCTANCE_UNITS, 0.0, 100_000.0),
+    "resistance": (0.0, 100_000.0),
+    "inductance": (0.0, 100_000.0),
     # Mechanical
-    "rotor_inertia": (INERTIA_UNITS, 0.0, 10_000_000.0),
-    "axial_load_force_rating": (FORCE_UNITS, 0.0, 1_000_000.0),
-    "radial_load_force_rating": (FORCE_UNITS, 0.0, 1_000_000.0),
+    "rotor_inertia": (0.0, 10_000_000.0),
+    "axial_load_force_rating": (0.0, 1_000_000.0),
+    "radial_load_force_rating": (0.0, 1_000_000.0),
 }
 
 
@@ -267,25 +180,18 @@ def validate_product(product: ProductBase) -> list[str]:
         _null_all_spec_fields(product)
         return violations  # no point checking individual fields
 
-    # --- Per-field unit + range checks ---
-    for field_name, (valid_units, min_val, max_val) in FIELD_RULES.items():
+    # --- Per-field magnitude checks ---
+    # Wrong-unit rejection already happened at Pydantic validation time
+    # (see typed aliases in datasheetminer.models.common). Here we only
+    # need to catch values that passed the unit check but are still
+    # physically implausible.
+    for field_name, (min_val, max_val) in FIELD_RULES.items():
         raw = getattr(product, field_name, None)
         parsed = _parse_compact(raw)
         if parsed is None:
             continue
 
-        values, unit = parsed
-
-        # Wrong unit family
-        if unit not in valid_units:
-            msg = (
-                f"[{part_id}] {field_name}: unit '{unit}' is not a valid "
-                f"unit for this field (got '{raw}')"
-            )
-            logger.warning("Spec rule FAIL: %s", msg)
-            violations.append(msg)
-            setattr(product, field_name, None)
-            continue  # skip range check — field is already nulled
+        values, _unit = parsed
 
         # Implausible magnitude
         for v in values:

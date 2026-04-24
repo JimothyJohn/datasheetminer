@@ -51,10 +51,10 @@ Extract the following metadata from the document:
     motor: rated_voltage, rated_speed, max_speed, rated_torque, peak_torque, rated_power,
            rated_current, peak_current, voltage_constant, torque_constant, resistance,
            inductance, poles, rotor_inertia, ip_rating, dimensions, weight
-    drive: input_voltage, rated_current, peak_current, output_power, switching_frequency,
+    drive: input_voltage, rated_current, peak_current, rated_power, switching_frequency,
            fieldbus, encoder_feedback_support, digital_inputs, digital_outputs, ip_rating,
            dimensions, weight
-    gearhead: gear_ratio, gear_type, stages, max_continuous_torque, backlash, efficiency,
+    gearhead: gear_ratio, gear_type, stages, rated_torque, backlash, efficiency,
               input_shaft_diameter, output_shaft_diameter, ip_rating, dimensions, weight
     robot_arm: payload, reach, degrees_of_freedom, pose_repeatability, max_tcp_speed,
                ip_rating, joints, dimensions, weight

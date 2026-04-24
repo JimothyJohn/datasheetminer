@@ -18,24 +18,27 @@ from datasheetminer.quality import (
 )
 
 
-# Motor ValueUnit / MinMaxUnit fields that accept "1;W"-shaped strings.
-# Picked explicitly so `_motor(**fillable)` never hits an int or Dimensions field.
-_VALUE_UNIT_FIELDS = [
-    "rated_speed",
-    "max_speed",
-    "rated_torque",
-    "peak_torque",
-    "rated_power",
-    "rated_current",
-    "peak_current",
-    "voltage_constant",
-    "torque_constant",
-    "resistance",
-    "inductance",
-    "rotor_inertia",
-    "weight",
-    "msrp",
-    "warranty",
+# Motor ValueUnit fields paired with a unit in their family so the typed
+# Pydantic aliases (Voltage / Current / Power / ...) accept the value.
+# "1;W" was fine when every field was untyped ValueUnit; after the
+# per-quantity narrowing a mismatched unit gets rejected and the field
+# stays None — so each entry here must be unit-correct.
+_VALUE_UNIT_FIELDS: list[tuple[str, str]] = [
+    ("rated_speed", "1;rpm"),
+    ("max_speed", "1;rpm"),
+    ("rated_torque", "1;Nm"),
+    ("peak_torque", "1;Nm"),
+    ("rated_power", "1;W"),
+    ("rated_current", "1;A"),
+    ("peak_current", "1;A"),
+    ("voltage_constant", "1;V/krpm"),
+    ("torque_constant", "1;Nm/A"),
+    ("resistance", "1;Ω"),
+    ("inductance", "1;mH"),
+    ("rotor_inertia", "1;kg·cm²"),
+    ("weight", "1;kg"),
+    ("msrp", "1;USD"),
+    ("warranty", "1;years"),
 ]
 
 
@@ -46,7 +49,7 @@ def _motor(**specs) -> Motor:
 
 def _fill_n_spec_fields(n: int) -> dict:
     """Return kwargs that populate exactly `n` ValueUnit spec fields."""
-    return {name: "1;W" for name in _VALUE_UNIT_FIELDS[:n]}
+    return {name: value for name, value in _VALUE_UNIT_FIELDS[:n]}
 
 
 class TestBoundary:

@@ -218,3 +218,29 @@ def normalize_value_unit(compact: str) -> str:
     # Single value
     converted_value, canonical = normalize_unit(value_part, unit)
     return f"{converted_value};{canonical}"
+
+
+_COMPACT_RE = re.compile(r"^(-?[\d.]+)(?:-(-?[\d.]+))?;(.+)$")
+
+
+def parse_compact(compact: str | None) -> tuple[list[float], str] | None:
+    """Parse a ``"value;unit"`` or ``"min-max;unit"`` compact string.
+
+    Returns ``(values, unit)`` where ``values`` is ``[v]`` for a single
+    value or ``[min, max]`` for a range, or ``None`` if unparseable.
+    The canonical shared parser — callers should prefer this over
+    re-rolling the regex locally.
+    """
+    if compact is None or ";" not in compact:
+        return None
+    m = _COMPACT_RE.match(compact)
+    if not m:
+        return None
+    lo_str, hi_str, unit = m.groups()
+    try:
+        lo = float(lo_str)
+        if hi_str is None:
+            return [lo], unit
+        return [lo, float(hi_str)], unit
+    except ValueError:
+        return None

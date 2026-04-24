@@ -466,7 +466,7 @@ class TestRobotArm:
         assert arm.manufacturer == "Universal Robots"
         assert arm.product_family == "e-Series"
         assert arm.degrees_of_freedom == 6
-        assert arm.ip_rating == "IP54"
+        assert arm.ip_rating == 54
         assert arm.operating_temp == "0-50;°C"
 
     def test_robot_arm_nested_controller(self):
@@ -477,7 +477,7 @@ class TestRobotArm:
                 power_source="100-240;VAC",
             ),
         )
-        assert arm.controller.ip_rating == "IP44"
+        assert arm.controller.ip_rating == 44
         assert arm.controller.io_ports.digital_in == 16
         assert arm.controller.io_ports.digital_out == 16
 
@@ -486,7 +486,7 @@ class TestRobotArm:
         assert tp.display_size == "12;in"
         assert tp.weight == "1.6;kg"
         assert tp.cable_length == "4.5;m"
-        assert tp.ip_rating == "IP54"
+        assert tp.ip_rating == 54
 
     def test_tool_io_creation(self):
         tio = ToolIO(digital_in=2, digital_out=2, analog_in=2)

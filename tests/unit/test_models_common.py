@@ -5,6 +5,7 @@ Covers uncovered branches in handle_value_unit_input and handle_min_max_unit_inp
 
 import pytest
 from datasheetminer.models.common import (
+    _coerce_ip_rating,
     handle_value_unit_input,
     handle_min_max_unit_input,
     validate_value_unit_str,
@@ -63,6 +64,11 @@ class TestHandleValueUnitInput:
         result = handle_value_unit_input({})
         assert result == {}
 
+    def test_unit_only_dict_becomes_none(self):
+        # Gemini sometimes emits {"unit": "V"} with no numeric payload;
+        # dropping it to None is safer than crashing the string validator.
+        assert handle_value_unit_input({"unit": "V"}) is None
+
 
 class TestHandleMinMaxUnitInput:
     """Covers all branches of handle_min_max_unit_input."""
@@ -90,6 +96,11 @@ class TestHandleMinMaxUnitInput:
 
     def test_none_passthrough(self):
         assert handle_min_max_unit_input(None) is None
+
+    def test_unit_only_dict_becomes_none(self):
+        # drive.md flagged this: Gemini emits {"unit": "V"} for operating_temp
+        # and the old MinMaxUnit validator AttributeError'd on the dict.
+        assert handle_min_max_unit_input({"unit": "V"}) is None
 
 
 class TestValidateValueUnitStr:
@@ -143,3 +154,32 @@ class TestValidateMinMaxUnitStr:
 class TestNormalizeCompactStr:
     def test_none_passthrough(self):
         assert _normalize_compact_str(None) is None
+
+
+class TestCoerceIpRating:
+    def test_none_passthrough(self):
+        assert _coerce_ip_rating(None) is None
+
+    def test_int_passthrough(self):
+        assert _coerce_ip_rating(54) == 54
+
+    def test_plain_digit_string(self):
+        assert _coerce_ip_rating("54") == 54
+
+    def test_ip_prefix_string(self):
+        assert _coerce_ip_rating("IP54") == 54
+
+    def test_ip_prefix_lowercase(self):
+        assert _coerce_ip_rating("ip67") == 67
+
+    def test_legacy_value_dict(self):
+        assert _coerce_ip_rating({"value": 65, "unit": "IP"}) == 65
+
+    def test_legacy_min_dict(self):
+        assert _coerce_ip_rating({"min": 54, "unit": ""}) == 54
+
+    def test_garbage_becomes_none(self):
+        assert _coerce_ip_rating("unknown") is None
+
+    def test_bare_dict_becomes_none(self):
+        assert _coerce_ip_rating({"unit": "IP"}) is None

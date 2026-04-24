@@ -12,11 +12,11 @@ const SUMMARY_SPECS: Record<string, string[]> = {
     'rated_speed', 'rated_torque', 'peak_torque',
   ],
   drive: [
-    'type', 'output_power', 'input_voltage', 'rated_current',
+    'type', 'rated_power', 'input_voltage', 'rated_current',
     'peak_current', 'fieldbus',
   ],
   gearhead: [
-    'gear_ratio', 'gear_type', 'stages', 'max_continuous_torque',
+    'gear_ratio', 'gear_type', 'stages', 'rated_torque',
     'backlash', 'efficiency',
   ],
   robot_arm: [

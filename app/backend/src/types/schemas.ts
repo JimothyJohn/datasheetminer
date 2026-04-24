@@ -121,6 +121,8 @@ export const MotorSchema = ProductBaseSchema.extend({
   inductance: ValueUnitSchema.optional(),
   ip_rating: z.number().optional(),
   rotor_inertia: ValueUnitSchema.optional(),
+  shaft_diameter: ValueUnitSchema.optional(),
+  frame_size: z.string().optional(),
 });
 
 // Drive Schema (Strict)
@@ -133,7 +135,7 @@ export const DriveSchema = ProductBaseSchema.extend({
   input_voltage_phases: z.array(z.number()).optional(),
   rated_current: ValueUnitSchema.optional(),
   peak_current: ValueUnitSchema.optional(),
-  output_power: ValueUnitSchema.optional(),
+  rated_power: ValueUnitSchema.optional(),
   switching_frequency: z.array(ValueUnitSchema).optional(),
   fieldbus: z.array(CommunicationProtocolSchema).optional(),
   encoder_feedback_support: z.array(z.string()).optional(),
@@ -146,7 +148,7 @@ export const DriveSchema = ProductBaseSchema.extend({
   approvals: z.array(z.string()).optional(),
   max_humidity: z.number().optional(),
   ip_rating: z.number().optional(),
-  ambient_temp: MinMaxUnitSchema.optional(),
+  operating_temp: MinMaxUnitSchema.optional(),
 });
 
 // Gearhead Schema
@@ -157,8 +159,8 @@ export const GearheadSchema = ProductBaseSchema.extend({
   stages: z.number().optional(),
   nominal_input_speed: ValueUnitSchema.optional(),
   max_input_speed: ValueUnitSchema.optional(),
-  max_continuous_torque: ValueUnitSchema.optional(),
-  max_peak_torque: ValueUnitSchema.optional(),
+  rated_torque: ValueUnitSchema.optional(),
+  peak_torque: ValueUnitSchema.optional(),
   backlash: ValueUnitSchema.optional(),
   efficiency: z.number().optional(),
   torsional_rigidity: ValueUnitSchema.optional(),
@@ -169,7 +171,7 @@ export const GearheadSchema = ProductBaseSchema.extend({
   output_shaft_diameter: ValueUnitSchema.optional(),
   max_radial_load: ValueUnitSchema.optional(),
   max_axial_load: ValueUnitSchema.optional(),
-  ip_rating: z.string().optional(),
+  ip_rating: z.number().optional(),
   operating_temp: MinMaxUnitSchema.optional(),
   service_life: ValueUnitSchema.optional(),
   lubrication_type: z.string().optional(),
@@ -184,7 +186,7 @@ export const RobotArmSchema = ProductBaseSchema.extend({
   degrees_of_freedom: z.number().optional(),
   pose_repeatability: ValueUnitSchema.optional(),
   max_tcp_speed: ValueUnitSchema.optional(),
-  ip_rating: z.string().optional(),
+  ip_rating: z.number().optional(),
   cleanroom_class: z.string().optional(),
   noise_level: ValueUnitSchema.optional(),
   mounting_position: z.string().optional(),
