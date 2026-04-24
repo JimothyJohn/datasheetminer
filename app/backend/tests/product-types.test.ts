@@ -14,18 +14,24 @@ import { VALID_PRODUCT_TYPES, formatDisplayName } from '../src/config/productTyp
 
 jest.mock('../src/db/dynamodb');
 
-// Product types that represent actual hardware (exclude 'datasheet' metadata type)
-const HARDWARE_TYPES = VALID_PRODUCT_TYPES.filter(t => t !== 'datasheet');
+// All configured types are hardware product types. 'datasheet' (document metadata)
+// is intentionally NOT in VALID_PRODUCT_TYPES — it has its own /api/datasheets
+// route and must not appear in the public product-type dropdown.
+const HARDWARE_TYPES = VALID_PRODUCT_TYPES;
 
 // =================== Config Consistency ===================
 
 describe('Product Type Configuration', () => {
-  it('VALID_PRODUCT_TYPES contains all expected types', () => {
+  it('VALID_PRODUCT_TYPES contains all expected hardware types', () => {
     expect(VALID_PRODUCT_TYPES).toContain('motor');
     expect(VALID_PRODUCT_TYPES).toContain('drive');
     expect(VALID_PRODUCT_TYPES).toContain('gearhead');
     expect(VALID_PRODUCT_TYPES).toContain('robot_arm');
-    expect(VALID_PRODUCT_TYPES).toContain('datasheet');
+    expect(VALID_PRODUCT_TYPES).toContain('contactor');
+  });
+
+  it('VALID_PRODUCT_TYPES does not include datasheet (metadata, not a product)', () => {
+    expect(VALID_PRODUCT_TYPES).not.toContain('datasheet' as any);
   });
 
   it('formatDisplayName handles all types', () => {

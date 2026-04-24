@@ -17,7 +17,6 @@ export const VALID_PRODUCT_TYPES = [
   'gearhead',
   'robot_arm',
   'contactor',
-  'datasheet',
 ] as const;
 
 /**
