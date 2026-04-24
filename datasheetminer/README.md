@@ -6,8 +6,9 @@ Core Python library for extracting product specs from PDFs and webpages using Ge
 
 ```
 Document (PDF bytes or HTML string)
-  → Gemini AI emits flat CSV with unit-in-header columns
-  → csv_schema.py reconstructs "value;unit" compact strings
+  → Gemini AI emits structured JSON matching a Pydantic-derived schema
+  → utils.py parses response; validators convert {value, unit} dicts
+    into "value;unit" compact strings
   → Pydantic model validates types, units, and magnitudes
   → quality.py rejects products with too many missing fields
   → db/dynamo.py pushes to DynamoDB with deterministic UUIDs
@@ -17,7 +18,8 @@ Document (PDF bytes or HTML string)
 
 | File | Purpose |
 |------|---------|
-| `llm.py` | Gemini API call with retry logic, builds CSV prompt from schema |
+| `llm.py` | Gemini API call with retry logic, sends the Pydantic-derived JSON response_schema |
+| `models/llm_schema.py` | Builds Gemini's OpenAPI-subset schema from a Pydantic model |
 | `scraper.py` | `datasheetminer` CLI entry point — single URL or batch-from-DB |
 | `page_finder.py` | `page-finder` CLI — identifies which PDF pages contain spec tables |
 | `utils.py` | PDF/web fetching, CSV parsing, page range handling |

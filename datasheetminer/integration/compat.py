@@ -1,0 +1,316 @@
+"""Pairwise compatibility between products via their ports.
+
+Compares ports of the same ``kind`` and opposite ``direction``. Each
+field check returns one of:
+
+    ok      — both sides populated and the values agree
+    partial — one side missing the field (can't prove a mismatch)
+    fail    — both populated and the values disagree
+
+A port pair's overall result is ``fail`` if any check failed, otherwise
+``partial`` if any was partial, otherwise ``ok``. The report surfaces
+per-field detail so a UI can highlight exactly which spec didn't match.
+
+Unit-aware numeric parsing reuses ``datasheetminer.units`` so a motor
+rated "2;kW" and a drive rated "2000;W" compare equal.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Callable, List, Literal, Optional, Tuple
+
+from datasheetminer.integration.adapters import ports_for
+from datasheetminer.integration.ports import (
+    ElectricalPowerPort,
+    FeedbackPort,
+    FieldbusPort,
+    MechanicalShaftPort,
+)
+from datasheetminer.models.product import ProductBase
+from datasheetminer.units import parse_compact
+
+
+CheckStatus = Literal["ok", "partial", "fail"]
+
+
+@dataclass
+class CheckResult:
+    """One field-level comparison between two ports."""
+
+    field: str
+    status: CheckStatus
+    detail: str = ""
+
+
+@dataclass
+class CompatResult:
+    """Result for one port pair (e.g. drive.motor_output ↔ motor.power_input)."""
+
+    from_port: str
+    to_port: str
+    status: CheckStatus
+    checks: List[CheckResult] = field(default_factory=list)
+
+
+@dataclass
+class CompatibilityReport:
+    """Full report for a product pair."""
+
+    from_type: str
+    to_type: str
+    status: CheckStatus
+    results: List[CompatResult] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Value parsing — port fields are already canonical-unit normalised at
+# Pydantic validation time, so we only need to split into floats + unit.
+# ---------------------------------------------------------------------------
+
+
+def _scalar(v: Optional[str]) -> Optional[Tuple[float, str]]:
+    parsed = parse_compact(v)
+    if parsed is None:
+        return None
+    values, unit = parsed
+    return values[0], unit
+
+
+def _range(v: Optional[str]) -> Optional[Tuple[float, float, str]]:
+    parsed = parse_compact(v)
+    if parsed is None:
+        return None
+    values, unit = parsed
+    lo = values[0]
+    hi = values[1] if len(values) == 2 else lo
+    return lo, hi, unit
+
+
+# ---------------------------------------------------------------------------
+# Field-level checks
+# ---------------------------------------------------------------------------
+
+
+def _check_voltage_fits(
+    supply: Optional[str], demand: Optional[str], field_name: str = "voltage"
+) -> CheckResult:
+    """Supply side offers a range (or single value); demand must fit inside.
+
+    Used for drive output → motor rated, contactor load → motor rated.
+    """
+    s = _range(supply)
+    d = _range(demand)
+    if s is None or d is None:
+        return CheckResult(field_name, "partial", "one side missing voltage")
+    if s[2] != d[2]:
+        return CheckResult(field_name, "fail", f"unit mismatch: {s[2]} vs {d[2]}")
+    if d[0] < s[0] or d[1] > s[1]:
+        return CheckResult(
+            field_name,
+            "fail",
+            f"demand {d[0]}-{d[1]} outside supply {s[0]}-{s[1]} {s[2]}",
+        )
+    return CheckResult(field_name, "ok", f"{d[0]}-{d[1]} within {s[0]}-{s[1]} {s[2]}")
+
+
+def _check_supply_ge_demand(
+    supply: Optional[str], demand: Optional[str], field_name: str
+) -> CheckResult:
+    """Supply must be ≥ demand (e.g. drive rated_current ≥ motor rated_current)."""
+    s = _scalar(supply)
+    d = _scalar(demand)
+    if s is None or d is None:
+        return CheckResult(field_name, "partial", f"one side missing {field_name}")
+    if s[1] != d[1]:
+        return CheckResult(field_name, "fail", f"unit mismatch: {s[1]} vs {d[1]}")
+    if s[0] < d[0]:
+        return CheckResult(field_name, "fail", f"supply {s[0]} < demand {d[0]} {s[1]}")
+    return CheckResult(field_name, "ok", f"supply {s[0]} ≥ demand {d[0]} {s[1]}")
+
+
+def _check_demand_le_max(
+    demand: Optional[str], maximum: Optional[str], field_name: str
+) -> CheckResult:
+    return _check_supply_ge_demand(maximum, demand, field_name)
+
+
+def _check_equal_str(
+    a: Optional[str], b: Optional[str], field_name: str
+) -> CheckResult:
+    if a is None or b is None:
+        return CheckResult(field_name, "partial", f"one side missing {field_name}")
+    if a.strip().lower() != b.strip().lower():
+        return CheckResult(field_name, "fail", f"{a!r} != {b!r}")
+    return CheckResult(field_name, "ok", a)
+
+
+def _check_membership(
+    value: Optional[str], options: Optional[List[str]], field_name: str
+) -> CheckResult:
+    if value is None or not options:
+        return CheckResult(field_name, "partial", "one side missing")
+    v_norm = value.strip().lower()
+    if any(v_norm == o.strip().lower() for o in options):
+        return CheckResult(field_name, "ok", f"{value} in supported list")
+    return CheckResult(field_name, "fail", f"{value} not in {options}")
+
+
+def _check_intersect(
+    a: Optional[List[str]], b: Optional[List[str]], field_name: str
+) -> CheckResult:
+    if not a or not b:
+        return CheckResult(field_name, "partial", "one side missing")
+    a_set = {x.strip().lower() for x in a}
+    b_set = {x.strip().lower() for x in b}
+    common = a_set & b_set
+    if common:
+        return CheckResult(field_name, "ok", f"shared: {sorted(common)}")
+    return CheckResult(field_name, "fail", f"no overlap between {a} and {b}")
+
+
+def _check_shaft_fit(
+    motor_shaft: Optional[str], gearhead_bore: Optional[str]
+) -> CheckResult:
+    """Motor shaft OD must equal gearhead bore within 0.1 mm.
+
+    Equality rather than "shaft ≤ bore" because motor shafts couple via
+    keyed/clamped bores — a mismatch of any size is the wrong part.
+    """
+    m = _scalar(motor_shaft)
+    g = _scalar(gearhead_bore)
+    if m is None or g is None:
+        return CheckResult("shaft_diameter", "partial", "one side missing")
+    if m[1] != g[1]:
+        return CheckResult("shaft_diameter", "fail", f"unit mismatch: {m[1]} vs {g[1]}")
+    if abs(m[0] - g[0]) > 0.1:
+        return CheckResult(
+            "shaft_diameter",
+            "fail",
+            f"motor {m[0]} {m[1]} ≠ gearhead bore {g[0]} {g[1]}",
+        )
+    return CheckResult("shaft_diameter", "ok", f"{m[0]} {m[1]} matches bore")
+
+
+# ---------------------------------------------------------------------------
+# Per-kind comparators
+# ---------------------------------------------------------------------------
+
+
+def _compare_electrical_power(
+    supply: ElectricalPowerPort, demand: ElectricalPowerPort
+) -> List[CheckResult]:
+    checks: List[CheckResult] = [
+        _check_voltage_fits(supply.voltage, demand.voltage),
+        _check_supply_ge_demand(supply.current, demand.current, "current"),
+        _check_supply_ge_demand(supply.power, demand.power, "power"),
+    ]
+    if supply.ac_dc and demand.ac_dc:
+        checks.append(
+            CheckResult(
+                "ac_dc",
+                "ok" if supply.ac_dc == demand.ac_dc else "fail",
+                f"{supply.ac_dc} vs {demand.ac_dc}",
+            )
+        )
+    return checks
+
+
+def _compare_mechanical_shaft(
+    source: MechanicalShaftPort, sink: MechanicalShaftPort
+) -> List[CheckResult]:
+    """Source = motor output, sink = gearhead input."""
+    return [
+        _check_equal_str(source.frame_size, sink.frame_size, "frame_size"),
+        _check_shaft_fit(source.shaft_diameter, sink.shaft_diameter),
+        _check_demand_le_max(source.max_speed, sink.max_speed, "speed"),
+    ]
+
+
+def _compare_feedback(source: FeedbackPort, sink: FeedbackPort) -> List[CheckResult]:
+    # Motor (provides a single encoder) and drive (supports a list) can
+    # sit on either side of the directional match; pick whichever has
+    # `provides` populated as the motor side.
+    motor_side = source if source.provides is not None else sink
+    drive_side = sink if motor_side is source else source
+    return [_check_membership(motor_side.provides, drive_side.supports, "encoder_type")]
+
+
+def _compare_fieldbus(source: FieldbusPort, sink: FieldbusPort) -> List[CheckResult]:
+    return [_check_intersect(source.protocols, sink.protocols, "fieldbus")]
+
+
+_COMPARATORS: dict[str, Callable[..., List[CheckResult]]] = {
+    "electrical_power": _compare_electrical_power,
+    "mechanical_shaft": _compare_mechanical_shaft,
+    "feedback": _compare_feedback,
+    "fieldbus": _compare_fieldbus,
+}
+
+
+# ---------------------------------------------------------------------------
+# Roll-up + top-level entry point
+# ---------------------------------------------------------------------------
+
+
+def _roll_up(checks: List[CheckResult]) -> CheckStatus:
+    if any(c.status == "fail" for c in checks):
+        return "fail"
+    if any(c.status == "partial" for c in checks):
+        return "partial"
+    return "ok"
+
+
+def check(a: ProductBase, b: ProductBase) -> CompatibilityReport:
+    """Check compatibility between two products end-to-end.
+
+    Pairs every output port on A with a matching input port on B (and
+    vice versa) and reports per-pair status.
+    """
+    a_ports = ports_for(a)
+    b_ports = ports_for(b)
+    a_name = type(a).__name__
+    b_name = type(b).__name__
+
+    pair_results: List[CompatResult] = []
+    for a_port_name, a_port in a_ports.items():
+        for b_port_name, b_port in b_ports.items():
+            if a_port.kind != b_port.kind:
+                continue
+            if {a_port.direction, b_port.direction} != {"input", "output"}:
+                continue
+
+            a_is_source = a_port.direction == "output"
+            source, sink = (a_port, b_port) if a_is_source else (b_port, a_port)
+            src_label = (
+                f"{a_name}.{a_port_name}" if a_is_source else f"{b_name}.{b_port_name}"
+            )
+            sink_label = (
+                f"{b_name}.{b_port_name}" if a_is_source else f"{a_name}.{a_port_name}"
+            )
+
+            comparator = _COMPARATORS.get(source.kind)
+            if comparator is None:
+                continue
+            checks = comparator(source, sink)
+
+            pair_results.append(
+                CompatResult(
+                    from_port=src_label,
+                    to_port=sink_label,
+                    status=_roll_up(checks),
+                    checks=checks,
+                )
+            )
+
+    if not pair_results:
+        overall: CheckStatus = "partial"
+    else:
+        overall = _roll_up([CheckResult("pair", r.status) for r in pair_results])
+
+    return CompatibilityReport(
+        from_type=a.product_type,
+        to_type=b.product_type,
+        status=overall,
+        results=pair_results,
+    )

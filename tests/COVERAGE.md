@@ -34,7 +34,6 @@ Source: `uv run pytest tests/unit/ --cov=datasheetminer --cov-report=term`
 | `models/datasheet.py` | 28 | 0 | 100% |
 | `models/drive.py` | 27 | 0 | 100% |
 | `models/electric_cylinder.py` | 32 | 0 | 100% |
-| `models/factory.py` | 13 | 1 | 92% |
 | `models/gearhead.py` | 38 | 3 | 92% |
 | `models/manufacturer.py` | 18 | 0 | 100% |
 | `models/motor.py` | 26 | 0 | 100% |
