@@ -637,7 +637,7 @@ def process_datasheet(
                 print(f"Error saving response: {e}", file=sys.stderr)
 
         # Save to DB
-        success_count: int = client.batch_create(parsed_models)
+        success_count: int = client.batch_create(valid_models)
         failure_count: int = len(parsed_data) - success_count
         logger.info(
             f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"

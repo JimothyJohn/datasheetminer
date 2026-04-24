@@ -212,6 +212,9 @@ class TestProcessDatasheet:
 
         assert result == "failed"
 
+    @patch(
+        "datasheetminer.quality.filter_products", side_effect=lambda ps, **_: (ps, [])
+    )
     @patch("datasheetminer.scraper.parse_gemini_response")
     @patch("datasheetminer.scraper.generate_content")
     @patch("datasheetminer.scraper.is_pdf_url")
@@ -224,8 +227,14 @@ class TestProcessDatasheet:
         mock_is_pdf: MagicMock,
         mock_generate: MagicMock,
         mock_parse: MagicMock,
+        mock_filter: MagicMock,
     ) -> None:
-        """product_id is generated via uuid5 from manufacturer+part_number."""
+        """product_id is generated via uuid5 from manufacturer+part_number.
+
+        Quality filter is stubbed out: this test only verifies ID assignment,
+        not quality gating, and a bare-minimum motor would otherwise fail
+        the 25% completeness threshold.
+        """
         import re
         import uuid
 
