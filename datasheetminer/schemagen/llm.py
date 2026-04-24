@@ -1,11 +1,15 @@
-"""Gemini call that proposes a ProposedModel from one or more PDFs.
+"""Gemini call that proposes a ProposedModel from one or more datasheets.
 
 Uses Gemini's structured-output mode with ``response_schema=ProposedModel``
 — the ``google.genai`` SDK converts the Pydantic class to Gemini's
 OpenAPI-subset schema internally, so the response text is JSON matching
 ``ProposedModel``'s shape.
 
-Multi-source: the CLI passes a list of pre-filtered PDF byte blobs (one
+Accepts a mix of PDFs and images (PNG/JPEG/WEBP). Each source is tagged
+with its own mime_type so a cropped spec-table screenshot can sit
+alongside a full PDF catalog in the same call.
+
+Multi-source: the CLI passes a list of pre-filtered byte blobs (one
 per datasheet). Each source lands as its own content part with a tag
 the LLM can cite back in ``ProposedModel.sources``; the prompt asks
 for a schema that generalizes across them rather than being tuned to
@@ -63,29 +67,35 @@ def _should_retry(exc: BaseException) -> bool:
     retry=retry_if_exception(_should_retry),
 )
 def propose_model(
-    pdf_bytes_list: Sequence[bytes],
+    doc_bytes_list: Sequence[bytes],
     product_type: str,
     api_key: str,
     source_paths: Optional[Sequence[Path]] = None,
+    mime_types: Optional[Sequence[str]] = None,
     schema_choices: Optional[Dict[str, Type[ProductBase]]] = None,
     model: str = MODEL,
     max_fields: int = 30,
 ) -> ProposedModel:
-    """Send ``pdf_bytes_list`` to Gemini and return a validated ``ProposedModel``.
+    """Send ``doc_bytes_list`` to Gemini and return a validated ``ProposedModel``.
 
     Large PDFs auto-upload via the Files API and are deleted afterwards.
+    Images (PNG/JPEG/WEBP) always go inline — they're small enough.
 
     Args:
-        pdf_bytes_list: One or more datasheet byte blobs — all pre-filtered
-            through ``page_finder`` by the caller.
+        doc_bytes_list: One or more datasheet byte blobs. PDFs should be
+            pre-filtered through ``page_finder`` by the caller; images
+            are passed through as-is.
         product_type: snake_case product type key (e.g. ``"contactor"``).
         api_key: Gemini API key. Falls through to ``GEMINI_API_KEY`` env
             var when empty.
         source_paths: Local filesystem paths for each blob in
-            ``pdf_bytes_list``, same order. Fed into the prompt so the
+            ``doc_bytes_list``, same order. Fed into the prompt so the
             LLM can cite them by filename in ``ProposedModel.sources``.
             Optional — if omitted, sources are labelled "source 1",
             "source 2", etc.
+        mime_types: Per-source mime type. Same length as ``doc_bytes_list``
+            when provided. Defaults to ``application/pdf`` for every
+            source (backwards compatible with the PDF-only callers).
         schema_choices: Registry of existing product types to reflect over
             for examples and the reuse-registry. Defaults to the live
             ``SCHEMA_CHOICES`` — override in tests.
@@ -98,19 +108,30 @@ def propose_model(
         ValueError: the LLM returned output that fails ``ProposedModel``
             validation or isn't valid JSON, or no sources were passed.
     """
-    if not pdf_bytes_list:
-        raise ValueError("propose_model requires at least one PDF blob.")
+    if not doc_bytes_list:
+        raise ValueError("propose_model requires at least one document blob.")
     if schema_choices is None:
         schema_choices = SCHEMA_CHOICES
+
+    if mime_types is None:
+        mimes: List[str] = ["application/pdf"] * len(doc_bytes_list)
+    else:
+        if len(mime_types) != len(doc_bytes_list):
+            raise ValueError(
+                "mime_types length must match doc_bytes_list length "
+                f"(got {len(mime_types)} vs {len(doc_bytes_list)})."
+            )
+        mimes = list(mime_types)
 
     # Normalize source labels so the prompt can reference each blob
     # with a stable identifier ("SOURCE 1: abb-af09.pdf").
     labels: List[str] = []
-    for i, _ in enumerate(pdf_bytes_list):
+    for i, _ in enumerate(doc_bytes_list):
         if source_paths and i < len(source_paths):
             labels.append(source_paths[i].name)
         else:
-            labels.append(f"source-{i + 1}.pdf")
+            ext = "png" if mimes[i].startswith("image/") else "pdf"
+            labels.append(f"source-{i + 1}.{ext}")
 
     client = genai.Client(api_key=api_key) if api_key else genai.Client()
 
@@ -121,36 +142,41 @@ def propose_model(
     parts: List[Any] = []
 
     try:
-        for label, pdf_bytes in zip(labels, pdf_bytes_list):
-            use_files_api = len(pdf_bytes) >= FILES_API_SIZE_THRESHOLD_BYTES
+        for label, doc_bytes, mime in zip(labels, doc_bytes_list, mimes):
+            # Files API is only meaningful for big PDFs. Images are
+            # always small enough to send inline.
+            use_files_api = (
+                mime == "application/pdf"
+                and len(doc_bytes) >= FILES_API_SIZE_THRESHOLD_BYTES
+            )
             if use_files_api:
                 logger.info(
                     "schemagen: %s is %.1f MB; uploading via Files API",
                     label,
-                    len(pdf_bytes) / (1024 * 1024),
+                    len(doc_bytes) / (1024 * 1024),
                 )
                 uploaded = client.files.upload(
-                    file=io.BytesIO(pdf_bytes),
-                    config={"mime_type": "application/pdf"},
+                    file=io.BytesIO(doc_bytes),
+                    config={"mime_type": mime},
                 )
                 uploaded_files.append(uploaded)
                 parts.append(uploaded)
             else:
                 parts.append(
                     genai_types.Part.from_bytes(
-                        data=pdf_bytes,
-                        mime_type="application/pdf",
+                        data=doc_bytes,
+                        mime_type=mime,
                     )
                 )
-            # Tag each PDF with its label so the LLM can cite it back
+            # Tag each source with its label so the LLM can cite it back
             # in ProposedModel.sources[*].name.
             parts.append(f"[SOURCE {len(parts) // 2}: {label}]")
 
-        total_bytes = sum(len(b) for b in pdf_bytes_list)
+        total_bytes = sum(len(b) for b in doc_bytes_list)
         logger.info(
             "schemagen: calling %s with %d sources, %d total bytes for product_type=%r",
             model,
-            len(pdf_bytes_list),
+            len(doc_bytes_list),
             total_bytes,
             product_type,
         )

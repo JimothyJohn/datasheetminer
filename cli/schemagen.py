@@ -1,17 +1,23 @@
-"""``./Quickstart schemagen`` — propose a new Pydantic product model from a PDF.
+"""``./Quickstart schemagen`` — propose a new Pydantic product model from datasheets.
+
+Accepts PDFs and images (PNG/JPEG/WEBP). PDFs are pre-filtered through
+``page_finder``; images are sent as-is — a cropped spec-table screenshot
+is already one "page".
 
 Dry-run by default: prints unified diffs of the new ``models/<type>.py``
 file and the ``common.py`` ``ProductType`` literal patch. Pass ``--write``
 to commit both edits to disk, then (unless ``--skip-verify``) re-extract
-the same PDF through the newly-registered schema to verify end-to-end.
+the first source through the newly-registered schema to verify end-to-end.
 
 Usage:
-    ./Quickstart schemagen <pdf-path> --type <snake_case>
+    ./Quickstart schemagen <path>... --type <snake_case>
         [--class-name PascalCase]
         [--write]
         [--json-only]
         [--skip-verify]
         [--max-fields N]
+
+    Paths may mix PDFs and images in a single call.
 """
 
 from __future__ import annotations
@@ -34,24 +40,52 @@ ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = ROOT / "datasheetminer" / "models"
 COMMON_PY = MODELS_DIR / "common.py"
 
+# Gemini accepts PDF + these image mimes via Part.from_bytes. Keep the
+# map small — anything else we get asked for (HEIC, TIFF) should be a
+# conscious add, not a silent "let the API tell us".
+_IMAGE_MIME_BY_EXT: Dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+
+
+def _detect_mime(path: Path) -> str:
+    """Return Gemini mime_type for ``path`` based on extension.
+
+    Raises SystemExit for unsupported extensions — silent fallbacks
+    here have cost us hours in the past (treating an HTML file as a
+    PDF, etc.).
+    """
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return "application/pdf"
+    if suffix in _IMAGE_MIME_BY_EXT:
+        return _IMAGE_MIME_BY_EXT[suffix]
+    sys.exit(
+        f"ERROR: unsupported file type {suffix!r} for {path.name}. "
+        f"Supported: .pdf, {', '.join(sorted(_IMAGE_MIME_BY_EXT))}."
+    )
+
 
 def _parse_args(argv: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="schemagen",
         description=(
-            "Propose a new Pydantic product model from a PDF datasheet. "
-            "Dry-run by default; pass --write to commit."
+            "Propose a new Pydantic product model from one or more datasheets "
+            "(PDF or image). Dry-run by default; pass --write to commit."
         ),
     )
     parser.add_argument(
-        "pdf_paths",
+        "doc_paths",
         nargs="+",
-        metavar="PDF",
+        metavar="DOC",
         help=(
-            "One or more datasheet PDFs. Multiple sources let the LLM "
-            "generalize across vendors instead of tuning to one catalog's "
-            "quirks (e.g. pass ABB, Schneider, and Siemens contactor PDFs "
-            "together)."
+            "One or more datasheet paths. PDFs and images (PNG/JPEG/WEBP) "
+            "may be mixed. Multiple sources let the LLM generalize across "
+            "vendors instead of tuning to one catalog's quirks (e.g. pass "
+            "ABB, Schneider, and Siemens contactor PDFs together)."
         ),
     )
     parser.add_argument(
@@ -159,7 +193,12 @@ def _print_diff(label: str, old: str, new: str, path: Path) -> None:
     print(diff_text, end="" if diff_text.endswith("\n") else "\n")
 
 
-def _run_verification(pdf_bytes: bytes, product_type: str, api_key: str) -> None:
+def _run_verification(
+    doc_bytes: bytes,
+    product_type: str,
+    api_key: str,
+    mime_type: str = "application/pdf",
+) -> None:
     """Call the real extraction path against the newly-registered schema."""
     # Re-import to pick up the newly-added SCHEMA_CHOICES entry.
     import importlib
@@ -183,13 +222,15 @@ def _run_verification(pdf_bytes: bytes, product_type: str, api_key: str) -> None
     from datasheetminer.utils import parse_gemini_response
 
     print(f"\n=== Verification pass: extracting with new {product_type!r} schema ===")
+    is_image = mime_type.startswith("image/")
     try:
         response = generate_content(
-            doc_data=pdf_bytes,
+            doc_data=doc_bytes,
             api_key=api_key,
             schema=product_type,
             context=None,
-            content_type="pdf",
+            content_type="image" if is_image else "pdf",
+            mime_type=mime_type if is_image else None,
         )
     except Exception as e:
         print(f"ERROR: verification extraction call failed: {e}", file=sys.stderr)
@@ -228,12 +269,12 @@ def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
 
     _validate_product_type(args.product_type)
-    pdf_paths: List[Path] = []
-    for raw in args.pdf_paths:
+    doc_paths: List[Path] = []
+    for raw in args.doc_paths:
         p = Path(raw).resolve()
         if not p.is_file():
-            sys.exit(f"ERROR: PDF not found: {p}")
-        pdf_paths.append(p)
+            sys.exit(f"ERROR: file not found: {p}")
+        doc_paths.append(p)
     class_name = args.class_name or _derive_class_name(args.product_type)
 
     # Import late so argparse --help doesn't require the dependencies.
@@ -258,47 +299,53 @@ def main(argv: List[str] | None = None) -> int:
     if not api_key:
         sys.exit("ERROR: GEMINI_API_KEY not set. Export it or add it to .env.")
 
-    # Run the standard pre-filter on EACH source PDF. page_finder narrows
-    # each catalog to its spec pages before anything hits the LLM; we
-    # hand the LLM a list of filtered byte blobs so it can compare
-    # fields side-by-side and generalize across vendors.
-    filtered_sources: List[tuple[Path, bytes]] = []
-    for p in pdf_paths:
+    # Run the standard pre-filter on PDF sources only. page_finder narrows
+    # each catalog to its spec pages before anything hits the LLM; images
+    # are already single-page so they pass through as-is. We hand the LLM
+    # a list of (bytes, mime) tuples so it can compare fields across
+    # mixed-format sources and generalize across vendors.
+    prepared_sources: List[tuple[Path, bytes, str]] = []
+    for p in doc_paths:
+        mime = _detect_mime(p)
         raw = p.read_bytes()
-        spec_pages = find_spec_pages_by_text(raw)
-        if spec_pages:
-            filtered = _filter_pdf_pages(raw, spec_pages)
-            log.info(
-                "page_finder [%s]: %d of %d pages (%d → %d bytes)",
-                p.name,
-                len(spec_pages),
-                # approximate total pages — derived by diff
-                len(spec_pages),
-                len(raw),
-                len(filtered),
-            )
-            filtered_sources.append((p, filtered))
+        if mime == "application/pdf":
+            spec_pages = find_spec_pages_by_text(raw)
+            if spec_pages:
+                filtered = _filter_pdf_pages(raw, spec_pages)
+                log.info(
+                    "page_finder [%s]: %d spec pages (%d → %d bytes)",
+                    p.name,
+                    len(spec_pages),
+                    len(raw),
+                    len(filtered),
+                )
+                prepared_sources.append((p, filtered, mime))
+            else:
+                log.warning(
+                    "page_finder [%s]: no spec pages matched — sending full %d bytes; "
+                    "expect size/token limits to bite on large catalogs.",
+                    p.name,
+                    len(raw),
+                )
+                prepared_sources.append((p, raw, mime))
         else:
-            log.warning(
-                "page_finder [%s]: no spec pages matched — sending full %d bytes; "
-                "expect size/token limits to bite on large catalogs.",
-                p.name,
-                len(raw),
-            )
-            filtered_sources.append((p, raw))
+            log.info("image source [%s]: %d bytes (%s)", p.name, len(raw), mime)
+            prepared_sources.append((p, raw, mime))
 
-    pdf_bytes_list = [b for _, b in filtered_sources]
-    source_paths = [p for p, _ in filtered_sources]
+    doc_bytes_list = [b for _, b, _ in prepared_sources]
+    source_paths = [p for p, _, _ in prepared_sources]
+    mime_types = [m for _, _, m in prepared_sources]
 
     log.info(
         "Calling Gemini to propose schema for %r from %d source%s...",
         args.product_type,
-        len(pdf_bytes_list),
-        "s" if len(pdf_bytes_list) != 1 else "",
+        len(doc_bytes_list),
+        "s" if len(doc_bytes_list) != 1 else "",
     )
     pm = propose_model(
-        pdf_bytes_list=pdf_bytes_list,
+        doc_bytes_list=doc_bytes_list,
         source_paths=source_paths,
+        mime_types=mime_types,
         product_type=args.product_type,
         api_key=api_key,
         schema_choices=SCHEMA_CHOICES,
@@ -403,11 +450,16 @@ def main(argv: List[str] | None = None) -> int:
 
     # Verification uses the same pre-filtered bytes so it exercises the
     # same input the proposal saw, not the full catalog.
-    # Verify against the first source PDF only — one round-trip is
-    # enough to confirm the proposed schema extracts something. Running
-    # it across every source would be linear in cost without much
+    # Verify against the first source only — one round-trip is enough
+    # to confirm the proposed schema extracts something. Running it
+    # across every source would be linear in cost without much
     # additional signal.
-    _run_verification(pdf_bytes_list[0], args.product_type, api_key)
+    _run_verification(
+        doc_bytes_list[0],
+        args.product_type,
+        api_key,
+        mime_type=mime_types[0],
+    )
     return 0
 
 

@@ -33,17 +33,20 @@ def generate_content(
     schema: str,
     context: Optional[Dict[str, Any]] = None,
     content_type: str = "pdf",
+    mime_type: Optional[str] = None,
 ) -> Any:
     """Generate a structured JSON extraction for a datasheet.
 
     Args:
-        doc_data: The document data (bytes for PDF, string for HTML).
+        doc_data: The document data (bytes for PDF/image, string for HTML).
         api_key: Gemini API key.
         schema: Product type key into ``SCHEMA_CHOICES`` (e.g. ``"drive"``).
         context: Optional known fields the caller already has (manufacturer,
             product_name, product_family, datasheet_url). These are excluded
             from the schema so the LLM doesn't re-emit them.
-        content_type: ``"pdf"`` or ``"html"``.
+        content_type: ``"pdf"``, ``"image"``, or ``"html"``.
+        mime_type: Required when ``content_type="image"``. One of
+            ``image/png``, ``image/jpeg``, ``image/webp``.
 
     Returns the raw ``google.genai`` response object. The JSON payload is
     accessed via ``response.text`` and parsed downstream by
@@ -108,6 +111,19 @@ def generate_content(
             prompt,
         ]
         logger.info(f"Analyzing PDF document ({len(doc_data)} bytes)")
+    elif content_type == "image":
+        if not isinstance(doc_data, bytes):
+            raise ValueError("Image content must be bytes")
+        if not mime_type or not mime_type.startswith("image/"):
+            raise ValueError(
+                "content_type='image' requires mime_type like 'image/png' "
+                f"(got {mime_type!r})"
+            )
+        contents = [
+            genai.types.Part.from_bytes(data=doc_data, mime_type=mime_type),
+            prompt,
+        ]
+        logger.info(f"Analyzing {mime_type} image ({len(doc_data)} bytes)")
     elif content_type == "html":
         if not isinstance(doc_data, str):
             raise ValueError("HTML content must be string")
