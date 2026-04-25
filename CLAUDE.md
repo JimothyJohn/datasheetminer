@@ -22,6 +22,9 @@ Everything goes through `./Quickstart <command>`. It's a bash shim that delegate
                                   Writes <type>.py + <type>.md (reasoning doc
                                   with source citations).
     ./Quickstart price-enrich     Backfill MSRP on existing products
+    ./Quickstart ingest-report    Group ingest-log quality-fails by manufacturer
+                                  for vendor outreach. --email-template emits
+                                  a ready-to-send email body per manufacturer.
 
 All CLI modules live in `cli/`. Quickstart is the single entry point — don't run `python -m cli.foo` in docs or scripts unless there's a reason.
 

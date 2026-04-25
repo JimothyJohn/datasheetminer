@@ -592,6 +592,105 @@ class DynamoDBClient:
             print(f"Unexpected error listing all items: {e}")
             return []
 
+    def write_ingest(self, record: Dict[str, Any]) -> bool:
+        """Write one ingest-log record. Best-effort — swallow errors.
+
+        The caller has already produced a log row via
+        ``datasheetminer.ingest_log.build_record``; we just serialize
+        floats to Decimal and put it. A failure here must not roll back
+        the surrounding product write, so all exceptions are logged and
+        suppressed.
+        """
+        try:
+            item = self._convert_floats_to_decimal(record)
+            self.table.put_item(Item=item)
+            return True
+        except ClientError as e:
+            print(
+                f"Warning: could not write ingest log: {e.response['Error']['Message']}"
+            )
+            return False
+        except Exception as e:
+            print(f"Warning: unexpected error writing ingest log: {e}")
+            return False
+
+    def read_ingest(self, url: str) -> Optional[Dict[str, Any]]:
+        """Return the most recent ingest-log record for a URL, or None."""
+        from datasheetminer.ingest_log import pk_for_url
+
+        try:
+            response = self.table.query(
+                KeyConditionExpression="PK = :pk",
+                ExpressionAttributeValues={":pk": pk_for_url(url)},
+                ScanIndexForward=False,
+                Limit=1,
+            )
+            items = response.get("Items", [])
+            return items[0] if items else None
+        except ClientError as e:
+            print(f"Error reading ingest log: {e.response['Error']['Message']}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error reading ingest log: {e}")
+            return None
+
+    def list_ingest(
+        self,
+        *,
+        manufacturer: Optional[str] = None,
+        status: Optional[str] = None,
+        since: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Scan all ingest-log records, optionally filtered.
+
+        Scan is acceptable at the sub-10k-ingest scale we expect for
+        the foreseeable future. Introduce a GSI on manufacturer if
+        the log outgrows that.
+
+        Args:
+            manufacturer: exact-match filter on the ``manufacturer`` attr.
+            status: exact-match filter on the ``status`` attr.
+            since: ISO-8601 timestamp; returns only records whose SK
+                (``INGEST#<iso>``) sorts >= ``INGEST#<since>``.
+        """
+        filter_parts: List[str] = ["begins_with(PK, :pk_prefix)"]
+        values: Dict[str, Any] = {":pk_prefix": "INGEST#"}
+        names: Dict[str, str] = {}
+
+        if manufacturer:
+            filter_parts.append("manufacturer = :mfg")
+            values[":mfg"] = manufacturer
+        if status:
+            filter_parts.append("#st = :status")
+            values[":status"] = status
+            names["#st"] = "status"
+        if since:
+            filter_parts.append("SK >= :since_sk")
+            values[":since_sk"] = f"INGEST#{since}"
+
+        scan_kwargs: Dict[str, Any] = {
+            "FilterExpression": " AND ".join(filter_parts),
+            "ExpressionAttributeValues": values,
+        }
+        if names:
+            scan_kwargs["ExpressionAttributeNames"] = names
+
+        items: List[Dict[str, Any]] = []
+        try:
+            while True:
+                response = self.table.scan(**scan_kwargs)
+                items.extend(response.get("Items", []))
+                if "LastEvaluatedKey" not in response:
+                    break
+                scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+            return items
+        except ClientError as e:
+            print(f"Error listing ingest log: {e.response['Error']['Message']}")
+            return items
+        except Exception as e:
+            print(f"Unexpected error listing ingest log: {e}")
+            return items
+
     def batch_create(self, models: Sequence[Union[ProductBase, Datasheet]]) -> int:
         """Create multiple items in DynamoDB using batch write.
 
