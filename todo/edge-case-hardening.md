@@ -13,6 +13,51 @@ Baseline (from coverage survey, 2026-04-17):
 - Frontend: 127 tests, no line-coverage tracked. No schema validation on
   `localStorage` reads. Only one XSS-targeted file (`utils/sanitize.test.ts`).
 
+---
+
+## Status (last updated 2026-04-25)
+
+Python core: **70%** line coverage (1031 unit tests). `page_finder.py` 13% → **97%**.
+
+| Phase | State | Notes |
+|---|---|---|
+| 1a Hypothesis on `handle_value_unit_input` | ✅ shipped | `tests/unit/test_value_unit_property.py` |
+| 1b Compact-units regex | ✅ shipped | `tests/unit/test_compact_units_regex.py` |
+| 1c Quality boundary | ✅ shipped | `tests/unit/test_quality_boundary.py` (`quality.py` at 97%) |
+| 1d Per-type model tests | ⏸ **deferred** | Existing `test_models{,_common,_roundtrip}.py` cover this surface; full parametrization deferred until in-flight actuator model + `common.py` work settles. **Trigger to revisit:** new actuator model lands. |
+| 2a Scraper degraded inputs | ✅ shipped | `tests/integration/test_scraper_degraded_inputs.py` (10 tests) |
+| 2b Page finder edges | ✅ shipped | `tests/unit/test_page_finder_edge.py` (47 tests) |
+| 2c Intake guards e2e | ✅ shipped | `tests/integration/test_intake_guards_end_to_end.py` (10 tests) |
+| 2d DB roundtrip expansion | ⚠ partial | `tests/integration/test_db_integration.py` exists; concurrent-write + GSI scenarios still open. **Trigger to revisit:** any DynamoDB schema change. |
+| 3a–3d Backend route contracts | ✅ shipped | `search/products/upload.contract.test.ts`, `readonly.edge.test.ts` |
+| 3e DynamoDB integration | ⚠ partial | `app/backend/tests/db.test.ts` covers happy path; pagination across >1MB and BatchWrite boundary still open. |
+| 4a `localStorage` safeLoad | ✅ shipped | `app/frontend/src/utils/localStorage.{ts,test.ts}` |
+| 4b ProductList edges | ⏸ **deferred** | Component is tightly coupled to `AppContext`; useful tests need a provider mock. **Trigger to revisit:** edits to `ProductList.tsx` or `AppContext.tsx`, or a render-bug report. |
+| 4c FilterBar edges | ⏸ **deferred** | Same blocker as 4b. **Trigger to revisit:** edits to `FilterBar.tsx` or `AppContext.tsx`. |
+| 4d API client edges | ✅ shipped | `app/frontend/src/api/client.edge.test.ts` (7 tests) |
+| 4e Sanitize edges | ✅ shipped | `app/frontend/src/utils/sanitize.edge.test.ts` |
+| 5a Bench budgets | ✅ shipped | `tests/benchmark/budgets.json` + `cli/bench.py:_check_budgets` + `tests/unit/test_bench_budgets.py` (8 tests). Default-on, opt out with `--no-enforce-budgets`. |
+| 5b Backend load test | ⏸ **deferred** | Plan calls for autocannon. **Trigger to revisit:** user reports latency, p95, capacity, or load issues. |
+| 5c `cli/loadtest.py` | ⏸ **deferred** | Same trigger as 5b. |
+| 6 Chaos | ⏸ deferred | Plan flagged this as optional. Pick up only if a real flake bites. |
+| 7 `search.attribute-safety` | ✅ shipped | `app/backend/tests/routes/search.attribute-safety.test.ts` |
+| 7 `adminOnly.edge` | ✅ shipped | `app/backend/tests/middleware/adminOnly.edge.test.ts` |
+| 7 `services/scraper.url-policy` | ❌ **N/A** | The Node backend has no scraper service — scraping lives in the Python module and isn't exposed via the public API. Test target as written doesn't apply to this codebase. |
+
+### Trigger conditions — surface deferred work automatically
+
+When working on the file/area in the left column, raise the deferred phase in the right column with the user as a follow-up rather than silently picking it up (the original blocker may still apply):
+
+| Working on… | Surface phase |
+|---|---|
+| `datasheetminer/models/common.py`, any `datasheetminer/models/<type>.py`, or schema discussion | **1d** — parametrized per-type model tests |
+| `app/frontend/src/components/ProductList.tsx`, `FilterBar.tsx`, `context/AppContext.tsx` | **4b / 4c** — frontend edge tests |
+| User mentions latency, p95, capacity, load, or perf regression | **5b / 5c** — autocannon + `cli/loadtest.py` |
+| Any DynamoDB schema or PK/SK change | **2d / 3e** — concurrent-write + pagination boundary |
+| A flake or transient prod error | **6** — chaos / failure injection |
+
+Memory pointer: `~/.claude/projects/-Users-nick-github-datasheetminer/memory/project_hardening_backlog.md`.
+
 ## Design rules
 
 - **One failure class per test.** No test should verify both "parses correctly" and
@@ -30,7 +75,7 @@ Baseline (from coverage survey, 2026-04-17):
 
 ---
 
-## Phase 1 — Python core: parser + validator hardening
+## Phase 1 — Python core: parser + validator hardening — ✅ shipped (1a–1c) / ⏸ deferred (1d)
 
 Targets `datasheetminer/models/common.py`, `datasheetminer/units.py`,
 `datasheetminer/db/dynamo.py::_parse_compact_units`, and every `BeforeValidator` used
@@ -90,7 +135,7 @@ One parametrized test per model in `datasheetminer/models/`:
 
 ---
 
-## Phase 2 — Python core: pipeline + scraper integration
+## Phase 2 — Python core: pipeline + scraper integration — ✅ shipped (2a–2c) / ⚠ partial (2d)
 
 Targets `datasheetminer/scraper.py`, `datasheetminer/page_finder.py`, and the
 `cli/intake.py → cli/intake_guards.py → scraper` chain.
@@ -146,7 +191,7 @@ dedicated `dsm-test-<timestamp>` table that's torn down after.
 
 ---
 
-## Phase 3 — Node backend: route-level contract + fuzz tests
+## Phase 3 — Node backend: route-level contract + fuzz tests — ✅ shipped (3a–3d) / ⚠ partial (3e)
 
 Targets every route under `app/backend/src/routes/`. Framework: Jest + supertest.
 
@@ -215,7 +260,7 @@ Biggest coverage hole. Against a real test table:
 
 ---
 
-## Phase 4 — Frontend: input, state, and rendering edges
+## Phase 4 — Frontend: input, state, and rendering edges — ✅ shipped (4a, 4d, 4e) / ⏸ deferred (4b, 4c)
 
 Targets `ProductList.tsx`, `FilterBar.tsx`, `AppContext.tsx`, `api/client.ts`, and
 the `localStorage` hooks.
@@ -279,7 +324,7 @@ script and check the new tests raise branch coverage in each target file above 8
 
 ---
 
-## Phase 5 — Performance + load budgets
+## Phase 5 — Performance + load budgets — ✅ shipped (5a) / ⏸ deferred (5b, 5c)
 
 Performance tests run via `./Quickstart bench` and a new `./Quickstart loadtest`
 subcommand.
@@ -319,7 +364,7 @@ a pass/fail table; fail triggers non-zero exit.
 
 ---
 
-## Phase 6 — Chaos + failure injection
+## Phase 6 — Chaos + failure injection — ⏸ deferred
 
 Lightweight, optional. Run locally, not in CI.
 
@@ -338,7 +383,7 @@ subcommand that runs them on demand.
 
 ---
 
-## Phase 7 — Security edges (narrow scope)
+## Phase 7 — Security edges (narrow scope) — ✅ shipped (search.attribute-safety, adminOnly.edge) / ❌ N/A (services/scraper.url-policy)
 
 Not a full security review — just the edges most likely to bite.
 
@@ -413,3 +458,15 @@ Not a full security review — just the edges most likely to bite.
 
 When all four are green, stop. Further testing has diminishing returns; pour the
 leftover effort into monitoring + alerting instead.
+
+## Triggers
+
+(See the **Trigger conditions** table at the top of this doc for the canonical list — duplicated here so the standard `## Triggers` grep across `todo/*.md` finds it.)
+
+Surface this doc when the current task touches any of:
+
+- `app/frontend/src/components/ProductList.tsx`, `FilterBar.tsx`, or `context/AppContext.tsx` → Phase 4b/4c
+- `datasheetminer/models/common.py` or any product model → Phase 1d
+- User mentions latency, p95, capacity, load, or perf regression → Phase 5b/5c
+- DynamoDB schema or PK/SK change → Phase 2d/3e
+- A flake or transient prod error → Phase 6
