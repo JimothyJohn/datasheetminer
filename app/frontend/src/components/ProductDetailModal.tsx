@@ -52,7 +52,7 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
   };
 
   const formatValue = (value: any): { display: string; unit?: string } => {
-    if (!value) return { display: 'N/A' };
+    if (!value) return { display: '' };
 
     if (typeof value === 'object' && 'value' in value && 'unit' in value) {
       return { display: String(value.value), unit: value.unit };

@@ -45,9 +45,12 @@ export const formatPropertyLabel = (key: string): string => {
 /**
  * Recursively format a value for display, handling nested objects and arrays
  *
+ * Missing/placeholder values render as an empty string so the gaps in our spec
+ * coverage are visually obvious instead of being papered over with "N/A".
+ *
  * Handles common patterns:
  * - Primitives (strings, numbers, booleans)
- * - null/undefined → 'N/A'
+ * - null/undefined/placeholder → ''
  * - Arrays → comma-separated values
  * - Objects with value+unit → "value unit"
  * - Objects with min+max+unit → "min-max unit"
@@ -66,10 +69,8 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
     return '[Max depth exceeded]';
   }
 
-  // Handle null/undefined and placeholder strings ("N/A", "TBD", etc. emitted
-  // by older rows that predate the backend's is_placeholder coercion).
   if (isPlaceholder(value)) {
-    return 'N/A';
+    return '';
   }
 
   // Handle primitives
@@ -79,7 +80,7 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
 
   // Handle arrays
   if (Array.isArray(value)) {
-    if (value.length === 0) return 'N/A';
+    if (value.length === 0) return '';
 
     // Check if array contains objects with value/unit pattern
     if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
@@ -152,14 +153,11 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
     // Generic nested object: format as key-value pairs
     const formattedEntries = entries
       .filter(([key]) => key.toLowerCase() !== 'unit') // Filter out standalone unit keys
-      .map(([key, val]) => {
-        const label = formatPropertyLabel(key);
-        const formattedVal = formatValue(val, depth + 1, maxDepth);
-        return `${label}: ${formattedVal}`;
-      })
-      .filter(entry => !entry.endsWith(': N/A')); // Filter out N/A values
+      .map(([key, val]) => ({ label: formatPropertyLabel(key), formattedVal: formatValue(val, depth + 1, maxDepth) }))
+      .filter(({ formattedVal }) => formattedVal !== '')
+      .map(({ label, formattedVal }) => `${label}: ${formattedVal}`);
 
-    if (formattedEntries.length === 0) return 'N/A';
+    if (formattedEntries.length === 0) return '';
 
     // If there was a unit at this level, append it
     if (unitEntry) {

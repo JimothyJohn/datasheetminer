@@ -40,12 +40,12 @@ describe('formatPropertyLabel', () => {
 });
 
 describe('formatValue', () => {
-  it('returns N/A for null', () => {
-    expect(formatValue(null)).toBe('N/A');
+  it('returns empty string for null', () => {
+    expect(formatValue(null)).toBe('');
   });
 
-  it('returns N/A for undefined', () => {
-    expect(formatValue(undefined)).toBe('N/A');
+  it('returns empty string for undefined', () => {
+    expect(formatValue(undefined)).toBe('');
   });
 
   it('converts string to string', () => {
@@ -80,8 +80,8 @@ describe('formatValue', () => {
     expect(formatValue({ min: 0, max: 100 })).toBe('0-100');
   });
 
-  it('returns N/A for empty array', () => {
-    expect(formatValue([])).toBe('N/A');
+  it('returns empty string for empty array', () => {
+    expect(formatValue([])).toBe('');
   });
 
   it('formats string array', () => {
@@ -111,7 +111,7 @@ describe('formatValue', () => {
     expect(result).toContain('mm');
   });
 
-  it('filters out N/A entries from nested objects', () => {
+  it('filters out missing entries from nested objects', () => {
     const result = formatValue({ width: 100, height: null, unit: 'mm' });
     expect(result).not.toContain('Height');
   });
@@ -120,7 +120,7 @@ describe('formatValue', () => {
     expect(formatValue({ a: 1 }, 6, 5)).toBe('[Max depth exceeded]');
   });
 
-  it('returns N/A for object with all N/A values', () => {
-    expect(formatValue({ a: null, b: undefined })).toBe('N/A');
+  it('returns empty string for object with all missing values', () => {
+    expect(formatValue({ a: null, b: undefined })).toBe('');
   });
 });
