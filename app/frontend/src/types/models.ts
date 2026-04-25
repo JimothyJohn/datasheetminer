@@ -161,8 +161,41 @@ export interface DatasheetEntry extends ProductBase {
   is_scraped?: boolean;
 }
 
-export type Product = Motor | Drive | RobotArm | Gearhead | DatasheetEntry;
-export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'electric_cylinder' | 'datasheet' | 'all' | null;
+export interface LinearActuator extends ProductBase {
+  product_type: 'linear_actuator';
+  type?: 'linear_slide' | 'linear_stage' | 'rodless_screw' | 'rodless_belt' | 'lm_guide_actuator';
+  series?: string;
+  stroke?: ValueUnit;
+  max_work_load?: ValueUnit;
+  max_push_force?: ValueUnit;
+  holding_force?: ValueUnit;
+  dynamic_load_rating?: ValueUnit;
+  static_load_rating?: ValueUnit;
+  max_linear_speed?: ValueUnit;
+  max_acceleration?: ValueUnit;
+  positioning_repeatability?: ValueUnit;
+  backlash?: ValueUnit;
+  actuation_mechanism?: 'ball_screw' | 'lead_screw' | 'belt' | 'linear_motor';
+  lead_screw_pitch?: ValueUnit;
+  screw_diameter?: ValueUnit;
+  static_allowable_moment_pitching?: ValueUnit;
+  static_allowable_moment_yawing?: ValueUnit;
+  static_allowable_moment_rolling?: ValueUnit;
+  rotor_inertia?: ValueUnit;
+  motor_type?: 'step_motor' | 'servo_motor' | 'motorless';
+  encoder_feedback_support?: string[];
+  rated_voltage?: MinMaxUnit;
+  rated_current?: ValueUnit;
+  peak_current?: ValueUnit;
+  rated_power?: ValueUnit;
+  ip_rating?: number;
+  operating_temp?: MinMaxUnit;
+  operating_humidity_range?: ValueUnit;
+  cleanroom_class?: string;
+}
+
+export type Product = Motor | Drive | RobotArm | Gearhead | LinearActuator | DatasheetEntry;
+export type ProductType = 'motor' | 'drive' | 'robot_arm' | 'gearhead' | 'contactor' | 'electric_cylinder' | 'linear_actuator' | 'datasheet' | 'all' | null;
 
 /**
  * Product summary with dynamic counts per type

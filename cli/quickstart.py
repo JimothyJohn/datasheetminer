@@ -14,6 +14,8 @@ Usage:
                                   (try: ./Quickstart bench --help)
     ./Quickstart price-enrich     Backfill MSRP on existing products
                                   (try: ./Quickstart price-enrich --help)
+    ./Quickstart ingest-report    Group ingest-log quality-fails by manufacturer
+                                  (try: ./Quickstart ingest-report --help)
     ./Quickstart schemagen PDF --type NAME
                                   Propose a new Pydantic product model from a PDF
                                   (try: ./Quickstart schemagen --help)
@@ -610,6 +612,20 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "price-enrich":
         run(
             ["uv", "run", "python", "-m", "cli.price_enrich", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "ingest-report":
+        run(
+            ["uv", "run", "python", "-m", "cli.ingest_report", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "inspect":
+        run(
+            ["uv", "run", "python", "-m", "cli.inspect_datasheet", *sys.argv[2:]],
             cwd=ROOT,
         )
         return

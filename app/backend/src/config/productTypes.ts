@@ -18,6 +18,7 @@ export const VALID_PRODUCT_TYPES = [
   'robot_arm',
   'contactor',
   'electric_cylinder',
+  'linear_actuator',
 ] as const;
 
 /**

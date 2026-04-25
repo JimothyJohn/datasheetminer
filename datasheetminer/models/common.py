@@ -27,6 +27,7 @@ ProductType = Literal[
     "datasheet",
     "contactor",
     "electric_cylinder",
+    "linear_actuator",
 ]
 
 
@@ -68,6 +69,10 @@ def validate_value_unit_str(v: str) -> str:
 
 def handle_value_unit_input(v: Any) -> Any:
     if isinstance(v, dict):
+        # Gemini sometimes emits {} for fields it has no value for. Drop these
+        # before any key probing so the str validator doesn't crash on a dict.
+        if not v:
+            return None
         val = v.get("value")
         unit = v.get("unit")
         if val is not None and unit is not None:
@@ -164,6 +169,8 @@ def validate_min_max_unit_str(v: str) -> str:
 
 def handle_min_max_unit_input(v: Any) -> Any:
     if isinstance(v, dict):
+        if not v:
+            return None
         min_val = v.get("min")
         max_val = v.get("max")
         val = v.get("value")

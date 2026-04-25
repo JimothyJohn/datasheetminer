@@ -61,8 +61,9 @@ class TestHandleValueUnitInput:
         assert result == {"value": 100}
 
     def test_empty_dict(self):
-        result = handle_value_unit_input({})
-        assert result == {}
+        # Gemini sometimes emits {} for fields it has no value for;
+        # dropping to None is safer than passing the dict to the str validator.
+        assert handle_value_unit_input({}) is None
 
     def test_unit_only_dict_becomes_none(self):
         # Gemini sometimes emits {"unit": "V"} with no numeric payload;

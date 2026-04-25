@@ -25,8 +25,16 @@ from typing import Any, List, Optional, Type
 from datasheetminer.config import SCHEMA_CHOICES
 from datasheetminer.db.dynamo import DynamoDBClient
 from datasheetminer.ids import compute_product_id, normalize_string, PRODUCT_NAMESPACE
+from datasheetminer.ingest_log import (
+    STATUS_EXTRACT_FAIL,
+    STATUS_QUALITY_FAIL,
+    STATUS_SUCCESS,
+    build_record,
+    should_skip,
+)
 from datasheetminer.merge import merge_per_page_products
 from datasheetminer.models.product import ProductBase
+from datasheetminer.quality import score_product, spec_fields_for_model
 from datasheetminer.utils import (
     extract_pdf_pages,
     get_document,
@@ -172,6 +180,11 @@ def main() -> None:
     parser.add_argument("--product-name", help="Product name")
     parser.add_argument("--manufacturer", help="Manufacturer")
     parser.add_argument("--product-family", help="Product family")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore the ingest log and re-run even on previously-successful URLs.",
+    )
 
     args: argparse.Namespace = parser.parse_args()
     client: DynamoDBClient = DynamoDBClient()
@@ -207,6 +220,7 @@ def main() -> None:
                     url=ds.url,
                     pages=ds.pages,
                     output_path=None,  # Don't write individual files for bulk scrape
+                    force=args.force,
                 )
                 if result == "skipped":
                     skip_count += 1
@@ -318,6 +332,7 @@ def main() -> None:
                     url=ds.url,
                     pages=ds.pages,
                     output_path=None,  # Don't write individual files for bulk scrape
+                    force=args.force,
                 )
                 if result == "skipped":
                     skip_count += 1
@@ -387,6 +402,7 @@ def main() -> None:
             url=url_str,
             pages=pages,
             output_path=args.output,
+            force=args.force,
         )
     except Exception as e:
         logger.error(f"Error during document analysis: {e}")
@@ -409,15 +425,114 @@ def _extract_bundled_pdf(full_pdf: bytes, pages_0idx: List[int]) -> bytes:
     return data
 
 
+def _save_failure_artifacts(
+    save_dir: Path,
+    *,
+    url: str,
+    status: str,
+    source_bytes: Optional[bytes | str],
+    content_type: str,
+    parsed_models: List[Any],
+    pages_detected: int,
+    pages_used: List[int],
+    page_finder_method: Optional[str],
+    manufacturer: str,
+    product_type: str,
+    product_name_hint: str,
+    product_family_hint: str,
+    error_message: Optional[str] = None,
+) -> None:
+    """Write a failed-extraction snapshot to disk for manual inspection.
+
+    Layout (one directory per failed URL, keyed by URL hash):
+        <save_dir>/<sha16>/
+            datasheet.pdf | datasheet.html   — original source bytes (if downloaded)
+            metadata.json                    — url, status, manufacturer, error, pages
+            parsed.json                      — Pydantic-validated rows (may be empty)
+
+    Best-effort: any failure to write artifacts is logged at WARN and swallowed
+    so it doesn't mask the original failure.
+    """
+    try:
+        import hashlib
+
+        slug = hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
+        dest = save_dir / slug
+        dest.mkdir(parents=True, exist_ok=True)
+
+        if source_bytes is not None:
+            ext = "pdf" if content_type == "pdf" else "html"
+            doc_path = dest / f"datasheet.{ext}"
+            if isinstance(source_bytes, bytes):
+                doc_path.write_bytes(source_bytes)
+            else:
+                doc_path.write_text(source_bytes, encoding="utf-8")
+
+        metadata = {
+            "url": url,
+            "status": status,
+            "manufacturer": manufacturer,
+            "product_type": product_type,
+            "product_name_hint": product_name_hint,
+            "product_family_hint": product_family_hint,
+            "content_type": content_type,
+            "pages_detected": pages_detected,
+            "pages_used": pages_used,
+            "page_finder_method": page_finder_method,
+            "products_extracted": len(parsed_models),
+            "error_message": error_message,
+        }
+        (dest / "metadata.json").write_text(
+            json.dumps(metadata, indent=2), encoding="utf-8"
+        )
+
+        parsed_payload = [m.model_dump(mode="json") for m in parsed_models]
+        (dest / "parsed.json").write_text(
+            json.dumps(parsed_payload, indent=2, cls=UUIDEncoder), encoding="utf-8"
+        )
+
+        logger.info("Saved failure artifacts to %s", dest)
+    except Exception as exc:
+        logger.warning("Failed to save failure artifacts to %s: %s", save_dir, exc)
+
+
+def _token_counts(response: Any) -> tuple[int, int]:
+    """Pull (input, output) token counts off a genai response; zeros if absent."""
+    usage = getattr(response, "usage_metadata", None)
+    if usage is None:
+        return 0, 0
+
+    def _as_int(value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    return (
+        _as_int(getattr(usage, "prompt_token_count", 0)),
+        _as_int(getattr(usage, "candidates_token_count", 0)),
+    )
+
+
 def _call_llm(
     doc_data: bytes | str,
     api_key: str,
     product_type: str,
     context: dict,
     content_type: str,
+    tokens: Optional[dict] = None,
 ) -> List[Any]:
-    """Call Gemini and parse the response into Pydantic models."""
+    """Call Gemini and parse the response into Pydantic models.
+
+    If ``tokens`` is a dict with 'input'/'output' keys, the per-call
+    token counts are added to it in-place so the caller can roll up
+    multi-call (per-page) extractions.
+    """
     response = generate_content(doc_data, api_key, product_type, context, content_type)
+    if tokens is not None:
+        inp, out = _token_counts(response)
+        tokens["input"] = tokens.get("input", 0) + inp
+        tokens["output"] = tokens.get("output", 0) + out
     return parse_gemini_response(
         response, SCHEMA_CHOICES[product_type], product_type, context
     )
@@ -430,6 +545,7 @@ def _extract_per_page(
     product_type: str,
     context: dict,
     content_type: str,
+    tokens: Optional[dict] = None,
 ) -> List[Any]:
     """Extract products one page (or chunk) at a time, tagging each with source page."""
     all_products: List[Any] = []
@@ -447,7 +563,7 @@ def _extract_per_page(
             page_pdf = _extract_bundled_pdf(full_pdf, chunk)
             page_context = dict(context, single_page_mode=True)
             products = _call_llm(
-                page_pdf, api_key, product_type, page_context, content_type
+                page_pdf, api_key, product_type, page_context, content_type, tokens
             )
 
             for model in products:
@@ -462,6 +578,9 @@ def _extract_per_page(
     return all_products
 
 
+DEFAULT_FAILED_DATASHEETS_DIR = Path("outputs/failed_datasheets")
+
+
 def process_datasheet(
     client: DynamoDBClient,
     api_key: str,
@@ -472,34 +591,54 @@ def process_datasheet(
     url: str,
     pages: Optional[List[int]],
     output_path: Optional[Path] = None,
+    force: bool = False,
+    save_failed_to: Optional[Path] = DEFAULT_FAILED_DATASHEETS_DIR,
 ) -> str:
     """
     Process a single datasheet: check existence, scrape, parse, and save to DB.
-    Returns: "success", "skipped", or "failed"
-    """
 
-    # Check if product already exists
+    Every non-short-circuit outcome writes one ingest-log record so the
+    scraper can skip already-processed URLs and ``ingest-report`` can
+    group quality-fails by manufacturer for vendor outreach.
+
+    Args:
+        force: if True, ignore the ingest log and re-run even on URLs
+            that previously succeeded. The in-DB ``product_exists`` check
+            still runs (to avoid UUID collisions on repeat rows).
+        save_failed_to: directory to drop a snapshot (source PDF/HTML +
+            metadata + partial parsed rows) into on every quality_fail
+            / extract_fail. Defaults to ``outputs/failed_datasheets/``;
+            pass ``None`` to disable. Lets you re-open a problem
+            datasheet locally and decide whether the catalog is broken or
+            our pipeline is.
+
+    Returns: "success", "skipped", or "failed".
+    """
     model_class: Type[ProductBase] = SCHEMA_CHOICES[product_type]
 
-    # Ensure Datasheet entry exists (for management UI)
-    # DISABLED: User requested to prevent scraper from adding datasheets
-    # if not client.datasheet_exists(url):
-    #     logger.info(f"Creating missing Datasheet entry for: {url}")
-    #     ds = Datasheet(
-    #         url=url,
-    #         pages=pages,
-    #         product_type=product_type,
-    #         product_name=product_name,
-    #         product_family=product_family,
-    #         manufacturer=manufacturer,
-    #     )
-    #     client.create(ds)
+    # Pre-flight: skip URLs the ingest log says were already processed
+    # successfully (or unlikely to improve on re-run). The scraper path
+    # gains its cheapest win here — a Query instead of download + LLM.
+    if not force:
+        last = client.read_ingest(url)
+        if should_skip(last):
+            logger.info(
+                "Skipping %s — prior attempt %s on %s (fields_filled_avg=%s/%s)",
+                url,
+                last.get("status"),  # type: ignore[union-attr]
+                last.get("SK"),  # type: ignore[union-attr]
+                last.get("fields_filled_avg"),  # type: ignore[union-attr]
+                last.get("fields_total"),  # type: ignore[union-attr]
+            )
+            return "skipped"
 
     if client.product_exists(product_type, manufacturer, product_name, model_class):
         logger.warning(
             f"⚠️  Product '{product_name}' by manufacturer '{manufacturer}' with product_type '{product_type}' "
             f"already exists in the database. Skipping scraping to avoid duplicates."
         )
+        # Per ENRICH.md: skipped_dup writes no log — the existing product
+        # record is the source of truth and re-asserting adds only noise.
         return "skipped"
 
     # Context for LLM
@@ -511,7 +650,6 @@ def process_datasheet(
         "pages": pages,
     }
 
-    # Detect content type
     is_pdf: bool = is_pdf_url(url)
     content_type: str = "pdf" if is_pdf else "html"
 
@@ -520,28 +658,81 @@ def process_datasheet(
     if is_pdf and pages:
         logger.info(f"Pages: {pages}")
 
+    # Per-attempt ingest-log scratch. Populated throughout the call and
+    # written once at the end (or in the failure handler).
+    tokens: dict = {"input": 0, "output": 0}
+    pages_detected: int = 0
+    pages_used: List[int] = []
+    page_finder_method: Optional[str] = None
+    parsed_models: List[Any] = []
+    # Source bytes for the failed-pdf snapshot — populated post-download.
+    source_bytes: Optional[bytes | str] = None
+
+    def _maybe_save_failure(status: str, error_message: Optional[str] = None) -> None:
+        if save_failed_to is None:
+            return
+        _save_failure_artifacts(
+            save_failed_to,
+            url=url,
+            status=status,
+            source_bytes=source_bytes,
+            content_type=content_type,
+            parsed_models=parsed_models,
+            pages_detected=pages_detected,
+            pages_used=pages_used,
+            page_finder_method=page_finder_method,
+            manufacturer=manufacturer,
+            product_type=product_type,
+            product_name_hint=product_name,
+            product_family_hint=product_family,
+            error_message=error_message,
+        )
+
     try:
         doc_data: Optional[bytes | str] = None
 
         if is_pdf:
-            # Download the full PDF once
             full_pdf = get_document(url)
             if full_pdf is None:
                 logger.error("Could not retrieve PDF document.")
+                _write_ingest_log(
+                    client,
+                    url=url,
+                    manufacturer=manufacturer,
+                    product_type=product_type,
+                    product_name_hint=product_name,
+                    product_family_hint=product_family,
+                    status=STATUS_EXTRACT_FAIL,
+                    error_message="pdf_download_failed",
+                )
+                _maybe_save_failure(STATUS_EXTRACT_FAIL, "pdf_download_failed")
                 return "failed"
+
+            source_bytes = full_pdf
 
             # Auto-detect spec pages when none specified
             if not pages:
                 detected = find_spec_pages_by_text(full_pdf)
                 if detected:
                     pages = detected
+                    pages_detected = len(detected)
+                    page_finder_method = "text_keyword"
                     logger.info(f"Auto-detected {len(pages)} spec pages: {pages}")
                     context["pages"] = pages
+            else:
+                pages_detected = len(pages)
+                page_finder_method = "explicit"
 
-            # Per-page extraction when we have spec pages and count is manageable
             if pages and len(pages) <= MAX_PER_PAGE_CALLS:
+                pages_used = list(pages)
                 parsed_models = _extract_per_page(
-                    full_pdf, pages, api_key, product_type, context, content_type
+                    full_pdf,
+                    pages,
+                    api_key,
+                    product_type,
+                    context,
+                    content_type,
+                    tokens,
                 )
             elif pages:
                 logger.warning(
@@ -549,16 +740,17 @@ def process_datasheet(
                     len(pages),
                     MAX_PER_PAGE_CALLS,
                 )
+                pages_used = list(pages)
                 doc_data = _extract_bundled_pdf(full_pdf, pages)
                 parsed_models = _call_llm(
-                    doc_data, api_key, product_type, context, content_type
+                    doc_data, api_key, product_type, context, content_type, tokens
                 )
                 for model in parsed_models:
                     model.pages = [p + 1 for p in pages]
             else:
                 doc_data = full_pdf
                 parsed_models = _call_llm(
-                    doc_data, api_key, product_type, context, content_type
+                    doc_data, api_key, product_type, context, content_type, tokens
                 )
         else:
             if pages:
@@ -566,31 +758,57 @@ def process_datasheet(
             doc_data = get_web_content(url)
             if doc_data is None:
                 logger.error("Could not retrieve web content.")
+                _write_ingest_log(
+                    client,
+                    url=url,
+                    manufacturer=manufacturer,
+                    product_type=product_type,
+                    product_name_hint=product_name,
+                    product_family_hint=product_family,
+                    status=STATUS_EXTRACT_FAIL,
+                    error_message="html_download_failed",
+                )
+                _maybe_save_failure(STATUS_EXTRACT_FAIL, "html_download_failed")
                 return "failed"
+            source_bytes = doc_data
             parsed_models = _call_llm(
-                doc_data, api_key, product_type, context, content_type
+                doc_data, api_key, product_type, context, content_type, tokens
             )
 
         if not parsed_models:
             logger.error("No valid products extracted.")
+            _write_ingest_log(
+                client,
+                url=url,
+                manufacturer=manufacturer,
+                product_type=product_type,
+                product_name_hint=product_name,
+                product_family_hint=product_family,
+                status=STATUS_EXTRACT_FAIL,
+                pages_detected=pages_detected,
+                pages_used=pages_used,
+                page_finder_method=page_finder_method,
+                gemini_input_tokens=tokens["input"],
+                gemini_output_tokens=tokens["output"],
+                error_message="no_products_extracted",
+            )
+            _maybe_save_failure(STATUS_EXTRACT_FAIL, "no_products_extracted")
             return "failed"
+
+        products_extracted_raw = len(parsed_models)
 
         # Merge partial records from per-page extraction
         parsed_models = merge_per_page_products(parsed_models)
 
         # Inject source metadata and deterministic IDs
-        import uuid
-
-        valid_models = []
+        valid_models: List[Any] = []
 
         for model in parsed_models:
-            # Bake deep-link into datasheet_url
             if model.pages:
                 model.datasheet_url = f"{url}#page={model.pages[0]}"
             else:
                 model.datasheet_url = url
 
-            # Deterministic ID from ids module
             mfg = model.manufacturer or manufacturer
             pid = compute_product_id(mfg, model.part_number, model.product_name)
             if pid is None:
@@ -613,19 +831,40 @@ def process_datasheet(
 
             valid_models.append(model)
 
-        # Quality filter — reject products with too many missing spec fields
+        # Quality filter — reject products with too many missing spec fields.
+        # Use the post-merge list for the "missing fields" computation so the
+        # log reflects what the vendor would actually see as gaps. We score
+        # all merged models (passed + rejected) to build the union of gaps.
         from datasheetminer.quality import filter_products
 
-        valid_models, rejected = filter_products(valid_models)
-        if rejected:
+        scored_models = parsed_models  # full merged set for missing-fields union
+        passed_models, rejected_models = filter_products(valid_models)
+        if rejected_models:
             logger.warning(
                 "Dropped %d low-quality products (too many N/A fields)",
-                len(rejected),
+                len(rejected_models),
             )
 
-        parsed_data: List[Any] = [item.model_dump() for item in valid_models]
+        # Quality metrics over all extracted products (post-merge), regardless
+        # of whether they passed the gate — the outreach use case wants the
+        # full picture of what the vendor is missing.
+        total_fields = len(spec_fields_for_model(model_class))
+        missing_union: set[str] = set()
+        filled_total = 0
+        scored_count = 0
+        for m in scored_models:
+            _score, filled, _total, missing = score_product(m)
+            filled_total += filled
+            scored_count += 1
+            missing_union.update(missing)
+        fields_filled_avg = (filled_total / scored_count) if scored_count else 0.0
 
-        # Output to file if requested
+        extracted_part_numbers = [
+            m.part_number for m in scored_models if getattr(m, "part_number", None)
+        ]
+
+        parsed_data: List[Any] = [item.model_dump() for item in passed_models]
+
         if output_path:
             try:
                 formatted_response: str = json.dumps(
@@ -636,21 +875,80 @@ def process_datasheet(
             except Exception as e:
                 print(f"Error saving response: {e}", file=sys.stderr)
 
-        # Save to DB
-        success_count: int = client.batch_create(valid_models)
+        success_count: int = client.batch_create(passed_models)
         failure_count: int = len(parsed_data) - success_count
         logger.info(
             f"Successfully pushed {success_count} items to DynamoDB, {failure_count} items failed"
         )
 
+        # Ingest-log: success if anything landed; quality_fail if the gate
+        # dropped everything that survived ID/dup checks; extract_fail if
+        # even the ID/dup step left us with nothing.
         if success_count > 0:
-            return "success"
+            log_status = STATUS_SUCCESS
+        elif scored_count > 0:
+            log_status = STATUS_QUALITY_FAIL
         else:
+            log_status = STATUS_EXTRACT_FAIL
+
+        _write_ingest_log(
+            client,
+            url=url,
+            manufacturer=manufacturer,
+            product_type=product_type,
+            product_name_hint=product_name,
+            product_family_hint=product_family,
+            status=log_status,
+            products_extracted=products_extracted_raw,
+            products_written=success_count,
+            fields_total=total_fields,
+            fields_filled_avg=fields_filled_avg,
+            fields_missing=missing_union,
+            pages_detected=pages_detected,
+            pages_used=pages_used,
+            page_finder_method=page_finder_method,
+            extracted_part_numbers=extracted_part_numbers,
+            gemini_input_tokens=tokens["input"],
+            gemini_output_tokens=tokens["output"],
+        )
+
+        if success_count == 0:
+            _maybe_save_failure(log_status)
             return "failed"
+        return "success"
 
     except Exception as e:
         logger.error(f"Error during document analysis: {e}")
+        _write_ingest_log(
+            client,
+            url=url,
+            manufacturer=manufacturer,
+            product_type=product_type,
+            product_name_hint=product_name,
+            product_family_hint=product_family,
+            status=STATUS_EXTRACT_FAIL,
+            pages_detected=pages_detected,
+            pages_used=pages_used,
+            page_finder_method=page_finder_method,
+            gemini_input_tokens=tokens["input"],
+            gemini_output_tokens=tokens["output"],
+            error_message=str(e)[:500],
+        )
+        _maybe_save_failure(STATUS_EXTRACT_FAIL, str(e)[:500])
         return "failed"
+
+
+def _write_ingest_log(client: DynamoDBClient, **kwargs: Any) -> None:
+    """Build and write an ingest-log record, swallowing any failure.
+
+    Best-effort by design: a logging failure must not roll back a
+    successful product write, so both build and write are wrapped.
+    """
+    try:
+        record = build_record(**kwargs)
+        client.write_ingest(record)
+    except Exception as exc:
+        logger.warning("ingest-log write failed: %s", exc)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ const db = new DynamoDBService({ tableName: config.dynamodb.tableName });
 
 const SearchQuerySchema = z.object({
   q: z.string().optional(),
-  type: z.enum(['motor', 'drive', 'gearhead', 'robot_arm', 'contactor', 'electric_cylinder']).optional(),
+  type: z.enum(['motor', 'drive', 'gearhead', 'robot_arm', 'contactor', 'electric_cylinder', 'linear_actuator']).optional(),
   manufacturer: z.string().optional(),
   where: z.union([z.string(), z.array(z.string())]).optional(),
   sort: z.union([z.string(), z.array(z.string())]).optional(),
