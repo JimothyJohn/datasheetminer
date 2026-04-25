@@ -12,6 +12,7 @@ import {
   mergeAttributesByKey,
   AttributeMetadata,
 } from './filters';
+import { COLUMN_ORDER, orderColumnAttributes } from './columnOrder';
 import { Product } from './models';
 
 describe('Filter Logic', () => {
@@ -501,5 +502,59 @@ describe('mergeAttributesByKey', () => {
   it('returns just the derived list when primary is empty', () => {
     const merged = mergeAttributesByKey([], [derivedSameKey, derivedNewKey]);
     expect(merged).toEqual([derivedSameKey, derivedNewKey]);
+  });
+});
+
+describe('orderColumnAttributes', () => {
+  const make = (key: string, displayName?: string): AttributeMetadata => ({
+    key,
+    displayName: displayName ?? key,
+    type: 'string',
+    applicableTypes: ['motor'],
+  });
+
+  it('falls back to alphabetical when COLUMN_ORDER for the type is empty', () => {
+    // motor list is empty by default in columnOrder.ts
+    expect(COLUMN_ORDER.motor).toEqual([]);
+    const attrs = [make('z_field', 'Z Field'), make('a_field', 'A Field'), make('m_field', 'M Field')];
+    const ordered = orderColumnAttributes(attrs, 'motor');
+    expect(ordered.map(a => a.key)).toEqual(['a_field', 'm_field', 'z_field']);
+  });
+
+  it('puts authored-order keys first in declared order, then unlisted alphabetical', () => {
+    // Temporarily seed motor order via mutation — the export is a const
+    // object reference, so we restore at end.
+    const original = COLUMN_ORDER.motor ?? [];
+    COLUMN_ORDER.motor = ['rated_power', 'rated_torque'];
+    try {
+      const attrs = [
+        make('weight', 'Weight'),
+        make('rated_torque', 'Rated Torque'),
+        make('manufacturer', 'Manufacturer'),
+        make('rated_power', 'Rated Power'),
+      ];
+      const ordered = orderColumnAttributes(attrs, 'motor');
+      expect(ordered.map(a => a.key)).toEqual([
+        'rated_power',
+        'rated_torque',
+        'manufacturer',
+        'weight',
+      ]);
+    } finally {
+      COLUMN_ORDER.motor = original;
+    }
+  });
+
+  it('returns alphabetical for productType=null and productType=all', () => {
+    const attrs = [make('b'), make('a')];
+    expect(orderColumnAttributes(attrs, null).map(a => a.key)).toEqual(['a', 'b']);
+    expect(orderColumnAttributes(attrs, 'all').map(a => a.key)).toEqual(['a', 'b']);
+  });
+
+  it('does not mutate the input array', () => {
+    const attrs = [make('b'), make('a')];
+    const snapshot = attrs.map(a => a.key);
+    orderColumnAttributes(attrs, 'motor');
+    expect(attrs.map(a => a.key)).toEqual(snapshot);
   });
 });

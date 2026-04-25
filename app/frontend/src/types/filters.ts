@@ -679,6 +679,10 @@ export const mergeAttributesByKey = (
   return [...primary, ...extras];
 };
 
+// Authored column order for the results table lives in a sibling file
+// so it's trivially findable: app/frontend/src/types/columnOrder.ts.
+export { COLUMN_ORDER, orderColumnAttributes } from './columnOrder';
+
 /**
  * Get available comparison operators for an attribute based on actual data values
  *

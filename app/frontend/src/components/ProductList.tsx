@@ -6,6 +6,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
 import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata } from '../types/filters';
+// Column order is authored in types/columnOrder.ts — edit that file to
+// change what columns appear and in what order.
+import { orderColumnAttributes } from '../types/columnOrder';
 import { formatValue } from '../utils/formatting';
 import { extractNumeric, numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
@@ -55,24 +58,6 @@ export default function ProductList() {
   useEffect(() => {
     safeSave('productListRestoredColumns', userRestoredKeys);
   }, [userRestoredKeys]);
-
-  // Column sort direction — A→Z by default; toggle flips to Z→A.
-  // Persisted so the user's preferred scan direction sticks.
-  const [columnSortDirection, setColumnSortDirection] = useState<'asc' | 'desc'>(() =>
-    safeLoadString(
-      'productListColumnSortDirection',
-      (v): v is 'asc' | 'desc' => v === 'asc' || v === 'desc',
-      'asc',
-    ),
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem('productListColumnSortDirection', columnSortDirection);
-    } catch {
-      // quota / access errors — fallback is in-memory state.
-    }
-  }, [columnSortDirection]);
 
   // Cap on how many columns are displayed at once. null = no cap.
   // Columns past the cap auto-hide to the "Restore" dropdown alongside
@@ -146,10 +131,11 @@ export default function ProductList() {
     [],
   );
 
-  // Full ordered column list — alphabetical, all derivable attributes,
-  // excludes identity/metadata keys. Does NOT yet filter by hidden set;
-  // we keep the full list so AttributeSelector can tell what's hideable
-  // vs hidden. `visibleColumnAttributes` below is the filtered view.
+  // Full ordered column list — authored order from types/columnOrder.ts
+  // first, then alphabetical for any unlisted keys. Excludes identity/
+  // metadata keys. Does NOT yet filter by hidden set; we keep the full
+  // list so AttributeSelector can tell what's hideable vs hidden.
+  // `visibleColumnAttributes` below is the filtered view.
   const columnAttributes = useMemo<AttributeMetadata[]>(() => {
     if (!productType) return [];
     const staticAttrs = getAttributesForType(productType);
@@ -157,9 +143,8 @@ export default function ProductList() {
     const merged = mergeAttributesByKey(staticAttrs, derivedAttrs).filter(
       a => !COLUMN_EXCLUDED_KEYS.has(a.key),
     );
-    const dir = columnSortDirection === 'desc' ? -1 : 1;
-    return merged.sort((a, b) => dir * a.displayName.localeCompare(b.displayName));
-  }, [productType, products, COLUMN_EXCLUDED_KEYS, columnSortDirection]);
+    return orderColumnAttributes(merged, productType);
+  }, [productType, products, COLUMN_EXCLUDED_KEYS]);
 
   // Columns actually rendered in the table. Default rule:
   // - `userRestored` → always visible (explicit opt-in)
@@ -717,18 +702,6 @@ export default function ProductList() {
                 <option value="none">All</option>
               </select>
             </label>
-            <button
-              type="button"
-              className="density-toggle-btn"
-              onClick={() => setColumnSortDirection(d => (d === 'asc' ? 'desc' : 'asc'))}
-              title={
-                columnSortDirection === 'asc'
-                  ? 'Columns A→Z. Click to reverse (Z→A).'
-                  : 'Columns Z→A. Click to reverse (A→Z).'
-              }
-            >
-              {columnSortDirection === 'asc' ? 'A↓Z' : 'Z↓A'}
-            </button>
             <button
               type="button"
               className="density-toggle-btn"
