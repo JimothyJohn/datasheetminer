@@ -1,0 +1,8 @@
+{
+  "_doc": "Wall-clock ceilings per fixture for ./Quickstart bench. A fixture exceeding any budget by >25% fails the run. Page-find numbers are pure-Python heuristic time; extract numbers cover one Gemini live call. Calibrated from outputs/benchmarks/ over 2026-04-15..17 — re-tune when fixtures are added or the model changes.",
+  "j5":                       { "page_find_ms":  8000, "llm_extract_ms": 250000 },
+  "j5-filtered":              { "page_find_ms":   200, "llm_extract_ms": 110000 },
+  "nidec-d-series-frameless": { "page_find_ms":   100, "llm_extract_ms":  50000 },
+  "omron-g-series-servo-motors": { "page_find_ms":   150, "llm_extract_ms":  80000 },
+  "orientalmotor-nx-series":  { "page_find_ms":   300, "llm_extract_ms":  70000 }
+}

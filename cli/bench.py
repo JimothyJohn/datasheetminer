@@ -31,6 +31,11 @@ FIXTURE_DIR = BENCHMARK_DIR / "datasheets"
 EXPECTED_DIR = BENCHMARK_DIR / "expected"
 CACHE_DIR = BENCHMARK_DIR / "cache"
 OUTPUT_DIR = ROOT / "outputs" / "benchmarks"
+BUDGETS_PATH = BENCHMARK_DIR / "budgets.json"
+
+# A fixture exceeding any budget key by more than this fraction fails
+# the run. 0.25 = 25% headroom on top of the recorded ceiling.
+BUDGET_OVERSHOOT_TOLERANCE = 0.25
 
 # Gemini token pricing (USD per 1M tokens). Update when models change.
 # Numbers from ai.google.dev/gemini-api/docs/pricing.
@@ -482,6 +487,61 @@ def run(
     return results
 
 
+def _load_budgets() -> dict[str, dict[str, float]]:
+    """Read the per-fixture wall-clock ceilings, ignoring any underscore keys."""
+    if not BUDGETS_PATH.exists():
+        return {}
+    with open(BUDGETS_PATH) as f:
+        data = json.load(f)
+    return {
+        k: v for k, v in data.items() if not k.startswith("_") and isinstance(v, dict)
+    }
+
+
+def _check_budgets(
+    results: list[dict[str, Any]],
+    budgets: dict[str, dict[str, float]],
+) -> list[dict[str, Any]]:
+    """Compare each fixture's wall-clock numbers against its budget.
+
+    Returns a list of overshoot records: ``{slug, metric, actual_ms,
+    budget_ms, overshoot_pct}``. Empty list = all fixtures within tolerance.
+
+    A metric is checked only when (a) the fixture has a budget for it and
+    (b) the run produced an actual value. Offline runs (no ``--live``)
+    naturally skip ``llm_extract_ms`` because no extraction ran.
+    """
+    overshoots: list[dict[str, Any]] = []
+    threshold = 1.0 + BUDGET_OVERSHOOT_TOLERANCE
+
+    for result in results:
+        slug = result.get("slug")
+        budget = budgets.get(slug or "")
+        if not budget:
+            continue
+
+        actuals = {
+            "page_find_ms": result.get("page_finding", {}).get("page_find_ms"),
+            "llm_extract_ms": result.get("extraction", {}).get("extraction_ms"),
+        }
+        for metric, actual in actuals.items():
+            ceiling = budget.get(metric)
+            if ceiling is None or actual is None:
+                continue
+            if actual > ceiling * threshold:
+                overshoots.append(
+                    {
+                        "slug": slug,
+                        "metric": metric,
+                        "actual_ms": actual,
+                        "budget_ms": ceiling,
+                        "overshoot_pct": round((actual / ceiling - 1.0) * 100, 1),
+                    }
+                )
+
+    return overshoots
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="bench",
@@ -509,6 +569,11 @@ def main(argv: list[str] | None = None) -> None:
         type=Path,
         default=None,
         help="Write results to a specific JSON file",
+    )
+    parser.add_argument(
+        "--no-enforce-budgets",
+        action="store_true",
+        help="Skip the wall-clock budget check (still records timings)",
     )
 
     args = parser.parse_args(argv)
@@ -544,8 +609,26 @@ def main(argv: list[str] | None = None) -> None:
     log.info(f"Results written to {output_path}")
     log.info(f"Latest symlink: {latest_path}")
 
-    # Exit non-zero if any extraction errored
-    if any(r.get("extraction", {}).get("error") for r in results):
+    # Budget enforcement — surfaces perf regressions immediately rather
+    # than letting them slip into a release. Default-on; opt out with
+    # --no-enforce-budgets when calibrating new fixtures.
+    overshoots: list[dict[str, Any]] = []
+    if not args.no_enforce_budgets:
+        budgets = _load_budgets()
+        if budgets:
+            overshoots = _check_budgets(results, budgets)
+            for o in overshoots:
+                log.error(
+                    "BUDGET FAIL: %s/%s = %.0fms (budget %.0fms, +%.1f%%)",
+                    o["slug"],
+                    o["metric"],
+                    o["actual_ms"],
+                    o["budget_ms"],
+                    o["overshoot_pct"],
+                )
+
+    # Exit non-zero if any extraction errored or budget exceeded
+    if any(r.get("extraction", {}).get("error") for r in results) or overshoots:
         sys.exit(1)
 
 
