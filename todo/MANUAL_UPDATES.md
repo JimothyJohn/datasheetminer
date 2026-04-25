@@ -78,3 +78,14 @@ required guessing during the 2026-04-18 prod migration session.
    straight to prod without human review.
 3. Item **4** (branch protection on `master`).
 4. Item **1** (repo secrets).
+
+## Triggers
+
+Surface this doc when the current task touches any of:
+
+- A fresh clone / new worktree (`app/.env.{dev,staging,prod}` missing)
+- Deploy attempt that fails on missing secrets (`AWS_ACCOUNT_ID`, `DOMAIN_NAME`, `CERTIFICATE_ARN`, `HOSTED_ZONE_ID`)
+- User says "deploy failed" or "secrets" or "approval gate"
+- Pushing directly to `master` (item #4 — branch protection should reject this)
+- Any CDK change to the prod DynamoDB table (item #8 — verify deletion protection still on)
+- Docker / `bundlingImage` errors during `cdk deploy` (item #7)
