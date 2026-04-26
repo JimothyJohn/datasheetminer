@@ -10,6 +10,7 @@ import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesF
 // change what columns appear and in what order.
 import { orderColumnAttributes } from '../types/columnOrder';
 import { formatValue } from '../utils/formatting';
+import { displayUnit, convertValueUnit, convertMinMaxUnit } from '../utils/unitConversion';
 import { extractNumeric, numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
 import {
@@ -21,9 +22,10 @@ import {
 import FilterBar from './FilterBar';
 import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
+import { ADJACENT_TYPES, BuildSlot, check as compatCheck } from '../utils/compat';
 
 export default function ProductList() {
-  const { products, categories, loading, error, loadProducts, loadCategories } = useApp();
+  const { products, categories, loading, error, loadProducts, loadCategories, unitSystem, build, compatibleOnly, setCompatibleOnly } = useApp();
   const [productType, setProductType] = useState<ProductType>(null);
   const [filters, setFilters] = useState<FilterCriterion[]>([]);
   const [sorts, setSorts] = useState<SortConfig[]>([]);
@@ -398,14 +400,43 @@ export default function ProductList() {
     };
   }, [autoGearResults]);
 
+  // Build-aware compat narrowing. When the user has anchored part of their
+  // motion-system build and the active type is adjacent to one of those
+  // anchors, drop products that strict-fail compat. Soft-partials (missing
+  // data) stay visible — we can't prove them incompatible.
+  const compatAnchors = useMemo(() => {
+    if (!productType || !ADJACENT_TYPES[productType]) return [];
+    return ADJACENT_TYPES[productType]
+      .map(t => build[t as BuildSlot])
+      .filter((p): p is Product => !!p);
+  }, [productType, build]);
+
+  const compatFilterActive = compatibleOnly && compatAnchors.length > 0;
+
+  const compatNarrowed = useMemo(() => {
+    if (!compatFilterActive) return products;
+    return products.filter(p => {
+      for (const anchor of compatAnchors) {
+        try {
+          if (compatCheck(p, anchor).status === 'fail') return false;
+        } catch {
+          // Pair unsupported — leave the row visible rather than silently hiding.
+        }
+      }
+      return true;
+    });
+  }, [products, compatAnchors, compatFilterActive]);
+
+  const compatHiddenCount = compatFilterActive ? products.length - compatNarrowed.length : 0;
+
   // Auto-gear path: filtering done inside autoGearResults.
   // Manual path: use gearedFilters (values transformed by global ratio).
   const filteredProducts = useMemo(() => {
     if (autoGearActive) {
       return autoGearResults! as Product[];
     }
-    return applyFilters(products, gearedFilters);
-  }, [products, gearedFilters, autoGearActive, autoGearResults]);
+    return applyFilters(compatNarrowed, gearedFilters);
+  }, [compatNarrowed, gearedFilters, autoGearActive, autoGearResults]);
 
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
@@ -473,7 +504,10 @@ export default function ProductList() {
   }, [filters, sorts, itemsPerPage]);
 
   // Column headers with linear-mode label/unit overrides for SPEED_KEYS
-  // and TORQUE_KEYS (thrust/force view for linear actuators).
+  // and TORQUE_KEYS (thrust/force view for linear actuators). Unit
+  // strings flip through `displayUnit()` so e.g. Nm → in·lb when the
+  // global unit toggle is set to imperial. Linear-mode units (mm/s, N)
+  // also flip for consistency.
   const getColumnHeaders = (): Array<{ key: string; label: string; unit: string | null }> => {
     return visibleColumnAttributes.map(attr => {
       let label = attr.displayName;
@@ -487,11 +521,13 @@ export default function ProductList() {
           unit = 'N';
         }
       }
-      return { key: attr.key, label, unit };
+      return { key: attr.key, label, unit: unit ? displayUnit(unit, unitSystem) : null };
     });
   };
 
-  // Extract just the numeric value from a spec (no unit)
+  // Extract just the numeric value from a spec (no unit). Converts
+  // through the active unit system so imperial mode shows imperial
+  // numbers in the table cells.
   const extractNumericOnly = (value: any): string | null => {
     if (!value) return null;
 
@@ -500,6 +536,10 @@ export default function ProductList() {
 
     if (typeof value === 'object') {
       if ('value' in value && value.value !== null && value.value !== undefined) {
+        if ('unit' in value) {
+          const c = convertValueUnit(value, unitSystem);
+          return String(c.value);
+        }
         return String(value.value);
       }
 
@@ -507,10 +547,22 @@ export default function ProductList() {
       const hasMax = 'max' in value && value.max !== null && value.max !== undefined;
 
       if (hasMin && hasMax) {
+        if ('unit' in value) {
+          const c = convertMinMaxUnit(value, unitSystem);
+          return `${c.min}-${c.max}`;
+        }
         return `${value.min}-${value.max}`;
       } else if (hasMin) {
+        if ('unit' in value) {
+          const c = convertValueUnit({ value: value.min, unit: value.unit }, unitSystem);
+          return String(c.value);
+        }
         return String(value.min);
       } else if (hasMax) {
+        if ('unit' in value) {
+          const c = convertValueUnit({ value: value.max, unit: value.unit }, unitSystem);
+          return String(c.value);
+        }
         return String(value.max);
       }
     }
@@ -734,6 +786,34 @@ export default function ProductList() {
           </div>
         ) : (
           <>
+            {compatFilterActive && compatHiddenCount > 0 && (
+              <div className="compat-filter-banner" role="status">
+                <span>
+                  Showing {compatNarrowed.length} of {products.length} {productType}s compatible with{' '}
+                  {compatAnchors.map(a => `${a.product_type} ${a.part_number || a.manufacturer}`).join(' & ')}
+                  . {compatHiddenCount} hidden.
+                </span>
+                <button
+                  type="button"
+                  className="compat-filter-banner-toggle"
+                  onClick={() => setCompatibleOnly(false)}
+                >
+                  Show all
+                </button>
+              </div>
+            )}
+            {!compatibleOnly && compatAnchors.length > 0 && (
+              <div className="compat-filter-banner" role="status">
+                <span>Compatibility filter is off. Build anchors: {compatAnchors.length}.</span>
+                <button
+                  type="button"
+                  className="compat-filter-banner-toggle"
+                  onClick={() => setCompatibleOnly(true)}
+                >
+                  Re-enable
+                </button>
+              </div>
+            )}
             <div className="product-grid-scroll">
             <div className={`product-grid density-${rowDensity}`}>
             {/* Column headers */}
@@ -901,7 +981,7 @@ export default function ProductList() {
                           backgroundColor: proximityColor || undefined
                         }}
                       >
-                        <div className="spec-header-value">{numericValue || formatValue(productValue)}</div>
+                        <div className="spec-header-value">{numericValue || formatValue(productValue, 0, 5, unitSystem)}</div>
                       </div>
                     );
                   })}

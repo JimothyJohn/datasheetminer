@@ -215,3 +215,48 @@ def test_unknown_product_type_raises() -> None:
 
     with pytest.raises(KeyError):
         ports_for(Stub())  # type: ignore[arg-type]
+
+
+class TestFitsPartialMode:
+    """`strict=False` downgrades fail→partial while preserving detail."""
+
+    def test_undersized_current_softens_to_partial(self) -> None:
+        r = check(
+            _drive(rated_current="2;A"), _motor(rated_current="5;A"), strict=False
+        )
+        assert r.status == "partial"
+        pair = next(x for x in r.results if "motor_output" in x.from_port)
+        current = next(c for c in pair.checks if c.field == "current")
+        assert current.status == "partial"
+        # Detail must survive the softening so the UI can show what didn't line up.
+        assert "supply 2.0 < demand 5.0" in current.detail
+
+    def test_shaft_mismatch_softens(self) -> None:
+        r = check(
+            _motor(shaft_diameter="10;mm"),
+            _gearhead(input_shaft_diameter="14;mm"),
+            strict=False,
+        )
+        assert r.status == "partial"
+        pair = next(x for x in r.results if "shaft_output" in x.from_port)
+        shaft = next(c for c in pair.checks if c.field == "shaft_diameter")
+        assert shaft.status == "partial"
+
+    def test_strict_default_unchanged(self) -> None:
+        # Sanity: existing strict callers see the same fails as before.
+        r = check(_drive(rated_current="2;A"), _motor(rated_current="5;A"))
+        assert r.status == "fail"
+
+    def test_ok_pairs_stay_ok(self) -> None:
+        r = check(_drive(), _motor(), strict=False)
+        assert r.status == "ok"
+
+
+class TestSerialization:
+    def test_to_dict_round_trips_status_and_results(self) -> None:
+        r = check(_drive(), _motor()).to_dict()
+        assert r["from_type"] == "drive"
+        assert r["to_type"] == "motor"
+        assert r["status"] in {"ok", "partial", "fail"}
+        assert isinstance(r["results"], list)
+        assert all("checks" in pair for pair in r["results"])

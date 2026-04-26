@@ -17,8 +17,8 @@ rated "2;kW" and a drive rated "2000;W" compare equal.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, List, Literal, Optional, Tuple
+from dataclasses import asdict, dataclass, field
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 from datasheetminer.integration.adapters import ports_for
 from datasheetminer.integration.ports import (
@@ -61,6 +61,9 @@ class CompatibilityReport:
     to_type: str
     status: CheckStatus
     results: List[CompatResult] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
 
 # ---------------------------------------------------------------------------
@@ -261,11 +264,55 @@ def _roll_up(checks: List[CheckResult]) -> CheckStatus:
     return "ok"
 
 
-def check(a: ProductBase, b: ProductBase) -> CompatibilityReport:
+def _soften(report: CompatibilityReport) -> CompatibilityReport:
+    """Downgrade every `fail` to `partial` while keeping per-field detail.
+
+    Used by the API layer until cross-product schemas (fieldbus
+    protocols, encoder names) are normalised. Detail strings still
+    record what mismatched so the UI can surface them as warnings.
+    """
+    softened_results: List[CompatResult] = []
+    for r in report.results:
+        new_checks = [
+            CheckResult(
+                field=c.field,
+                status="partial" if c.status == "fail" else c.status,
+                detail=c.detail,
+            )
+            for c in r.checks
+        ]
+        softened_results.append(
+            CompatResult(
+                from_port=r.from_port,
+                to_port=r.to_port,
+                status=_roll_up(new_checks),
+                checks=new_checks,
+            )
+        )
+    overall = (
+        _roll_up([CheckResult("pair", r.status) for r in softened_results])
+        if softened_results
+        else "partial"
+    )
+    return CompatibilityReport(
+        from_type=report.from_type,
+        to_type=report.to_type,
+        status=overall,
+        results=softened_results,
+    )
+
+
+def check(
+    a: ProductBase, b: ProductBase, *, strict: bool = True
+) -> CompatibilityReport:
     """Check compatibility between two products end-to-end.
 
     Pairs every output port on A with a matching input port on B (and
     vice versa) and reports per-pair status.
+
+    When ``strict=False`` (fits-partial mode) any ``fail`` is downgraded
+    to ``partial``. The per-field detail is preserved so the UI can still
+    show *which* spec didn't line up, just without gating selection on it.
     """
     a_ports = ports_for(a)
     b_ports = ports_for(b)
@@ -308,9 +355,10 @@ def check(a: ProductBase, b: ProductBase) -> CompatibilityReport:
     else:
         overall = _roll_up([CheckResult("pair", r.status) for r in pair_results])
 
-    return CompatibilityReport(
+    report = CompatibilityReport(
         from_type=a.product_type,
         to_type=b.product_type,
         status=overall,
         results=pair_results,
     )
+    return report if strict else _soften(report)

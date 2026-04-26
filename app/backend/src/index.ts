@@ -13,6 +13,7 @@ import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
 import subscriptionRouter from './routes/subscription';
 import searchRouter from './routes/search';
+import compatRouter from './routes/compat';
 import docsRouter from './routes/docs';
 import adminRouter from './routes/admin';
 
@@ -56,6 +57,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/datasheets', datasheetsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/v1/search', searchRouter);
+app.use('/api/v1/compat', compatRouter);
 app.use('/api/admin', adminOnly, adminRouter);
 app.use('/api', docsRouter);
 

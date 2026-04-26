@@ -17,9 +17,30 @@
  * @module AppContext
  */
 
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { DatasheetEntry, Product, ProductSummary, ProductType } from '../types/models';
 import { apiClient } from '../api/client';
+import { UnitSystem } from '../utils/unitConversion';
+import { safeLoad, safeLoadString, safeSave } from '../utils/localStorage';
+import { BUILD_SLOTS, BuildSlot } from '../utils/compat';
+
+/**
+ * The motion-system build under construction. Each slot holds either the
+ * full product (so the tray can render even before the catalogue loads)
+ * or undefined. Persisted in localStorage so a refresh doesn't drop the
+ * user's selections.
+ */
+export type Build = Partial<Record<BuildSlot, Product>>;
+
+const isBuildSlot = (s: unknown): s is BuildSlot =>
+  typeof s === 'string' && (BUILD_SLOTS as readonly string[]).includes(s);
+
+const isBuild = (v: unknown): v is Build => {
+  if (!v || typeof v !== 'object') return false;
+  return Object.entries(v as Record<string, unknown>).every(([k, val]) =>
+    isBuildSlot(k) && (val === undefined || (typeof val === 'object' && val !== null)),
+  );
+};
 
 /**
  * Product category interface
@@ -65,6 +86,26 @@ interface AppContextType extends AppState {
   setSummary: (summary: ProductSummary) => void;
   setCategories: (categories: ProductCategory[]) => void;
   setError: (error: string | null) => void;
+
+  // Display unit system — flips every metric value on the site to its
+  // imperial equivalent and back. Persists in localStorage like the
+  // theme. The store stays canonical metric; only rendered text changes.
+  unitSystem: UnitSystem;
+  setUnitSystem: (s: UnitSystem) => void;
+
+  // Motion-system build state (drive → motor → gearhead). The slot is
+  // inferred from product_type when adding, so a product with an
+  // unsupported type is silently rejected. Persisted in localStorage.
+  build: Build;
+  addToBuild: (product: Product) => void;
+  removeFromBuild: (slot: BuildSlot) => void;
+  clearBuild: () => void;
+
+  // When true and the build has any anchor of an adjacent type, ProductList
+  // hides products that would strict-fail compat against an anchor. Default
+  // true so the build flow narrows automatically; user can disable per session.
+  compatibleOnly: boolean;
+  setCompatibleOnly: (v: boolean) => void;
 }
 
 /**
@@ -88,6 +129,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Display unit system. Persisted as a plain string ('metric' | 'imperial')
+  // so a malformed value falls back to the metric default rather than
+  // crashing the app at startup.
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>(() =>
+    safeLoadString<UnitSystem>(
+      'unitSystem',
+      (v): v is UnitSystem => v === 'metric' || v === 'imperial',
+      'metric',
+    ),
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('unitSystem', unitSystem);
+    } catch {
+      // best-effort
+    }
+  }, [unitSystem]);
+  const setUnitSystem = useCallback((s: UnitSystem) => setUnitSystemState(s), []);
+
+  // ========== Build state ==========
+  const [build, setBuildState] = useState<Build>(() => safeLoad('specodex.build', isBuild, {}));
+  useEffect(() => {
+    safeSave('specodex.build', build);
+  }, [build]);
+
+  const addToBuild = useCallback((product: Product) => {
+    if (!isBuildSlot(product.product_type)) return;
+    setBuildState(prev => ({ ...prev, [product.product_type as BuildSlot]: product }));
+  }, []);
+  const removeFromBuild = useCallback((slot: BuildSlot) => {
+    setBuildState(prev => {
+      const next: Build = { ...prev };
+      delete next[slot];
+      return next;
+    });
+  }, []);
+  const clearBuild = useCallback(() => setBuildState({}), []);
+
+  const [compatibleOnly, setCompatibleOnlyState] = useState<boolean>(() =>
+    safeLoad('specodex.compatibleOnly', (v): v is boolean => typeof v === 'boolean', true),
+  );
+  useEffect(() => {
+    safeSave('specodex.compatibleOnly', compatibleOnly);
+  }, [compatibleOnly]);
+  const setCompatibleOnly = useCallback((v: boolean) => setCompatibleOnlyState(v), []);
 
   // ========== Caching Infrastructure ==========
   /**
@@ -617,6 +705,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSummary,
     setCategories,
     setError,
+
+    // Display unit system
+    unitSystem,
+    setUnitSystem,
+
+    // Motion-system build
+    build,
+    addToBuild,
+    removeFromBuild,
+    clearBuild,
+    compatibleOnly,
+    setCompatibleOnly,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -26,6 +26,7 @@
  */
 
 import { Product, ProductSummary, ProductType, DatasheetEntry } from '../types/models';
+import { CompatibilityReport } from '../types/compat';
 
 /**
  * API base URL from environment variable or default to local backend
@@ -428,6 +429,27 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
+  }
+
+  // ========== Compatibility Methods ==========
+
+  /**
+   * Check pairwise compatibility between two products in the rotary chain.
+   * Returns a CompatibilityReport (fits-partial mode — status is 'ok' or
+   * 'partial', with per-field detail describing what didn't line up).
+   *
+   * Backend Endpoint: POST /api/v1/compat/check
+   */
+  async checkCompat(
+    a: { id: string; type: 'drive' | 'motor' | 'gearhead' },
+    b: { id: string; type: 'drive' | 'motor' | 'gearhead' }
+  ): Promise<CompatibilityReport> {
+    const response = await this.request<CompatibilityReport>('/api/v1/compat/check', {
+      method: 'POST',
+      body: JSON.stringify({ a, b }),
+    });
+    if (!response.data) throw new Error('No compatibility report received');
+    return response.data;
   }
 
   // ========== Subscription Methods ==========

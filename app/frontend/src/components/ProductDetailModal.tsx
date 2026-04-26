@@ -7,6 +7,14 @@ import { useEffect, useRef } from 'react';
 import { Product } from '../types/models';
 import { formatPropertyLabel } from '../utils/formatting';
 import { sanitizeUrl } from '../utils/sanitize';
+import { useApp } from '../context/AppContext';
+import {
+  convertValueUnit,
+  convertMinMaxUnit,
+  displayUnit,
+} from '../utils/unitConversion';
+import CompatChecker from './CompatChecker';
+import { BUILD_SLOTS, BuildSlot } from '../utils/compat';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -16,6 +24,7 @@ interface ProductDetailModalProps {
 
 export default function ProductDetailModal({ product, onClose, clickPosition }: ProductDetailModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { unitSystem, build, addToBuild, removeFromBuild } = useApp();
 
   useEffect(() => {
     if (!product) return;
@@ -55,16 +64,19 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
     if (!value) return { display: '' };
 
     if (typeof value === 'object' && 'value' in value && 'unit' in value) {
-      return { display: String(value.value), unit: value.unit };
+      const c = convertValueUnit(value, unitSystem);
+      return { display: String(c.value), unit: c.unit };
     }
     if (typeof value === 'object' && 'min' in value && 'max' in value && 'unit' in value) {
-      return { display: `${value.min} - ${value.max}`, unit: value.unit };
+      const c = convertMinMaxUnit(value, unitSystem);
+      return { display: `${c.min} - ${c.max}`, unit: c.unit };
     }
     if (Array.isArray(value)) {
       // Check if array contains objects with value/unit
       if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'value' in value[0] && 'unit' in value[0]) {
-        const formattedValues = value.map(item => String(item.value)).join(', ');
-        const commonUnit = value[0].unit;
+        const converted = value.map(item => convertValueUnit(item, unitSystem));
+        const formattedValues = converted.map(item => String(item.value)).join(', ');
+        const commonUnit = converted[0].unit;
         return { display: formattedValues, unit: commonUnit };
       }
       return { display: value.join(', ') };
@@ -77,7 +89,7 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
 
     // Check if there's a separate "unit" property at the same level
     const separateUnit = entries.find(([key, _]) => key.toLowerCase() === 'unit');
-    const commonUnit = separateUnit ? separateUnit[1] : null;
+    const commonUnit = separateUnit ? (separateUnit[1] as string) : null;
 
     // If there's a separate unit property, filter it out from the entries
     const filteredEntries = commonUnit
@@ -85,14 +97,14 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
       : entries;
 
     // If no separate unit, check if all nested values have the same unit
-    let finalUnit = commonUnit;
+    let finalUnit: string | null = commonUnit;
     if (!finalUnit) {
       const allUnits = filteredEntries
         .map(([_, v]: [string, any]) => {
-          if (typeof v === 'object' && v !== null && 'unit' in v) return v.unit;
+          if (typeof v === 'object' && v !== null && 'unit' in v) return v.unit as string;
           return null;
         })
-        .filter(Boolean);
+        .filter(Boolean) as string[];
 
       finalUnit = allUnits.length === filteredEntries.length && allUnits.every(u => u === allUnits[0])
         ? allUnits[0]
@@ -103,15 +115,27 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
       <table className="spec-subtable">
         <tbody>
           {filteredEntries.map(([subKey, subValue]: [string, any]) => {
-            const formatted = formatValue(subValue);
+            // For shared-unit nested rows (e.g. dimensions: {width, height,
+            // unit:"mm"}) the subValue is a bare number; convert it through
+            // the parent unit so imperial display flips numerator and unit
+            // together.
+            let displayValue = subValue;
+            let unitForCell: string | undefined;
+            if (commonUnit && typeof subValue === 'number') {
+              const c = convertValueUnit({ value: subValue, unit: commonUnit }, unitSystem);
+              displayValue = c.value;
+              unitForCell = c.unit;
+            }
+            const formatted = formatValue(displayValue);
             const subLabel = formatPropertyLabel(subKey);
-            const displayUnit: string = (finalUnit || formatted.unit || '') as string;
+            const cellUnit = unitForCell
+              ?? (finalUnit ? displayUnit(finalUnit, unitSystem) : (formatted.unit || ''));
 
             return (
               <tr key={subKey} className="spec-subrow">
                 <td className="spec-sublabel">{subLabel}</td>
                 <td className="spec-subvalue">{formatted.display}</td>
-                <td className="spec-subunit">{displayUnit}</td>
+                <td className="spec-subunit">{cellUnit}</td>
               </tr>
             );
           })}
@@ -252,6 +276,33 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
               </table>
             </div>
           ))}
+          <CompatChecker product={product} />
+          {(BUILD_SLOTS as readonly string[]).includes(product.product_type) && (() => {
+            const slot = product.product_type as BuildSlot;
+            const inSlot = build[slot];
+            const isThisProduct = inSlot?.product_id === product.product_id;
+            return (
+              <div className="build-add-section">
+                {isThisProduct ? (
+                  <button
+                    type="button"
+                    className="build-add-btn build-add-btn-remove"
+                    onClick={() => removeFromBuild(slot)}
+                  >
+                    Remove from build
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="build-add-btn"
+                    onClick={() => addToBuild(product)}
+                  >
+                    {inSlot ? `Replace ${slot} in build` : `Add to build`}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
