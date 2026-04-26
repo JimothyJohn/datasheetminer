@@ -1,5 +1,5 @@
 """
-Test fixtures and utilities for datasheetminer tests.
+Test fixtures and utilities for specodex tests.
 
 This module provides common fixtures, mock objects, and utility functions
 used across unit and integration tests.
@@ -144,15 +144,15 @@ def mock_network_error():
 def lambda_context():
     """Mock AWS Lambda context object."""
     context = Mock()
-    context.function_name = "datasheetminer-test"
+    context.function_name = "specodex-test"
     context.function_version = "$LATEST"
     context.invoked_function_arn = (
-        "arn:aws:lambda:us-east-1:123456789012:function:datasheetminer-test"
+        "arn:aws:lambda:us-east-1:123456789012:function:specodex-test"
     )
     context.memory_limit_in_mb = 1024
     context.remaining_time_in_millis = Mock(return_value=30000)
     context.request_id = "test-request-id-12345"
-    context.log_group_name = "/aws/lambda/datasheetminer-test"
+    context.log_group_name = "/aws/lambda/specodex-test"
     context.log_stream_name = "2023/01/01/[$LATEST]test123"
     return context
 

@@ -31,7 +31,7 @@ MFG = "Maxon"
 
 
 def _make_motor(**overrides):
-    from datasheetminer.models.motor import Motor
+    from specodex.models.motor import Motor
 
     defaults = {
         "product_name": "EC-45 flat",
@@ -50,7 +50,7 @@ def _make_motor(**overrides):
 
 
 def _make_drive(**overrides):
-    from datasheetminer.models.drive import Drive
+    from specodex.models.drive import Drive
 
     defaults = {
         "product_name": "EPOS4",

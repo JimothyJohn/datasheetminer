@@ -33,13 +33,13 @@ from decimal import Decimal
 from pathlib import Path
 from typing import List, Optional, Type
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.motor import Motor
-from datasheetminer.models.product import ProductBase
-from datasheetminer.pricing.extract import classify_url, extract_price
-from datasheetminer.pricing.fetch import PriceFetcher
-from datasheetminer.pricing.resolver import (
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.drive import Drive
+from specodex.models.motor import Motor
+from specodex.models.product import ProductBase
+from specodex.pricing.extract import classify_url, extract_price
+from specodex.pricing.fetch import PriceFetcher
+from specodex.pricing.resolver import (
     Candidate,
     resolve_candidates,
     serp_candidates,

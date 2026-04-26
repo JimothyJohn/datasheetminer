@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.ingest_log import (
+from specodex.db.dynamo import DynamoDBClient
+from specodex.ingest_log import (
     MIN_RETRY_THRESHOLD,
     SCHEMA_VERSION,
     STATUS_EXTRACT_FAIL,
@@ -152,7 +152,7 @@ class TestShouldSkip:
 
 @pytest.mark.unit
 class TestDynamoIngestCrud:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_write_ingest_puts_item(self, mock_boto3: MagicMock) -> None:
         client, table = _make_client(mock_boto3)
         r = build_record(
@@ -170,7 +170,7 @@ class TestDynamoIngestCrud:
 
         assert isinstance(item["fields_filled_avg"], Decimal)
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_write_ingest_swallows_errors(self, mock_boto3: MagicMock) -> None:
         client, table = _make_client(mock_boto3)
         table.put_item.side_effect = RuntimeError("boom")
@@ -183,7 +183,7 @@ class TestDynamoIngestCrud:
         # Best-effort: must not raise
         assert client.write_ingest(r) is False
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_read_ingest_queries_latest(self, mock_boto3: MagicMock) -> None:
         client, table = _make_client(mock_boto3)
         table.query.return_value = {"Items": [{"SK": "INGEST#2026-04-24T00:00:00Z"}]}
@@ -196,13 +196,13 @@ class TestDynamoIngestCrud:
             "https://x.com/a.pdf"
         )
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_read_ingest_empty(self, mock_boto3: MagicMock) -> None:
         client, table = _make_client(mock_boto3)
         table.query.return_value = {"Items": []}
         assert client.read_ingest("https://x.com/a.pdf") is None
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_ingest_filters(self, mock_boto3: MagicMock) -> None:
         client, table = _make_client(mock_boto3)
         table.scan.return_value = {"Items": [{"manufacturer": "Acme"}]}

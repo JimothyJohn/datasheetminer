@@ -409,7 +409,7 @@ describe('Docs Routes', () => {
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/json/);
       expect(response.body.openapi).toBe('3.1.0');
-      expect(response.body.info.title).toBe('DatasheetMiner API');
+      expect(response.body.info.title).toBe('Specodex API');
     });
 
     it('contains all expected paths', async () => {

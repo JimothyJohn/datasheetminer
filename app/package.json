@@ -1,7 +1,7 @@
 {
-  "name": "datasheetminer-app",
+  "name": "specodex-app",
   "version": "1.0.0",
-  "description": "Web application for DatasheetMiner - view and manage product datasheets",
+  "description": "Web application for Specodex - view and manage product datasheets",
   "private": true,
   "workspaces": [
     "backend",

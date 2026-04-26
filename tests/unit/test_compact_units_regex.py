@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from datasheetminer.db.dynamo import DynamoDBClient
+from specodex.db.dynamo import DynamoDBClient
 
 
 @pytest.fixture

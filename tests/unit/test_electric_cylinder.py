@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from datasheetminer.models.electric_cylinder import ElectricCylinder
+from specodex.models.electric_cylinder import ElectricCylinder
 
 DETERMINISTIC_UUID = UUID("12345678-1234-1234-1234-123456789012")
 MFG = "TestMfg"

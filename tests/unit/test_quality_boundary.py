@@ -1,4 +1,4 @@
-"""Boundary tests for datasheetminer/quality.py.
+"""Boundary tests for specodex/quality.py.
 
 Existing `test_quality.py` covers the happy paths. This file focuses on the
 cliffs: exactly-at-threshold records, all-None records, records where the
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from datasheetminer.models.motor import Motor
-from datasheetminer.quality import (
+from specodex.models.motor import Motor
+from specodex.quality import (
     DEFAULT_MIN_QUALITY,
     filter_products,
     score_product,

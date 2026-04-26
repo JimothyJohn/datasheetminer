@@ -35,10 +35,10 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional
 
-from datasheetminer.config import SCHEMA_CHOICES
-from datasheetminer.llm import generate_content
-from datasheetminer.page_finder import find_spec_pages_by_text
-from datasheetminer.utils import (
+from specodex.config import SCHEMA_CHOICES
+from specodex.llm import generate_content
+from specodex.page_finder import find_spec_pages_by_text
+from specodex.utils import (
     UUIDEncoder,
     get_document,
     get_web_content,
@@ -155,7 +155,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # diff one response than N per-page responses. Limited to the pages we
     # picked; if no pages found and it's a PDF, just send the whole thing.
     if is_pdf and pages_0idx:
-        from datasheetminer.scraper import _extract_bundled_pdf
+        from specodex.scraper import _extract_bundled_pdf
 
         doc_data: Any = _extract_bundled_pdf(source, pages_0idx)
     else:

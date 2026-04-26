@@ -1,7 +1,7 @@
 {
-  "name": "datasheetminer-frontend",
+  "name": "specodex-frontend",
   "version": "1.0.0",
-  "description": "Frontend for DatasheetMiner web application",
+  "description": "Frontend for Specodex web application",
   "private": true,
   "scripts": {
     "dev": "vite",

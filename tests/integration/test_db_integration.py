@@ -14,10 +14,10 @@ import boto3
 import moto
 import pytest
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.datasheet import Datasheet
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.motor import Motor
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.datasheet import Datasheet
+from specodex.models.drive import Drive
+from specodex.models.motor import Motor
 
 
 @pytest.fixture

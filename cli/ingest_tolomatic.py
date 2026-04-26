@@ -23,9 +23,9 @@ import re
 import sys
 from pathlib import Path
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.scraper import process_datasheet
-from datasheetminer.utils import validate_api_key
+from specodex.db.dynamo import DynamoDBClient
+from specodex.scraper import process_datasheet
+from specodex.utils import validate_api_key
 
 PAGES_DIR = Path("/tmp/tolomatic-scrape/pages")
 MANUFACTURER = "Tolomatic"
@@ -312,7 +312,7 @@ def main() -> int:
     elif args.save_failed_pdfs is not None:
         save_failed_to = args.save_failed_pdfs
     else:
-        from datasheetminer.scraper import DEFAULT_FAILED_DATASHEETS_DIR
+        from specodex.scraper import DEFAULT_FAILED_DATASHEETS_DIR
 
         save_failed_to = DEFAULT_FAILED_DATASHEETS_DIR
 

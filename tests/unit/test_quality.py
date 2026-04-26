@@ -2,15 +2,15 @@
 
 import pytest
 
-from datasheetminer.quality import (
+from specodex.quality import (
     DEFAULT_MIN_QUALITY,
     filter_products,
     score_product,
     spec_fields_for_model,
 )
-from datasheetminer.models.motor import Motor
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.gearhead import Gearhead
+from specodex.models.motor import Motor
+from specodex.models.drive import Drive
+from specodex.models.gearhead import Gearhead
 
 MFG = "TestMfg"
 

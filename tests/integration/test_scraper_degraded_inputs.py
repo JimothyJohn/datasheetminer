@@ -25,12 +25,12 @@ from unittest.mock import MagicMock, patch
 import fitz  # PyMuPDF
 import pytest
 
-from datasheetminer.ingest_log import (
+from specodex.ingest_log import (
     STATUS_EXTRACT_FAIL,
     STATUS_SUCCESS,
     SCHEMA_VERSION,
 )
-from datasheetminer.page_finder import SPEC_KEYWORDS
+from specodex.page_finder import SPEC_KEYWORDS
 
 
 # ---------------------------------------------------------------------------
@@ -92,14 +92,14 @@ def _last_ingest_status(db_mock: MagicMock) -> str:
 
 @pytest.mark.integration
 class TestDegradedPdfInputs:
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_html_disguised_as_pdf(
         self, _is_pdf: MagicMock, mock_get: MagicMock, db: MagicMock
     ) -> None:
         """A 162-byte HTML response served at a `.pdf` URL — fitz refuses
         to open it; scraper must extract_fail rather than crash."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         mock_get.return_value = b"<html><body>404 not found</body></html>"
 
@@ -116,13 +116,13 @@ class TestDegradedPdfInputs:
         assert result == "failed"
         assert _last_ingest_status(db) == STATUS_EXTRACT_FAIL
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_truncated_pdf(
         self, _is_pdf: MagicMock, mock_get: MagicMock, db: MagicMock
     ) -> None:
         """First-1KB of a real PDF: header parses but body/trailer doesn't."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         full = _build_pdf([_spec_text(5)] * 5)
         mock_get.return_value = _truncated_pdf(full, keep=1024)
@@ -140,22 +140,22 @@ class TestDegradedPdfInputs:
         assert result == "failed"
         assert _last_ingest_status(db) == STATUS_EXTRACT_FAIL
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_pdf_with_no_text_layer(
         self, _is_pdf: MagicMock, mock_get: MagicMock, db: MagicMock
     ) -> None:
         """A PDF with no text content — page_finder returns 0 pages,
         scraper falls through to the full-doc bundled-extraction path,
         and the LLM-parse stub returns []. Result: extract_fail."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         mock_get.return_value = _build_pdf(["", "", ""])  # 3 blank pages
 
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.generate_content") as mock_gen,
             patch(
-                "datasheetminer.scraper.parse_gemini_response", return_value=[]
+                "specodex.scraper.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -184,8 +184,8 @@ class TestDegradedPdfInputs:
 
 @pytest.mark.integration
 class TestPageRouting:
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_explicit_pages_routes_to_per_page(
         self,
         _is_pdf: MagicMock,
@@ -196,15 +196,15 @@ class TestPageRouting:
         """If caller supplies pages and the count is under
         MAX_PER_PAGE_CALLS, scraper extracts per-page (one LLM call per
         page chunk), not bundled."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         mock_get.return_value = _build_pdf([_spec_text(5)] * 4)
         # PAGES_PER_CHUNK is read at module-import time; default is 1.
         # With pages=[0,1,2] and chunk=1 we expect 3 LLM calls.
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.generate_content") as mock_gen,
             patch(
-                "datasheetminer.scraper.parse_gemini_response", return_value=[]
+                "specodex.scraper.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -221,8 +221,8 @@ class TestPageRouting:
 
         assert mock_parse.call_count == 3
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_pages_exceeding_cap_falls_back_to_bundled(
         self,
         _is_pdf: MagicMock,
@@ -233,16 +233,16 @@ class TestPageRouting:
         """When detected/explicit pages > MAX_PER_PAGE_CALLS, scraper
         extracts the page subset into one bundled PDF and makes ONE
         LLM call, not N."""
-        from datasheetminer import scraper
+        from specodex import scraper
 
         monkeypatch.setattr(scraper, "MAX_PER_PAGE_CALLS", 2)
 
         mock_get.return_value = _build_pdf([_spec_text(5)] * 6)
 
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.generate_content") as mock_gen,
             patch(
-                "datasheetminer.scraper.parse_gemini_response", return_value=[]
+                "specodex.scraper.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -259,8 +259,8 @@ class TestPageRouting:
 
         assert mock_parse.call_count == 1, "should bundle, not per-page"
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_no_pages_no_detected_falls_through_to_full_doc(
         self,
         _is_pdf: MagicMock,
@@ -269,15 +269,15 @@ class TestPageRouting:
     ) -> None:
         """pages=None and the heuristic finds nothing → scraper hands the
         full PDF to the LLM in one call (the legacy bundled path)."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         # No spec keywords anywhere → page_finder returns []
         mock_get.return_value = _build_pdf(["lorem ipsum"] * 3)
 
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.generate_content") as mock_gen,
             patch(
-                "datasheetminer.scraper.parse_gemini_response", return_value=[]
+                "specodex.scraper.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -299,8 +299,8 @@ class TestPageRouting:
         sent_bytes = mock_gen.call_args.args[0]
         assert sent_bytes == mock_get.return_value
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_text_heuristic_drives_per_page_when_pages_none(
         self,
         _is_pdf: MagicMock,
@@ -309,16 +309,16 @@ class TestPageRouting:
     ) -> None:
         """pages=None and the heuristic finds 2 pages → scraper extracts
         per-page (2 LLM calls) without the caller specifying pages."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         # Two spec pages, two filler pages — heuristic returns [0, 2].
         mock_get.return_value = _build_pdf(
             [_spec_text(5), "filler", _spec_text(5), "filler"]
         )
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.generate_content") as mock_gen,
             patch(
-                "datasheetminer.scraper.parse_gemini_response", return_value=[]
+                "specodex.scraper.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -335,8 +335,8 @@ class TestPageRouting:
 
         assert mock_parse.call_count == 2
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_ingest_log_records_pages_metadata(
         self,
         _is_pdf: MagicMock,
@@ -345,12 +345,12 @@ class TestPageRouting:
     ) -> None:
         """The ingest log captures pages_detected, pages_used, and
         page_finder_method when auto-detection fired."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         mock_get.return_value = _build_pdf([_spec_text(5), "filler", _spec_text(5)])
         with (
-            patch("datasheetminer.scraper.generate_content") as mock_gen,
-            patch("datasheetminer.scraper.parse_gemini_response", return_value=[]),
+            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.scraper.parse_gemini_response", return_value=[]),
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
             process_datasheet(
@@ -377,8 +377,8 @@ class TestPageRouting:
 
 @pytest.mark.integration
 class TestPreflightShortCircuit:
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_skips_when_prior_success(
         self,
         _is_pdf: MagicMock,
@@ -387,7 +387,7 @@ class TestPreflightShortCircuit:
     ) -> None:
         """A prior success in the ingest log short-circuits before any
         download or LLM call."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         db.read_ingest.return_value = {
             "status": STATUS_SUCCESS,
@@ -411,8 +411,8 @@ class TestPreflightShortCircuit:
         mock_get.assert_not_called()  # no download
         db.write_ingest.assert_not_called()  # no log re-write
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_force_overrides_prior_success(
         self,
         _is_pdf: MagicMock,
@@ -421,7 +421,7 @@ class TestPreflightShortCircuit:
     ) -> None:
         """``force=True`` re-runs the scrape even when the ingest log
         says the URL already succeeded."""
-        from datasheetminer.scraper import process_datasheet
+        from specodex.scraper import process_datasheet
 
         db.read_ingest.return_value = {
             "status": STATUS_SUCCESS,

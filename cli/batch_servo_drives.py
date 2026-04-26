@@ -2,7 +2,7 @@
 
 This is a one-shot driver script for a learning exercise, not a long-lived
 pipeline tool. It loops over a curated list of direct PDF URLs, invokes the
-library entry point ``datasheetminer.scraper.process_datasheet`` on each,
+library entry point ``specodex.scraper.process_datasheet`` on each,
 captures per-catalog status + error snippets to a JSON log, and — because
 ``DYNAMODB_TABLE_NAME=products-dev`` is set — writes successful extractions
 to the dev DynamoDB table as it goes.
@@ -39,9 +39,9 @@ if str(ROOT) not in sys.path:
 
 load_dotenv(ROOT / ".env")
 
-from datasheetminer.config import TABLE_NAME  # noqa: E402
-from datasheetminer.db.dynamo import DynamoDBClient  # noqa: E402
-from datasheetminer.scraper import process_datasheet  # noqa: E402
+from specodex.config import TABLE_NAME  # noqa: E402
+from specodex.db.dynamo import DynamoDBClient  # noqa: E402
+from specodex.scraper import process_datasheet  # noqa: E402
 
 logger = logging.getLogger("batch-servo-drives")
 logging.basicConfig(

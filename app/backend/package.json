@@ -1,7 +1,7 @@
 {
-  "name": "datasheetminer-backend",
+  "name": "specodex-backend",
   "version": "1.0.0",
-  "description": "Backend API for DatasheetMiner web application",
+  "description": "Backend API for Specodex web application",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

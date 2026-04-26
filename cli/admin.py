@@ -31,8 +31,8 @@ import sys
 from typing import Optional
 
 from cli import audit_units
-from datasheetminer.admin.blacklist import Blacklist
-from datasheetminer.admin.operations import (
+from specodex.admin.blacklist import Blacklist
+from specodex.admin.operations import (
     PRODUCT_MODELS,
     demote,
     diff,
@@ -291,7 +291,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_audit_units(args: argparse.Namespace) -> int:
-    from datasheetminer.config import REGION, TABLE_NAME
+    from specodex.config import REGION, TABLE_NAME
 
     import os
 

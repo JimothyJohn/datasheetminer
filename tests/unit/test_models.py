@@ -1,17 +1,17 @@
-"""Comprehensive unit tests for all Pydantic models in datasheetminer."""
+"""Comprehensive unit tests for all Pydantic models in specodex."""
 
 from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
 
-from datasheetminer.models.datasheet import Datasheet
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.gearhead import Gearhead
-from datasheetminer.models.manufacturer import Manufacturer
-from datasheetminer.models.motor import Motor
-from datasheetminer.models.product import Dimensions
-from datasheetminer.models.robot_arm import (
+from specodex.models.datasheet import Datasheet
+from specodex.models.drive import Drive
+from specodex.models.gearhead import Gearhead
+from specodex.models.manufacturer import Manufacturer
+from specodex.models.motor import Motor
+from specodex.models.product import Dimensions
+from specodex.models.robot_arm import (
     Controller,
     ControllerIO,
     ForceTorqueSensor,

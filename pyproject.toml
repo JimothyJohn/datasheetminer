@@ -1,5 +1,5 @@
 [project]
-name = "datasheetminer"
+name = "specodex"
 version = "0.1.0"
 description = "Extract technical specifications from product datasheets using AI."
 readme = "README.md"
@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.scripts]
-datasheetminer = "datasheetminer.scraper:main"
-page-finder = "datasheetminer.page_finder:main"
+specodex = "specodex.scraper:main"
+page-finder = "specodex.page_finder:main"
 dsm-agent = "cli.agent:main"
 dsm = "cli.query:main"
 web-scraper = "webscraper.scraper:main"
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["datasheetminer", "cli", "webscraper"]
+packages = ["specodex", "cli", "webscraper"]
 
 [tool.uv]
 package = true

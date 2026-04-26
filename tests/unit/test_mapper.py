@@ -1,18 +1,18 @@
-"""Unit tests for datasheetminer/mapper.py."""
+"""Unit tests for specodex/mapper.py."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.mapper import find_manufacturers, results_to_manufacturers
-from datasheetminer.models.manufacturer import Manufacturer
+from specodex.mapper import find_manufacturers, results_to_manufacturers
+from specodex.models.manufacturer import Manufacturer
 
 
 @pytest.mark.unit
 class TestFindManufacturers:
     """Tests for find_manufacturers()."""
 
-    @patch("datasheetminer.mapper.build")
+    @patch("specodex.mapper.build")
     def test_success(self, mock_build: MagicMock) -> None:
         """API returns items -- function returns list with one dict."""
         mock_service = MagicMock()
@@ -37,7 +37,7 @@ class TestFindManufacturers:
             "customsearch", "v1", developerKey="fake-key"
         )
 
-    @patch("datasheetminer.mapper.build")
+    @patch("specodex.mapper.build")
     def test_api_error(self, mock_build: MagicMock) -> None:
         """build() raises an exception -- returns empty list."""
         mock_build.side_effect = Exception("API quota exceeded")
@@ -46,7 +46,7 @@ class TestFindManufacturers:
 
         assert results == []
 
-    @patch("datasheetminer.mapper.build")
+    @patch("specodex.mapper.build")
     def test_limit_respected(self, mock_build: MagicMock) -> None:
         """Only limit number of results returned even when API returns more."""
         mock_service = MagicMock()

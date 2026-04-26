@@ -1,9 +1,9 @@
-"""Unit tests for datasheetminer/config.py constants and schema discovery."""
+"""Unit tests for specodex/config.py constants and schema discovery."""
 
 import pytest
 
-from datasheetminer.config import MODEL, REGION, SCHEMA_CHOICES
-from datasheetminer.models.product import ProductBase
+from specodex.config import MODEL, REGION, SCHEMA_CHOICES
+from specodex.models.product import ProductBase
 
 
 @pytest.mark.unit

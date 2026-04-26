@@ -7,10 +7,10 @@ import time
 from unittest.mock import MagicMock, patch
 
 
-from datasheetminer.models.motor import Motor
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.robot_arm import RobotArm
-from datasheetminer.models.common import (
+from specodex.models.motor import Motor
+from specodex.models.drive import Drive
+from specodex.models.robot_arm import RobotArm
+from specodex.models.common import (
     handle_value_unit_input,
     handle_min_max_unit_input,
 )
@@ -94,9 +94,9 @@ class TestValidatorPerformance:
 class TestDBOperationPerformance:
     """DynamoDB client operations (with mocked table) should be fast."""
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_serialization_performance(self, mock_boto):
-        from datasheetminer.db.dynamo import DynamoDBClient
+        from specodex.db.dynamo import DynamoDBClient
 
         mock_table = MagicMock()
         mock_boto.resource.return_value.Table.return_value = mock_table
@@ -115,10 +115,10 @@ class TestDBOperationPerformance:
         elapsed = (time.perf_counter() - start) * 1000
         assert elapsed < 500, f"100 serializations took {elapsed:.1f}ms"
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_batch_serialization_performance(self, mock_boto):
         """Batch of 25 items (DynamoDB max) should serialize quickly."""
-        from datasheetminer.db.dynamo import DynamoDBClient
+        from specodex.db.dynamo import DynamoDBClient
 
         mock_table = MagicMock()
         mock_boto.resource.return_value.Table.return_value = mock_table

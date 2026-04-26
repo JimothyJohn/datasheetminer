@@ -227,7 +227,7 @@ class TestSpecDensity:
         assert r.spec_density == 0.85
 
     def test_spec_density_stored_on_datasheet(self):
-        from datasheetminer.models.datasheet import Datasheet
+        from specodex.models.datasheet import Datasheet
 
         ds = Datasheet(
             url="s3://test/x.pdf",
@@ -345,7 +345,7 @@ class TestAutoBlacklist:
 @pytest.mark.unit
 class TestDatasheetModelFields:
     def test_content_hash_field(self):
-        from datasheetminer.models.datasheet import Datasheet
+        from specodex.models.datasheet import Datasheet
 
         ds = Datasheet(
             url="s3://test/x.pdf",
@@ -357,7 +357,7 @@ class TestDatasheetModelFields:
         assert ds.content_hash == "a" * 64
 
     def test_failure_count_defaults_zero(self):
-        from datasheetminer.models.datasheet import Datasheet
+        from specodex.models.datasheet import Datasheet
 
         ds = Datasheet(
             url="s3://test/x.pdf",
@@ -368,7 +368,7 @@ class TestDatasheetModelFields:
         assert ds.failure_count == 0
 
     def test_blacklisted_status(self):
-        from datasheetminer.models.datasheet import Datasheet
+        from specodex.models.datasheet import Datasheet
 
         ds = Datasheet(
             url="s3://test/x.pdf",

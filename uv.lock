@@ -336,65 +336,6 @@ wheels = [
 ]
 
 [[package]]
-name = "datasheetminer"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "boto3" },
-    { name = "google-api-python-client" },
-    { name = "google-genai" },
-    { name = "httpx" },
-    { name = "playwright" },
-    { name = "pycryptodome" },
-    { name = "pydantic" },
-    { name = "pymupdf" },
-    { name = "pypdf2" },
-    { name = "python-dotenv" },
-    { name = "selectolax" },
-    { name = "tenacity" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "awslambdaric" },
-    { name = "hypothesis" },
-    { name = "moto", extra = ["dynamodb"] },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "boto3", specifier = ">=1.40.45" },
-    { name = "google-api-python-client", specifier = ">=2.187.0" },
-    { name = "google-genai", specifier = ">=1.29.0" },
-    { name = "httpx", specifier = ">=0.27.0" },
-    { name = "playwright", specifier = ">=1.48.0" },
-    { name = "pycryptodome", specifier = ">=3.20.0" },
-    { name = "pydantic", specifier = ">=2.11.7" },
-    { name = "pymupdf", specifier = ">=1.25.0" },
-    { name = "pypdf2", specifier = ">=3.0.1" },
-    { name = "python-dotenv", specifier = ">=1.2.1" },
-    { name = "selectolax", specifier = ">=0.3.21" },
-    { name = "tenacity", specifier = ">=8.5.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "awslambdaric", specifier = ">=3.1.1" },
-    { name = "hypothesis", specifier = ">=6.119.0" },
-    { name = "moto", extras = ["dynamodb"], specifier = ">=5.1.22" },
-    { name = "mypy", specifier = ">=1.18.2" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "pytest-mock", specifier = ">=3.15.1" },
-    { name = "ruff", specifier = ">=0.12.7" },
-]
-
-[[package]]
 name = "docker"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1337,6 +1278,65 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "specodex"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "boto3" },
+    { name = "google-api-python-client" },
+    { name = "google-genai" },
+    { name = "httpx" },
+    { name = "playwright" },
+    { name = "pycryptodome" },
+    { name = "pydantic" },
+    { name = "pymupdf" },
+    { name = "pypdf2" },
+    { name = "python-dotenv" },
+    { name = "selectolax" },
+    { name = "tenacity" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "awslambdaric" },
+    { name = "hypothesis" },
+    { name = "moto", extra = ["dynamodb"] },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "boto3", specifier = ">=1.40.45" },
+    { name = "google-api-python-client", specifier = ">=2.187.0" },
+    { name = "google-genai", specifier = ">=1.29.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "playwright", specifier = ">=1.48.0" },
+    { name = "pycryptodome", specifier = ">=3.20.0" },
+    { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pymupdf", specifier = ">=1.25.0" },
+    { name = "pypdf2", specifier = ">=3.0.1" },
+    { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "selectolax", specifier = ">=0.3.21" },
+    { name = "tenacity", specifier = ">=8.5.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "awslambdaric", specifier = ">=3.1.1" },
+    { name = "hypothesis", specifier = ">=6.119.0" },
+    { name = "moto", extras = ["dynamodb"], specifier = ">=5.1.22" },
+    { name = "mypy", specifier = ">=1.18.2" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-mock", specifier = ">=3.15.1" },
+    { name = "ruff", specifier = ">=0.12.7" },
 ]
 
 [[package]]

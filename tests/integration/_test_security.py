@@ -1,5 +1,5 @@
 """
-Security-focused integration tests for datasheetminer.
+Security-focused integration tests for specodex.
 
 This module tests security aspects like input validation, injection attempts,
 and potential security vulnerabilities in the API.

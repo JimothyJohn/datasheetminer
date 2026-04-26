@@ -1,7 +1,7 @@
 {
-  "name": "datasheetminer-infrastructure",
+  "name": "specodex-infrastructure",
   "version": "1.0.0",
-  "description": "AWS CDK infrastructure for DatasheetMiner",
+  "description": "AWS CDK infrastructure for Specodex",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",

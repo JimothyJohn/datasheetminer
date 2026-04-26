@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.models.motor import Motor
+from specodex.models.motor import Motor
 
 from cli.triage import (
     _copy_to_triage,

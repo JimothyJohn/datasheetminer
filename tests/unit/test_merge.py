@@ -1,9 +1,9 @@
-"""Tests for datasheetminer.merge — per-page product merging."""
+"""Tests for specodex.merge — per-page product merging."""
 
-from datasheetminer.merge import merge_per_page_products
+from specodex.merge import merge_per_page_products
 
 # Use Drive as a concrete ProductBase subclass for testing
-from datasheetminer.models.drive import Drive
+from specodex.models.drive import Drive
 
 
 def _make_drive(**kwargs) -> Drive:

@@ -1,5 +1,5 @@
 """
-Comprehensive error handling tests for datasheetminer.
+Comprehensive error handling tests for specodex.
 
 This module focuses on testing various error conditions, edge cases,
 and failure scenarios to ensure robust error handling throughout the application.
@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import patch, Mock, MagicMock
 import httpx
 
-from datasheetminer import app, gemini
+from specodex import app, gemini
 from tests.fixtures import create_test_event, assert_error_response, lambda_context
 
 
@@ -72,7 +72,7 @@ class TestErrorHandling:
             response = app.lambda_handler(event, None)
             assert_error_response(response, 401, "authentication_error")
 
-    @patch("datasheetminer.app.analyze_document")
+    @patch("specodex.app.analyze_document")
     def _test_analyze_document_timeout_error(self, mock_analyze_document):
         """Test handling of timeout errors from analyze_document."""
         mock_analyze_document.side_effect = TimeoutError("Request timed out")
@@ -82,7 +82,7 @@ class TestErrorHandling:
 
         assert_error_response(response, 500)
 
-    @patch("datasheetminer.app.analyze_document")
+    @patch("specodex.app.analyze_document")
     def test_analyze_document_memory_error(self, mock_analyze_document):
         """Test handling of memory errors from analyze_document."""
         mock_analyze_document.side_effect = MemoryError("Out of memory")
@@ -164,8 +164,8 @@ class TestErrorHandling:
 class _TestGeminiErrorHandling:
     """Test suite for Gemini-specific error handling."""
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_gemini_client_creation_failure(self, mock_genai_client, mock_httpx_client):
         """Test handling when Gemini client creation fails."""
         mock_genai_client.side_effect = Exception("Failed to create Gemini client")
@@ -175,8 +175,8 @@ class _TestGeminiErrorHandling:
                 "test", "https://example.com/test.pdf", "invalid-key"
             )
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_http_client_creation_failure(self, mock_genai_client, mock_httpx_client):
         """Test handling when HTTP client creation fails."""
         mock_httpx_client.side_effect = Exception("Failed to create HTTP client")
@@ -184,8 +184,8 @@ class _TestGeminiErrorHandling:
         with pytest.raises(Exception, match="Failed to create HTTP client"):
             gemini.analyze_document("test", "https://example.com/test.pdf", "test-key")
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_http_response_content_access_error(
         self, mock_genai_client, mock_httpx_client
     ):
@@ -208,8 +208,8 @@ class _TestGeminiErrorHandling:
         with pytest.raises(PropertyError, match="Content access failed"):
             gemini.analyze_document("test", "https://example.com/test.pdf", "test-key")
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_types_part_creation_failure(self, mock_genai_client, mock_httpx_client):
         """Test handling when types.Part.from_bytes fails."""
         # Mock HTTP response
@@ -228,7 +228,7 @@ class _TestGeminiErrorHandling:
         mock_genai_client.return_value = mock_genai_instance
 
         # Mock types.Part.from_bytes to fail
-        with patch("datasheetminer.gemini.types.Part.from_bytes") as mock_from_bytes:
+        with patch("specodex.gemini.types.Part.from_bytes") as mock_from_bytes:
             mock_from_bytes.side_effect = Exception("Failed to create Part from bytes")
 
             with pytest.raises(Exception, match="Failed to create Part from bytes"):
@@ -236,8 +236,8 @@ class _TestGeminiErrorHandling:
                     "test", "https://example.com/test.pdf", "test-key"
                 )
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_context_manager_exit_error(self, mock_genai_client, mock_httpx_client):
         """Test handling when HTTP client context manager exit fails."""
         # Mock HTTP client with failing context manager
@@ -253,8 +253,8 @@ class _TestGeminiErrorHandling:
         with pytest.raises(httpx.RequestError, match="Request failed"):
             gemini.analyze_document("test", "https://example.com/test.pdf", "test-key")
 
-    @patch("datasheetminer.gemini.httpx.Client")
-    @patch("datasheetminer.gemini.genai.Client")
+    @patch("specodex.gemini.httpx.Client")
+    @patch("specodex.gemini.genai.Client")
     def test_generate_content_attribute_error(
         self, mock_genai_client, mock_httpx_client
     ):
@@ -309,7 +309,7 @@ class TestEdgeCaseInputs:
         response = app.lambda_handler(event, None)
         assert_error_response(response, 500)
 
-    @patch("datasheetminer.app.analyze_document")
+    @patch("specodex.app.analyze_document")
     def test_analyze_document_returns_none(self, mock_analyze_document):
         """Test when analyze_document returns None."""
         mock_analyze_document.return_value = None
@@ -320,7 +320,7 @@ class TestEdgeCaseInputs:
         # Should fail when trying to access .text on None
         assert_error_response(response, 500)
 
-    @patch("datasheetminer.app.analyze_document")
+    @patch("specodex.app.analyze_document")
     def test_analyze_document_returns_object_without_text(self, mock_analyze_document):
         """Test when analyze_document returns object without .text attribute."""
         mock_response = Mock(spec=[])  # Mock without .text attribute
@@ -332,7 +332,7 @@ class TestEdgeCaseInputs:
         # Should fail when trying to access .text
         assert_error_response(response, 500)
 
-    @patch("datasheetminer.app.analyze_document")
+    @patch("specodex.app.analyze_document")
     def test_analyze_document_text_is_none(self, mock_analyze_document):
         """Test when analyze_document returns object with .text = None."""
         mock_response = Mock()

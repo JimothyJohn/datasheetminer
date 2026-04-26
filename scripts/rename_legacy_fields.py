@@ -38,7 +38,7 @@ load_dotenv(REPO / ".env")
 
 import boto3  # noqa: E402
 
-from datasheetminer.models.common import _coerce_ip_rating  # noqa: E402
+from specodex.models.common import _coerce_ip_rating  # noqa: E402
 
 
 @dataclass(frozen=True)

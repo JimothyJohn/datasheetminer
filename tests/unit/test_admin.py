@@ -9,8 +9,8 @@ from uuid import UUID
 
 import pytest
 
-from datasheetminer.admin.blacklist import Blacklist
-from datasheetminer.admin.operations import (
+from specodex.admin.blacklist import Blacklist
+from specodex.admin.operations import (
     demote,
     diff,
     format_diff_table,
@@ -19,9 +19,9 @@ from datasheetminer.admin.operations import (
     promote,
     purge,
 )
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.manufacturer import Manufacturer
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.drive import Drive
+from specodex.models.manufacturer import Manufacturer
 
 
 # ── Blacklist ──────────────────────────────────────────────────────

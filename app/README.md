@@ -13,7 +13,7 @@ A TypeScript web application for viewing and managing product specifications ext
 
 ## Product Types
 
-The app supports all product types defined in `datasheetminer/models/`:
+The app supports all product types defined in `specodex/models/`:
 
 | Type | Description |
 |------|-------------|

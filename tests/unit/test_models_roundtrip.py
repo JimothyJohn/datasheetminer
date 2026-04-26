@@ -1,7 +1,7 @@
 """Per-model round-trip + boundary tests.
 
 Runs the same set of checks against every product model registered in
-`SCHEMA_CHOICES`. Adding a new product type under `datasheetminer/models/`
+`SCHEMA_CHOICES`. Adding a new product type under `specodex/models/`
 gets covered automatically.
 
 Checks:
@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from datasheetminer.config import SCHEMA_CHOICES
+from specodex.config import SCHEMA_CHOICES
 
 
 PRODUCT_TYPES = sorted(SCHEMA_CHOICES.keys())

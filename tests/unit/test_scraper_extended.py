@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.scraper import process_datasheet
+from specodex.scraper import process_datasheet
 
 
 @pytest.fixture
@@ -25,14 +25,14 @@ FAKE_API_KEY = "fake-api-key-for-test"
 class TestProcessDatasheetWebContent:
     """Test non-PDF (HTML) content paths."""
 
-    @patch("datasheetminer.scraper.parse_gemini_response")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.get_web_content")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=False)
+    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.get_web_content")
+    @patch("specodex.scraper.is_pdf_url", return_value=False)
     def test_html_success(
         self, _mock_is_pdf, mock_get_web, mock_gen, mock_parse, mock_db
     ):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         mock_get_web.return_value = "<html>specs here</html>"
         mock_gen.return_value = MagicMock(text='[{"product_name": "Test"}]')
@@ -57,8 +57,8 @@ class TestProcessDatasheetWebContent:
         assert result == "success"
         mock_get_web.assert_called_once()
 
-    @patch("datasheetminer.scraper.get_web_content")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=False)
+    @patch("specodex.scraper.get_web_content")
+    @patch("specodex.scraper.is_pdf_url", return_value=False)
     def test_html_retrieval_failure(self, _mock_is_pdf, mock_get_web, mock_db):
         mock_get_web.return_value = None
 
@@ -74,8 +74,8 @@ class TestProcessDatasheetWebContent:
         )
         assert result == "failed"
 
-    @patch("datasheetminer.scraper.get_web_content")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=False)
+    @patch("specodex.scraper.get_web_content")
+    @patch("specodex.scraper.is_pdf_url", return_value=False)
     def test_pages_warning_for_web(self, _mock_is_pdf, mock_get_web, mock_db):
         """Pages parameter is ignored for web content."""
         mock_get_web.return_value = None  # Fail early to simplify test
@@ -96,10 +96,10 @@ class TestProcessDatasheetWebContent:
 class TestProcessDatasheetParseFailure:
     """Test when LLM response parsing fails."""
 
-    @patch("datasheetminer.scraper.parse_gemini_response")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_parse_value_error(
         self, _mock_is_pdf, mock_get_doc, mock_gen, mock_parse, mock_db
     ):
@@ -119,10 +119,10 @@ class TestProcessDatasheetParseFailure:
         )
         assert result == "failed"
 
-    @patch("datasheetminer.scraper.parse_gemini_response")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_empty_parse_result(
         self, _mock_is_pdf, mock_get_doc, mock_gen, mock_parse, mock_db
     ):
@@ -146,8 +146,8 @@ class TestProcessDatasheetParseFailure:
 class TestProcessDatasheetPdfRetrieval:
     """Test PDF retrieval failure."""
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_pdf_retrieval_failure(self, _mock_is_pdf, mock_get_doc, mock_db):
         mock_get_doc.return_value = None
 
@@ -186,8 +186,8 @@ class TestProcessDatasheetSkipExisting:
 class TestProcessDatasheetUnexpectedError:
     """Test exception handling inside the try block."""
 
-    @patch("datasheetminer.scraper.get_document")
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_unexpected_exception_in_try_block(
         self, _mock_is_pdf, mock_get_doc, mock_db
     ):

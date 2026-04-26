@@ -14,7 +14,7 @@ Datasheet Miner reads PDF datasheets and product webpages, extracts structured s
 
 | Source | Tool | How It Works |
 |--------|------|-------------|
-| PDF datasheets | `datasheetminer` CLI | Downloads PDF, optionally extracts specific pages, sends to Gemini |
+| PDF datasheets | `specodex` CLI | Downloads PDF, optionally extracts specific pages, sends to Gemini |
 | Product webpages | `web-scraper` CLI | Renders JS-heavy pages via Playwright, extracts HTML + JSON-LD, sends to Gemini |
 | Manual entry | Web app (admin mode) | Direct CRUD via the product management UI |
 
@@ -31,12 +31,12 @@ Both CLI tools share the same extraction pipeline: Gemini AI outputs CSV with un
 | Robot Arm | payload, reach, repeatability, TCP speed, axes, IP rating |
 | Factory | general industrial equipment specs |
 
-New product types are auto-discovered: create a Pydantic model in `datasheetminer/models/` that inherits from `ProductBase` and it appears in all CLIs and the web app automatically.
+New product types are auto-discovered: create a Pydantic model in `specodex/models/` that inherits from `ProductBase` and it appears in all CLIs and the web app automatically.
 
 ## Architecture
 
 ```
-datasheetminer/          Python core: LLM extraction, validation, DynamoDB, models
+specodex/                Python core: LLM extraction, validation, DynamoDB, models
 webscraper/              Browser-based page scraper (Playwright + same LLM pipeline)
 cli/                     CLI tools: agent, query, intake, batch processing
 app/
@@ -56,7 +56,7 @@ uv sync
 cp .env.example .env
 
 # Extract specs from a PDF datasheet
-uv run datasheetminer \
+uv run specodex \
   --url "https://example.com/motor-catalog.pdf" \
   --type motor \
   --manufacturer "Acme" \
@@ -83,7 +83,7 @@ cd app && npm install && npm run dev
 
 | Command | Description |
 |---------|-------------|
-| `datasheetminer` | Extract specs from a PDF or webpage URL |
+| `specodex` | Extract specs from a PDF or webpage URL |
 | `web-scraper` | Scrape JS-rendered product pages via headless browser |
 | `page-finder` | Identify which PDF pages contain spec tables |
 | `dsm-agent` | Agent-facing CLI for batch datasheet-to-database workflows |

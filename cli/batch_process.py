@@ -259,7 +259,7 @@ def process_one(pdf: dict) -> dict:
         "run",
         "dsm-agent",
         "--bucket",
-        "datasheetminer",
+        "specodex",
         "process",
         s3_key,
         "-t",

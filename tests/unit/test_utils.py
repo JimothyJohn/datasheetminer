@@ -1,4 +1,4 @@
-"""Unit tests for datasheetminer.utils module."""
+"""Unit tests for specodex.utils module."""
 
 import argparse
 import io
@@ -10,7 +10,7 @@ from uuid import uuid4
 import PyPDF2
 import pytest
 
-from datasheetminer.utils import (
+from specodex.utils import (
     PageRangeError,
     UUIDEncoder,
     extract_pdf_pages,
@@ -22,7 +22,7 @@ from datasheetminer.utils import (
     parse_page_ranges,
     validate_api_key,
 )
-from datasheetminer.models.motor import Motor
+from specodex.models.motor import Motor
 
 
 def _make_pdf(num_pages: int) -> bytes:
@@ -165,7 +165,7 @@ class TestGetProductInfoFromJson:
 @pytest.mark.unit
 class TestParseGeminiResponse:
     """The LLM returns JSON matching a schema derived from the Pydantic model
-    (see datasheetminer.models.llm_schema). These tests exercise the JSON
+    (see specodex.models.llm_schema). These tests exercise the JSON
     parse path, including ValueUnit / MinMaxUnit dict handling via the
     existing BeforeValidator chain in common.py."""
 
@@ -296,11 +296,11 @@ class TestIsPdfUrl:
     def test_pdf_extension(self):
         assert is_pdf_url("https://example.com/doc.pdf") is True
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_non_pdf_extension(self, mock_urlopen):
         assert is_pdf_url("https://example.com/page.html") is False
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_content_type_pdf(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.__enter__ = Mock(return_value=mock_response)
@@ -366,7 +366,7 @@ class TestGetDocument:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestGetWebContent:
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_success_mocked(self, mock_urlopen):
         html = b"<html><body>Hello</body></html>"
         mock_response = MagicMock()
@@ -384,7 +384,7 @@ class TestGetWebContent:
         assert result is not None
         assert "Hello" in result
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_http_error_returns_none(self, mock_urlopen):
         from urllib.error import HTTPError
 

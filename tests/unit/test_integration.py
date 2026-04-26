@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from datasheetminer.integration import check, ports_for
-from datasheetminer.integration.ports import (
+from specodex.integration import check, ports_for
+from specodex.integration.ports import (
     ElectricalPowerPort,
     FeedbackPort,
     FieldbusPort,
     MechanicalShaftPort,
 )
-from datasheetminer.models.contactor import Contactor
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.gearhead import Gearhead
-from datasheetminer.models.motor import Motor
+from specodex.models.contactor import Contactor
+from specodex.models.drive import Drive
+from specodex.models.gearhead import Gearhead
+from specodex.models.motor import Motor
 
 
 MFG = "TestCo"

@@ -30,7 +30,7 @@ describe('API Routes', () => {
     it('should return API information', async () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('name', 'DatasheetMiner API');
+      expect(response.body).toHaveProperty('name', 'Specodex API');
       expect(response.body).toHaveProperty('version', '1.0.0');
       expect(response.body).toHaveProperty('endpoints');
       expect(response.body.endpoints).toHaveProperty('health');

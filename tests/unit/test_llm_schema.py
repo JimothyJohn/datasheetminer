@@ -1,15 +1,15 @@
-"""Unit tests for datasheetminer.models.llm_schema (Pydantic → Gemini)."""
+"""Unit tests for specodex.models.llm_schema (Pydantic → Gemini)."""
 
 from __future__ import annotations
 
 import pytest
 
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.llm_schema import (
+from specodex.models.drive import Drive
+from specodex.models.llm_schema import (
     EXCLUDED_FIELDS,
     to_gemini_schema,
 )
-from datasheetminer.models.motor import Motor
+from specodex.models.motor import Motor
 
 
 @pytest.mark.unit

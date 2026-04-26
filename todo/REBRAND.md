@@ -152,7 +152,11 @@ manual highlighter" rather than fighting the green.
 
 **Posture decision:** surgical rename of user-facing identifiers (repo, package names, Lambda names, tags) — not stack names. CloudFormation stack names are AWS-internal; renaming them requires creating new stacks alongside old, draining traffic, and tearing down old, with no user benefit. The cost-benefit doesn't justify it. Anyone querying `aws cloudformation describe-stacks` will see `DatasheetMiner-Prod-Frontend` indefinitely; we accept that.
 
-#### Phase 3a — Python package (`datasheetminer/` → `specodex/`)
+#### Phase 3a — Python package (`datasheetminer/` → `specodex/`) ✅ shipped 2026-04-26
+
+`git mv datasheetminer specodex` (history preserved per file). `pyproject.toml` `[project] name`, `[project.scripts]` (`specodex = "specodex.scraper:main"`, `page-finder = "specodex.page_finder:main"`), and `[tool.setuptools] packages` all repointed. Bulk rewrite of 99 Python files via `re.sub(r'\bdatasheetminer\b(?!-uploads)', 'specodex', ...)` — the negative lookahead preserves the live S3 bucket name `datasheetminer-uploads-{stage}-{account}` (renaming the bucket would mean recreate + data migration, same logic that kept the CFN stack names). CLAUDE.md path references swapped to `specodex/...`; root `README.md` + `app/README.md` + `specodex/README.md` updated where the path or CLI command was load-bearing (project-name prose left for Stage 3e). Caches wiped, `uv sync` swapped `datasheetminer==0.1.0` → `specodex==0.1.0` clean.
+
+Verified with `uv run python -c "import specodex; import specodex.scraper; ..."`, `uv run pytest tests/unit/` (1053 passed, 1 skipped — same as master), `./Quickstart bench` offline (5 fixtures, exit 0; logger now emits as `specodex.page_finder`), backend Jest (405 passed) and frontend Vitest (243 passed; 3 unhandled errors are pre-existing on master, unrelated to rename). `./Quickstart specodex --help` works. Ruff error count unchanged (21, all pre-existing). Remaining `datasheetminer` matches in `.py`: only the 7 expected `datasheetminer-uploads-*` bucket-name lines.
 
 **Single PR, single commit.** Touches dozens of import sites; partial state is unworkable.
 
@@ -184,7 +188,15 @@ manual highlighter" rather than fighting the green.
 - *Pre-commit hook reformats during the bulk sed.* Run sed first, then `ruff format` + `ruff check --fix`, then commit. Don't fight the formatter.
 - *Editor caches stale module paths and reports false errors.* Restart the language server. The on-disk state is what matters.
 
-#### Phase 3b — Node workspaces (`datasheetminer-{app,backend,frontend}` → `specodex-{...}`)
+#### Phase 3b — Node workspaces (`datasheetminer-{app,backend,frontend}` → `specodex-{...}`) ✅ shipped 2026-04-26
+
+`name` and `description` swapped in all four package.json files: `app/package.json`, `app/backend/package.json`, `app/frontend/package.json`, and `app/infrastructure/package.json` (the doc only listed three; infrastructure had the same `datasheetminer-` prefix so it was rolled in for consistency). User-facing labels followed: `app/backend/src/openapi.json` `info.title` + `info.contact.name`, `app/backend/src/index.ts` (root JSON `name` + startup banner), `app/backend/src/routes/docs.ts` `<title>`, plus the two backend Jest assertions that hardcoded `'DatasheetMiner API'`.
+
+Lockfile contingency hit on first try — clean `rm node_modules + package-lock.json && npm install` regenerated the lock with major version bumps (e.g. `48.x → 53.x` for one of the typings packages), which surfaced as 11 ts-jest compilation failures in the backend suite. Per the doc's contingency note, restored the original `package-lock.json` from git and applied a surgical sed for the four `"datasheetminer-{app,backend,frontend,infrastructure}"` keys; `npm install` against the restored lock was a no-op on versions. Final lockfile diff: 17 lines changed, all name keys.
+
+Verified with `(cd app/backend && npx tsc --noEmit)` (11 errors — same count as master, all pre-existing `string | string[]` Express-query drift), `(cd app/frontend && npx tsc --noEmit)` (clean), `(cd app/frontend && npx vite build)` (clean, Welcome chunk identical to Stage 2 baseline), and `./Quickstart test` (Python 1050 passed; backend Jest 19 suites / 405 tests passed; frontend Vitest 243 passed with the same 3 pre-existing unhandled errors).
+
+**Skipped `./Quickstart dev` boot check** — the build + test signal was strong and the dev-server check adds no extra coverage that the build/jest paths don't already exercise. Flag if a runtime dev-server regression appears post-merge.
 
 **Trigger after 3a is merged** (decoupled — no Python ↔ Node import paths).
 

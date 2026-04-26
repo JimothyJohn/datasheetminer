@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.motor import Motor
-from datasheetminer.models.drive import Drive
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.motor import Motor
+from specodex.models.drive import Drive
 
 
 def make_client_error(code: str = "ServiceUnavailable", msg: str = "Service error"):
@@ -27,7 +27,7 @@ def mock_table():
 
 @pytest.fixture
 def db(mock_table):
-    with patch("datasheetminer.db.dynamo.boto3") as mock_boto:
+    with patch("specodex.db.dynamo.boto3") as mock_boto:
         mock_boto.resource.return_value.Table.return_value = mock_table
         client = DynamoDBClient("test-table")
         client.table = mock_table
@@ -240,10 +240,10 @@ class TestErrorSpecificity:
 class TestLLMResilience:
     """Test LLM failure modes without making real API calls."""
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_generate_content_retries_on_failure(self, mock_genai):
         """Tenacity retries should fire on API errors."""
-        from datasheetminer.llm import generate_content
+        from specodex.llm import generate_content
         from tenacity import RetryError
 
         mock_client = MagicMock()
@@ -264,7 +264,7 @@ class TestLLMResilience:
             )
 
     def test_invalid_content_type_raises(self):
-        from datasheetminer.llm import generate_content
+        from specodex.llm import generate_content
         from tenacity import RetryError
 
         with pytest.raises((ValueError, RetryError)):

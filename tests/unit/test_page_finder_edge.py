@@ -1,4 +1,4 @@
-"""Edge-case coverage for ``datasheetminer.page_finder``.
+"""Edge-case coverage for ``specodex.page_finder``.
 
 Page-finder bugs cost real money — a false negative routes a full PDF to
 Gemini instead of a 3-page slice; a false positive bills a useless LLM
@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.page_finder import (
+from specodex.page_finder import (
     SPEC_KEYWORD_THRESHOLD,
     SPEC_KEYWORDS,
     _MAX_PAGES_LARGE_DOC,
@@ -104,7 +104,7 @@ class TestFindSpecPagesByText:
         pdf = _make_pdf([upper])
         assert find_spec_pages_by_text(pdf) == [0]
 
-    @patch("datasheetminer.page_finder.logger")
+    @patch("specodex.page_finder.logger")
     def test_pymupdf_missing_returns_empty_and_warns(
         self, mock_logger: MagicMock
     ) -> None:
@@ -239,7 +239,7 @@ class TestFindSpecPagesScored:
         pages, _ = find_spec_pages_scored(pdf, max_pages=1)
         assert pages == [4]
 
-    @patch("datasheetminer.page_finder.find_spec_pages_by_text")
+    @patch("specodex.page_finder.find_spec_pages_by_text")
     def test_pymupdf_missing_falls_back_to_text_finder(
         self, mock_text: MagicMock
     ) -> None:
@@ -315,7 +315,7 @@ def _mock_genai_response(text: str) -> MagicMock:
 
 @pytest.mark.unit
 class TestClassifyPages:
-    @patch("datasheetminer.page_finder.genai")
+    @patch("specodex.page_finder.genai")
     def test_parses_well_formed_response(self, mock_genai: MagicMock) -> None:
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = _mock_genai_response(
@@ -328,7 +328,7 @@ class TestClassifyPages:
         assert results[0]["has_specs"] is True
         assert results[0]["page_number"] == 0  # 1-indexed → 0-indexed
 
-    @patch("datasheetminer.page_finder.genai")
+    @patch("specodex.page_finder.genai")
     def test_batches_pages(self, mock_genai: MagicMock) -> None:
         mock_client = MagicMock()
         mock_client.models.generate_content.side_effect = [
@@ -342,7 +342,7 @@ class TestClassifyPages:
         assert mock_client.models.generate_content.call_count == 2
         assert len(results) == 2
 
-    @patch("datasheetminer.page_finder.genai")
+    @patch("specodex.page_finder.genai")
     def test_api_failure_marks_pages_unknown(self, mock_genai: MagicMock) -> None:
         mock_client = MagicMock()
         mock_client.models.generate_content.side_effect = RuntimeError("rate limit")
@@ -354,7 +354,7 @@ class TestClassifyPages:
         assert all(r["has_specs"] is False for r in results)
         assert all("classification failed" in r["description"] for r in results)
 
-    @patch("datasheetminer.page_finder.genai")
+    @patch("specodex.page_finder.genai")
     def test_non_array_response_yields_no_results(self, mock_genai: MagicMock) -> None:
         # Gemini occasionally hallucinates an object instead of an array.
         # The function should silently produce no rows for that batch
@@ -368,7 +368,7 @@ class TestClassifyPages:
         results = classify_pages([b"img"], api_key="k")
         assert results == []
 
-    @patch("datasheetminer.page_finder.genai")
+    @patch("specodex.page_finder.genai")
     def test_empty_response_yields_no_results(self, mock_genai: MagicMock) -> None:
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = _mock_genai_response("")
@@ -385,9 +385,9 @@ class TestClassifyPages:
 
 @pytest.mark.unit
 class TestFindSpecPages:
-    @patch("datasheetminer.page_finder.classify_pages")
-    @patch("datasheetminer.page_finder.pdf_pages_to_images")
-    @patch("datasheetminer.page_finder.get_document")
+    @patch("specodex.page_finder.classify_pages")
+    @patch("specodex.page_finder.pdf_pages_to_images")
+    @patch("specodex.page_finder.get_document")
     def test_orchestrates_download_render_classify(
         self,
         mock_get: MagicMock,
@@ -406,15 +406,15 @@ class TestFindSpecPages:
         assert out["spec_pages"] == [1]
         assert out["spec_page_count"] == 1
 
-    @patch("datasheetminer.page_finder.get_document")
+    @patch("specodex.page_finder.get_document")
     def test_download_failure_raises(self, mock_get: MagicMock) -> None:
         mock_get.return_value = None
         with pytest.raises(ValueError):
             find_spec_pages("https://x/y.pdf", api_key="k")
 
-    @patch("datasheetminer.page_finder.classify_pages")
-    @patch("datasheetminer.page_finder.pdf_pages_to_images")
-    @patch("datasheetminer.page_finder.get_document")
+    @patch("specodex.page_finder.classify_pages")
+    @patch("specodex.page_finder.pdf_pages_to_images")
+    @patch("specodex.page_finder.get_document")
     def test_explicit_pages_subset_remaps_back(
         self,
         mock_get: MagicMock,
@@ -433,9 +433,9 @@ class TestFindSpecPages:
         out = find_spec_pages("https://x/y.pdf", api_key="k", pages=[2, 5])
         assert sorted(out["spec_pages"]) == [2, 5]
 
-    @patch("datasheetminer.page_finder.classify_pages")
-    @patch("datasheetminer.page_finder.pdf_pages_to_images")
-    @patch("datasheetminer.page_finder.get_document")
+    @patch("specodex.page_finder.classify_pages")
+    @patch("specodex.page_finder.pdf_pages_to_images")
+    @patch("specodex.page_finder.get_document")
     def test_out_of_range_pages_dropped(
         self,
         mock_get: MagicMock,
@@ -477,9 +477,9 @@ def _fake_datasheet(
 
 @pytest.mark.unit
 class TestUpdateDatasheetPages:
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
+    @patch("specodex.db.dynamo.DynamoDBClient")
     def test_writes_matching_url(self, mock_cls: MagicMock) -> None:
-        from datasheetminer.page_finder import _update_datasheet_pages
+        from specodex.page_finder import _update_datasheet_pages
 
         client = MagicMock()
         match = _fake_datasheet(url="https://x.com/a.pdf")
@@ -493,10 +493,10 @@ class TestUpdateDatasheetPages:
         assert match.pages == [1, 2, 3]
         client.create.assert_called_once_with(match)
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.page_finder.logger")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.page_finder.logger")
     def test_no_match_warns(self, mock_log: MagicMock, mock_cls: MagicMock) -> None:
-        from datasheetminer.page_finder import _update_datasheet_pages
+        from specodex.page_finder import _update_datasheet_pages
 
         client = MagicMock()
         client.get_all_datasheets.return_value = []
@@ -507,12 +507,12 @@ class TestUpdateDatasheetPages:
         mock_log.warning.assert_called()
         client.create.assert_not_called()
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.page_finder.logger")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.page_finder.logger")
     def test_create_failure_logs_error(
         self, mock_log: MagicMock, mock_cls: MagicMock
     ) -> None:
-        from datasheetminer.page_finder import _update_datasheet_pages
+        from specodex.page_finder import _update_datasheet_pages
 
         client = MagicMock()
         ds = _fake_datasheet(url="u")
@@ -527,16 +527,16 @@ class TestUpdateDatasheetPages:
 
 @pytest.mark.unit
 class TestScanAllDatasheets:
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.utils.is_pdf_url", return_value=True)
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.utils.is_pdf_url", return_value=True)
+    @patch("specodex.page_finder.find_spec_pages")
     def test_filters_pdfs_needing_pages(
         self,
         mock_find: MagicMock,
         mock_is_pdf: MagicMock,
         mock_cls: MagicMock,
     ) -> None:
-        from datasheetminer.page_finder import _scan_all_datasheets
+        from specodex.page_finder import _scan_all_datasheets
 
         client = MagicMock()
         client.get_all_datasheets.return_value = [
@@ -554,16 +554,16 @@ class TestScanAllDatasheets:
         called_url = mock_find.call_args.args[0]
         assert called_url == "u1"
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.utils.is_pdf_url")
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.utils.is_pdf_url")
+    @patch("specodex.page_finder.find_spec_pages")
     def test_skips_non_pdf_urls(
         self,
         mock_find: MagicMock,
         mock_is_pdf: MagicMock,
         mock_cls: MagicMock,
     ) -> None:
-        from datasheetminer.page_finder import _scan_all_datasheets
+        from specodex.page_finder import _scan_all_datasheets
 
         mock_is_pdf.side_effect = lambda url: url.endswith(".pdf")
         client = MagicMock()
@@ -578,16 +578,16 @@ class TestScanAllDatasheets:
         called_urls = [c.args[0] for c in mock_find.call_args_list]
         assert called_urls == ["https://x/b.pdf"]
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.utils.is_pdf_url", return_value=True)
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.utils.is_pdf_url", return_value=True)
+    @patch("specodex.page_finder.find_spec_pages")
     def test_filters_by_product_type(
         self,
         mock_find: MagicMock,
         mock_is_pdf: MagicMock,
         mock_cls: MagicMock,
     ) -> None:
-        from datasheetminer.page_finder import _scan_all_datasheets
+        from specodex.page_finder import _scan_all_datasheets
 
         client = MagicMock()
         client.get_all_datasheets.return_value = [
@@ -602,10 +602,10 @@ class TestScanAllDatasheets:
         called_urls = [c.args[0] for c in mock_find.call_args_list]
         assert called_urls == ["m.pdf"]
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.utils.is_pdf_url", return_value=True)
-    @patch("datasheetminer.page_finder.find_spec_pages")
-    @patch("datasheetminer.page_finder._update_datasheet_pages")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.utils.is_pdf_url", return_value=True)
+    @patch("specodex.page_finder.find_spec_pages")
+    @patch("specodex.page_finder._update_datasheet_pages")
     def test_update_db_called_only_when_specs_found(
         self,
         mock_update: MagicMock,
@@ -613,7 +613,7 @@ class TestScanAllDatasheets:
         mock_is_pdf: MagicMock,
         mock_cls: MagicMock,
     ) -> None:
-        from datasheetminer.page_finder import _scan_all_datasheets
+        from specodex.page_finder import _scan_all_datasheets
 
         client = MagicMock()
         client.get_all_datasheets.return_value = [
@@ -630,10 +630,10 @@ class TestScanAllDatasheets:
 
         mock_update.assert_called_once_with("hit.pdf", [3, 4])
 
-    @patch("datasheetminer.db.dynamo.DynamoDBClient")
-    @patch("datasheetminer.utils.is_pdf_url", return_value=True)
-    @patch("datasheetminer.page_finder.find_spec_pages")
-    @patch("datasheetminer.page_finder.logger")
+    @patch("specodex.db.dynamo.DynamoDBClient")
+    @patch("specodex.utils.is_pdf_url", return_value=True)
+    @patch("specodex.page_finder.find_spec_pages")
+    @patch("specodex.page_finder.logger")
     def test_per_datasheet_failure_does_not_abort_loop(
         self,
         mock_log: MagicMock,
@@ -641,7 +641,7 @@ class TestScanAllDatasheets:
         mock_is_pdf: MagicMock,
         mock_cls: MagicMock,
     ) -> None:
-        from datasheetminer.page_finder import _scan_all_datasheets
+        from specodex.page_finder import _scan_all_datasheets
 
         client = MagicMock()
         client.get_all_datasheets.return_value = [
@@ -659,11 +659,11 @@ class TestScanAllDatasheets:
 
 @pytest.mark.unit
 class TestMain:
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.page_finder.find_spec_pages")
     def test_single_url_path(
         self, mock_find: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         mock_find.return_value = {
             "url": "https://x/y.pdf",
@@ -683,7 +683,7 @@ class TestMain:
         mock_find.assert_called_once()
 
     def test_missing_api_key_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         monkeypatch.setattr("sys.argv", ["page_finder", "--url", "x"])
@@ -693,33 +693,33 @@ class TestMain:
     def test_missing_url_without_scan_all_errors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         monkeypatch.setenv("GEMINI_API_KEY", "k")
         monkeypatch.setattr("sys.argv", ["page_finder"])
         with pytest.raises(SystemExit):
             main()
 
-    @patch("datasheetminer.page_finder._scan_all_datasheets")
+    @patch("specodex.page_finder._scan_all_datasheets")
     def test_scan_all_dispatches(
         self, mock_scan: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         monkeypatch.setenv("GEMINI_API_KEY", "k")
         monkeypatch.setattr("sys.argv", ["page_finder", "--scan-all"])
         main()
         mock_scan.assert_called_once_with("k", None, False)
 
-    @patch("datasheetminer.page_finder._update_datasheet_pages")
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.page_finder._update_datasheet_pages")
+    @patch("specodex.page_finder.find_spec_pages")
     def test_update_db_calls_writer(
         self,
         mock_find: MagicMock,
         mock_update: MagicMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         mock_find.return_value = {
             "url": "u",
@@ -733,14 +733,14 @@ class TestMain:
         main()
         mock_update.assert_called_once_with("u", [0])
 
-    @patch("datasheetminer.page_finder.find_spec_pages")
+    @patch("specodex.page_finder.find_spec_pages")
     def test_output_file_written(
         self,
         mock_find: MagicMock,
         monkeypatch: pytest.MonkeyPatch,
         tmp_path,
     ) -> None:
-        from datasheetminer.page_finder import main
+        from specodex.page_finder import main
 
         result = {
             "url": "u",

@@ -2,14 +2,14 @@
 
 import pytest
 
-from datasheetminer.spec_rules import (
+from specodex.spec_rules import (
     FIELD_RULES,
     _parse_compact,
     validate_product,
     validate_products,
 )
-from datasheetminer.models.drive import Drive  # noqa: F401 — used in _drive()
-from datasheetminer.models.motor import Motor
+from specodex.models.drive import Drive  # noqa: F401 — used in _drive()
+from specodex.models.motor import Motor
 
 
 MFG = "TestMfg"
@@ -70,7 +70,7 @@ class TestParseCompact:
 @pytest.mark.unit
 class TestUnitMismatch:
     """Wrong-family unit rejection moved to the typed Pydantic aliases
-    in ``datasheetminer.models.common``. The field is nulled at
+    in ``specodex.models.common``. The field is nulled at
     construction time before ``validate_product`` ever sees it — no
     violation is emitted because there's nothing left to flag.
     """
@@ -291,7 +291,7 @@ class TestIdentityValidation:
     def test_all_generic_manufacturer_variants_caught(self):
         """Every value in GENERIC_MANUFACTURERS triggers rejection
         when combined with no part_number."""
-        from datasheetminer.spec_rules import GENERIC_MANUFACTURERS
+        from specodex.spec_rules import GENERIC_MANUFACTURERS
 
         for gm in GENERIC_MANUFACTURERS:
             d = _drive(manufacturer=gm, part_number=None)

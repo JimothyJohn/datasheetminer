@@ -1,6 +1,6 @@
 """Property-based tests for the ValueUnit / MinMaxUnit validation stack.
 
-Targets the three-stage pipeline in `datasheetminer/models/common.py`:
+Targets the three-stage pipeline in `specodex/models/common.py`:
     BeforeValidator handle_value_unit_input
     AfterValidator validate_value_unit_str
     AfterValidator _normalize_compact_str  (from units.normalize_value_unit)
@@ -16,14 +16,14 @@ from __future__ import annotations
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.common import (
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.common import (
     handle_min_max_unit_input,
     handle_value_unit_input,
     validate_min_max_unit_str,
     validate_value_unit_str,
 )
-from datasheetminer.units import normalize_value_unit
+from specodex.units import normalize_value_unit
 
 
 _ASCII_UNIT = st.text(

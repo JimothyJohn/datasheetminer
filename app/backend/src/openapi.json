@@ -1,11 +1,11 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "DatasheetMiner API",
+    "title": "Specodex API",
     "version": "1.0.0",
     "description": "Search and browse industrial product specifications extracted from datasheets. Covers motors, drives, gearheads, and robot arms. Free to use, no authentication required for read operations.",
     "contact": {
-      "name": "DatasheetMiner",
+      "name": "Specodex",
       "url": "https://datasheets.advin.io"
     }
   },

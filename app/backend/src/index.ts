@@ -74,7 +74,7 @@ if (process.env.NODE_ENV === 'production') {
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
   res.json({
-    name: 'DatasheetMiner API',
+    name: 'Specodex API',
     version: '1.0.0',
     endpoints: {
       health: '/health',
@@ -128,7 +128,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`
-DatasheetMiner API Server
+Specodex API Server
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 Mode: ${config.appMode}
 Environment: ${config.nodeEnv}

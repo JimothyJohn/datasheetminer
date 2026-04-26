@@ -18,9 +18,9 @@ import boto3
 import moto
 import pytest
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.motor import Motor
-from datasheetminer.scraper import process_datasheet
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.motor import Motor
+from specodex.scraper import process_datasheet
 
 
 @pytest.fixture
@@ -82,10 +82,10 @@ def _fake_gemini_response(motors: List[Motor]) -> Mock:
 
 @pytest.mark.integration
 class TestPdfToDbPipeline:
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
-    @patch("datasheetminer.scraper.get_document", return_value=b"fake pdf")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.parse_gemini_response")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document", return_value=b"fake pdf")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.parse_gemini_response")
     def test_pdf_to_db_pipeline(
         self,
         mock_parse: MagicMock,
@@ -120,10 +120,10 @@ class TestPdfToDbPipeline:
 
 @pytest.mark.integration
 class TestHtmlToDbPipeline:
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=False)
-    @patch("datasheetminer.scraper.get_web_content", return_value="<html>specs</html>")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.parse_gemini_response")
+    @patch("specodex.scraper.is_pdf_url", return_value=False)
+    @patch("specodex.scraper.get_web_content", return_value="<html>specs</html>")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.parse_gemini_response")
     def test_html_to_db_pipeline(
         self,
         mock_parse: MagicMock,
@@ -189,10 +189,10 @@ class TestDuplicateSkipping:
 
 @pytest.mark.integration
 class TestBatchFromJson:
-    @patch("datasheetminer.scraper.is_pdf_url", return_value=True)
-    @patch("datasheetminer.scraper.get_document", return_value=b"fake pdf")
-    @patch("datasheetminer.scraper.generate_content")
-    @patch("datasheetminer.scraper.parse_gemini_response")
+    @patch("specodex.scraper.is_pdf_url", return_value=True)
+    @patch("specodex.scraper.get_document", return_value=b"fake pdf")
+    @patch("specodex.scraper.generate_content")
+    @patch("specodex.scraper.parse_gemini_response")
     def test_batch_from_json(
         self,
         mock_parse: MagicMock,
@@ -220,7 +220,7 @@ class TestBatchFromJson:
         json_path.write_text(json.dumps(data))
 
         # Load from JSON (the real utility function)
-        from datasheetminer.utils import get_product_info_from_json
+        from specodex.utils import get_product_info_from_json
 
         info = get_product_info_from_json(str(json_path), "motor", 0)
 

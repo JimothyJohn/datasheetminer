@@ -2,7 +2,7 @@
 
 import pytest
 
-from datasheetminer.units import normalize_unit, normalize_value_unit
+from specodex.units import normalize_unit, normalize_value_unit
 
 
 @pytest.mark.unit
@@ -228,43 +228,43 @@ class TestPydanticIntegration:
     """Test that unit conversion works through the Pydantic model layer."""
 
     def test_motor_torque_mNm_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", rated_torque="500;mNm")
         assert motor.rated_torque == "0.5;Nm"
 
     def test_motor_torque_Nm_unchanged(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", rated_torque="2.5;Nm")
         assert motor.rated_torque == "2.5;Nm"
 
     def test_motor_power_kW_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", rated_power="1.5;kW")
         assert motor.rated_power == "1500;W"
 
     def test_motor_current_mA_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", rated_current="500;mA")
         assert motor.rated_current == "0.5;A"
 
     def test_motor_resistance_ohm_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", resistance="4.7;ohm")
         assert motor.resistance == "4.7;Ω"
 
     def test_motor_inductance_uH_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", inductance="100;uH")
         assert motor.inductance == "0.1;mH"
 
     def test_motor_inertia_gcm2_normalized(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(
             product_name="Test", manufacturer="Test", rotor_inertia="500;g·cm²"
@@ -272,19 +272,19 @@ class TestPydanticIntegration:
         assert motor.rotor_inertia == "0.5;kg·cm²"
 
     def test_drive_current_mA_normalized(self):
-        from datasheetminer.models.drive import Drive
+        from specodex.models.drive import Drive
 
         drive = Drive(product_name="Test", manufacturer="Test", rated_current="500;mA")
         assert drive.rated_current == "0.5;A"
 
     def test_drive_power_kW_normalized(self):
-        from datasheetminer.models.drive import Drive
+        from specodex.models.drive import Drive
 
         drive = Drive(product_name="Test", manufacturer="Test", rated_power="2;kW")
         assert drive.rated_power == "2000;W"
 
     def test_gearhead_torque_oz_in_normalized(self):
-        from datasheetminer.models.gearhead import Gearhead
+        from specodex.models.gearhead import Gearhead
 
         gh = Gearhead(
             product_name="Test",
@@ -297,7 +297,7 @@ class TestPydanticIntegration:
         assert float(parts[0]) == pytest.approx(0.706155, rel=1e-3)
 
     def test_gearhead_force_kN_normalized(self):
-        from datasheetminer.models.gearhead import Gearhead
+        from specodex.models.gearhead import Gearhead
 
         gh = Gearhead(
             product_name="Test",
@@ -308,7 +308,7 @@ class TestPydanticIntegration:
         assert gh.max_radial_load == "5000;N"
 
     def test_dict_input_with_conversion(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(
             product_name="Test",
@@ -318,20 +318,20 @@ class TestPydanticIntegration:
         assert motor.rated_torque == "0.5;Nm"
 
     def test_space_separated_input_with_conversion(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test", rated_torque="500 mNm")
         assert motor.rated_torque == "0.5;Nm"
 
     def test_none_still_works(self):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(product_name="Test", manufacturer="Test")
         assert motor.rated_torque is None
 
     def test_non_numeric_value_preserved(self):
         """Non-convertible units pass through unchanged."""
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         # BeforeValidator strips '+' so value becomes "2", but "Years" is
         # not in the conversion map so unit stays unchanged

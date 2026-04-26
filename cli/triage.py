@@ -12,9 +12,9 @@ import logging
 import os
 from urllib.parse import urlparse
 
-from datasheetminer.config import SCHEMA_CHOICES
-from datasheetminer.models.product import ProductBase
-from datasheetminer.quality import score_product, spec_fields_for_model
+from specodex.config import SCHEMA_CHOICES
+from specodex.models.product import ProductBase
+from specodex.quality import score_product, spec_fields_for_model
 
 log = logging.getLogger("triage")
 
@@ -38,7 +38,7 @@ def _get_s3():
 
 
 def _get_dynamo():
-    from datasheetminer.db.dynamo import DynamoDBClient
+    from specodex.db.dynamo import DynamoDBClient
 
     return DynamoDBClient()
 

@@ -1,4 +1,4 @@
-"""Tests for datasheetminer.db.dynamo.DynamoDBClient."""
+"""Tests for specodex.db.dynamo.DynamoDBClient."""
 
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
@@ -7,9 +7,9 @@ from uuid import uuid4
 import pytest
 from botocore.exceptions import ClientError
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.datasheet import Datasheet
-from datasheetminer.models.motor import Motor
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.datasheet import Datasheet
+from specodex.models.motor import Motor
 
 
 def _make_client(mock_boto3: MagicMock) -> tuple[DynamoDBClient, MagicMock]:
@@ -36,30 +36,30 @@ def _client_error(
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestConvertFloatsToDecimal:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_float_converted(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         assert client._convert_floats_to_decimal(3.14) == Decimal("3.14")
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_nested_dict(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._convert_floats_to_decimal({"a": {"b": 1.5}})
         assert result == {"a": {"b": Decimal("1.5")}}
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_items(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._convert_floats_to_decimal([1.0, 2.0])
         assert result == [Decimal("1.0"), Decimal("2.0")]
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_non_float_unchanged(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         assert client._convert_floats_to_decimal("hello") == "hello"
         assert client._convert_floats_to_decimal(42) == 42
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_string_unchanged(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         assert client._convert_floats_to_decimal("3.14") == "3.14"
@@ -70,37 +70,37 @@ class TestConvertFloatsToDecimal:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestParseCompactUnits:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_value_unit_string(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units("20;C")
         assert result == {"value": Decimal("20"), "unit": "C"}
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_min_max_unit_string(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units("20-40;C")
         assert result == {"min": Decimal("20"), "max": Decimal("40"), "unit": "C"}
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_negative_values(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units("-20-40;C")
         assert result == {"min": Decimal("-20"), "max": Decimal("40"), "unit": "C"}
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_non_matching_string(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units("hello;world")
         assert result == "hello;world"
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_nested_dict_recursive(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units({"specs": {"temp": "20;C"}})
         assert result == {"specs": {"temp": {"value": Decimal("20"), "unit": "C"}}}
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_recursive(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._parse_compact_units(["20;C", "30;V"])
@@ -109,7 +109,7 @@ class TestParseCompactUnits:
             {"value": Decimal("30"), "unit": "V"},
         ]
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_no_semicolon(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         assert client._parse_compact_units("plain text") == "plain text"
@@ -120,7 +120,7 @@ class TestParseCompactUnits:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestSerializeItem:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_motor_serialization(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         motor = Motor(
@@ -133,7 +133,7 @@ class TestSerializeItem:
         assert data["SK"] == f"PRODUCT#{motor.product_id}"
         assert isinstance(data["product_id"], str)
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_datasheet_serialization(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         ds = Datasheet(
@@ -146,7 +146,7 @@ class TestSerializeItem:
         assert data["PK"] == "DATASHEET#MOTOR"
         assert data["SK"] == f"DATASHEET#{ds.datasheet_id}"
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_uuid_to_string(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         motor = Motor(
@@ -158,7 +158,7 @@ class TestSerializeItem:
         assert isinstance(data["product_id"], str)
         assert data["product_id"] == str(motor.product_id)
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_compact_units_parsed(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         motor = Motor(
@@ -176,7 +176,7 @@ class TestSerializeItem:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestDeserializeItem:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_valid_motor(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         uid = str(uuid4())
@@ -192,7 +192,7 @@ class TestDeserializeItem:
         assert isinstance(result, Motor)
         assert result.product_name == "TestMotor"
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_invalid_data_returns_none(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         result = client._deserialize_item({"garbage": True}, Motor)
@@ -204,7 +204,7 @@ class TestDeserializeItem:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestCRUD:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_create_success(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         motor = Motor(
@@ -215,7 +215,7 @@ class TestCRUD:
         assert client.create(motor) is True
         mock_table.put_item.assert_called_once()
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_create_client_error(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_table.put_item.side_effect = _client_error()
@@ -226,7 +226,7 @@ class TestCRUD:
         )
         assert client.create(motor) is False
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_read_found(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         uid = str(uuid4())
@@ -244,14 +244,14 @@ class TestCRUD:
         assert isinstance(result, Motor)
         assert result.product_name == "TestMotor"
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_read_not_found(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_table.get_item.return_value = {}
         result = client.read(str(uuid4()), Motor)
         assert result is None
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_update_success(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         motor = Motor(
@@ -265,7 +265,7 @@ class TestCRUD:
         assert "UpdateExpression" in call_kwargs
         assert call_kwargs["UpdateExpression"].startswith("SET ")
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_delete_success(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         uid = str(uuid4())
@@ -278,7 +278,7 @@ class TestCRUD:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestList:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_by_type(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         uid = str(uuid4())
@@ -298,7 +298,7 @@ class TestList:
         assert len(results) == 1
         assert isinstance(results[0], Motor)
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_with_limit(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_table.query.return_value = {"Items": []}
@@ -306,7 +306,7 @@ class TestList:
         call_kwargs = mock_table.query.call_args[1]
         assert call_kwargs["Limit"] == 5
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_list_pagination(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         uid1 = str(uuid4())
@@ -349,12 +349,12 @@ class TestList:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestBatchCreate:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_batch_empty_list(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         assert client.batch_create([]) == 0
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_batch_success(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_writer = MagicMock()
@@ -375,7 +375,7 @@ class TestBatchCreate:
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
 class TestDatasheetOps:
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_datasheet_exists_true(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_table.scan.return_value = {
@@ -383,13 +383,13 @@ class TestDatasheetOps:
         }
         assert client.datasheet_exists("https://example.com/ds.pdf") is True
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_datasheet_exists_false(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         mock_table.scan.return_value = {"Items": []}
         assert client.datasheet_exists("https://example.com/ds.pdf") is False
 
-    @patch("datasheetminer.db.dynamo.boto3")
+    @patch("specodex.db.dynamo.boto3")
     def test_product_exists(self, mock_boto3: MagicMock) -> None:
         client, mock_table = _make_client(mock_boto3)
         uid = str(uuid4())

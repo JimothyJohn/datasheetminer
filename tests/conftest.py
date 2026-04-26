@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for datasheetminer tests.
+Pytest configuration and shared fixtures for specodex tests.
 
 This module contains pytest configuration, markers, and fixtures
 that are shared across all test modules.
@@ -14,11 +14,11 @@ import moto
 import pytest
 from PyPDF2 import PdfWriter
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.models.datasheet import Datasheet
-from datasheetminer.models.drive import Drive
-from datasheetminer.models.manufacturer import Manufacturer
-from datasheetminer.models.motor import Motor
+from specodex.db.dynamo import DynamoDBClient
+from specodex.models.datasheet import Datasheet
+from specodex.models.drive import Drive
+from specodex.models.manufacturer import Manufacturer
+from specodex.models.motor import Motor
 
 
 def pytest_configure(config):
@@ -43,7 +43,7 @@ def test_api_key():
 @pytest.fixture(scope="session")
 def aws_stack_name():
     """AWS stack name for integration tests."""
-    return os.getenv("AWS_SAM_STACK_NAME", "datasheetminer-test")
+    return os.getenv("AWS_SAM_STACK_NAME", "specodex-test")
 
 
 @pytest.fixture(autouse=True)
@@ -62,15 +62,15 @@ def mock_lambda_context():
     from unittest.mock import Mock
 
     context = Mock()
-    context.function_name = "datasheetminer-test"
+    context.function_name = "specodex-test"
     context.function_version = "$LATEST"
     context.invoked_function_arn = (
-        "arn:aws:lambda:us-east-1:123456789012:function:datasheetminer-test"
+        "arn:aws:lambda:us-east-1:123456789012:function:specodex-test"
     )
     context.memory_limit_in_mb = 1024
     context.remaining_time_in_millis = Mock(return_value=30000)
     context.request_id = "test-request-id"
-    context.log_group_name = "/aws/lambda/datasheetminer-test"
+    context.log_group_name = "/aws/lambda/specodex-test"
     context.log_stream_name = "2023/01/01/[$LATEST]test123"
     context.aws_request_id = "test-aws-request-id"
 

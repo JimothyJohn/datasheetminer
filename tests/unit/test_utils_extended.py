@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from datasheetminer.utils import (
+from specodex.utils import (
     download_pdf,
     extract_pdf_pages,
     get_web_content,
@@ -21,7 +21,7 @@ from datasheetminer.utils import (
 
 
 class TestDownloadPdf:
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_success(self, mock_urlopen, tmp_path):
         mock_response = MagicMock()
         mock_response.read.return_value = b"%PDF-1.4 fake content"
@@ -33,7 +33,7 @@ class TestDownloadPdf:
         download_pdf("https://example.com/test.pdf", dest)
         assert dest.read_bytes() == b"%PDF-1.4 fake content"
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_http_error_raises(self, mock_urlopen, tmp_path):
         from urllib.error import HTTPError
 
@@ -43,7 +43,7 @@ class TestDownloadPdf:
         with pytest.raises(HTTPError):
             download_pdf("https://example.com/test.pdf", tmp_path / "out.pdf")
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_url_error_raises(self, mock_urlopen, tmp_path):
         from urllib.error import URLError
 
@@ -60,8 +60,8 @@ class TestExtractPdfPagesErrors:
         with pytest.raises(FileNotFoundError):
             extract_pdf_pages(tmp_path / "nonexistent.pdf", tmp_path / "out.pdf", [0])
 
-    @patch("datasheetminer.utils.shutil.copy")
-    @patch("datasheetminer.utils.PyPDF2.PdfReader")
+    @patch("specodex.utils.shutil.copy")
+    @patch("specodex.utils.PyPDF2.PdfReader")
     def test_pdf_read_error_copies_debug(self, mock_reader, mock_copy, tmp_path):
         from PyPDF2.errors import PdfReadError
 
@@ -76,7 +76,7 @@ class TestExtractPdfPagesErrors:
 
         mock_copy.assert_called_once()
 
-    @patch("datasheetminer.utils.PyPDF2.PdfReader")
+    @patch("specodex.utils.PyPDF2.PdfReader")
     def test_general_exception_raises(self, mock_reader, tmp_path):
         input_pdf = tmp_path / "bad.pdf"
         input_pdf.write_bytes(b"not a real pdf")
@@ -109,7 +109,7 @@ class TestExtractPdfPagesErrors:
 
 
 class TestGetWebContent:
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_plain_content(self, mock_urlopen):
         mock_headers = MagicMock()
         mock_headers.get.side_effect = lambda k, d="": {
@@ -128,7 +128,7 @@ class TestGetWebContent:
         assert result is not None
         assert "Hello" in result
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_gzip_content(self, mock_urlopen):
         raw = b"<html>Compressed</html>"
         compressed = gzip.compress(raw)
@@ -149,7 +149,7 @@ class TestGetWebContent:
         assert result is not None
         assert "Compressed" in result
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_deflate_content(self, mock_urlopen):
         raw = b"<html>Deflated</html>"
         compressed = zlib.compress(raw)
@@ -170,7 +170,7 @@ class TestGetWebContent:
         assert result is not None
         assert "Deflated" in result
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_http_error_returns_none(self, mock_urlopen):
         from urllib.error import HTTPError
 
@@ -179,7 +179,7 @@ class TestGetWebContent:
         )
         assert get_web_content("https://example.com") is None
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_unexpected_error_returns_none(self, mock_urlopen):
         mock_urlopen.side_effect = RuntimeError("Connection reset")
         assert get_web_content("https://example.com") is None
@@ -198,7 +198,7 @@ class TestIsPdfUrl:
     def test_non_pdf_extension(self):
         assert is_pdf_url("/tmp/file.txt") is False
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_content_type_check(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.info.return_value.get.return_value = "application/pdf"
@@ -208,7 +208,7 @@ class TestIsPdfUrl:
 
         assert is_pdf_url("https://example.com/document") is True
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_content_type_non_pdf(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.info.return_value.get.return_value = "text/html"
@@ -218,7 +218,7 @@ class TestIsPdfUrl:
 
         assert is_pdf_url("https://example.com/page") is False
 
-    @patch("datasheetminer.utils.urlopen")
+    @patch("specodex.utils.urlopen")
     def test_head_request_error_returns_false(self, mock_urlopen):
         mock_urlopen.side_effect = Exception("Timeout")
         assert is_pdf_url("https://example.com/unknown") is False

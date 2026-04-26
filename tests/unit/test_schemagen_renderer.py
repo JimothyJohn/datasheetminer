@@ -12,12 +12,12 @@ import ast
 import pytest
 from pydantic import ValidationError
 
-from datasheetminer.schemagen.meta_schema import (
+from specodex.schemagen.meta_schema import (
     ProposedField,
     ProposedModel,
     ProposedSource,
 )
-from datasheetminer.schemagen.renderer import (
+from specodex.schemagen.renderer import (
     render_model_file,
     render_product_type_patch,
     render_reasoning_doc,
@@ -84,8 +84,8 @@ def test_render_model_file_every_kind() -> None:
     ast.parse(source)
 
     # Imports
-    assert "from datasheetminer.models.common import MinMaxUnit, ValueUnit" in source
-    assert "from datasheetminer.models.product import ProductBase" in source
+    assert "from specodex.models.common import MinMaxUnit, ValueUnit" in source
+    assert "from specodex.models.product import ProductBase" in source
     assert "from typing import List, Literal, Optional" in source
 
     # Class skeleton

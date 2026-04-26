@@ -1,10 +1,10 @@
-"""Tests for datasheetminer.placeholders.is_placeholder."""
+"""Tests for specodex.placeholders.is_placeholder."""
 
 from __future__ import annotations
 
 import pytest
 
-from datasheetminer.placeholders import PLACEHOLDER_STRINGS, is_placeholder
+from specodex.placeholders import PLACEHOLDER_STRINGS, is_placeholder
 
 
 class TestIsPlaceholder:

@@ -1,10 +1,10 @@
-"""Unit tests for datasheetminer/llm.py generate_content function."""
+"""Unit tests for specodex/llm.py generate_content function."""
 
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from datasheetminer.llm import _client_for, generate_content
+from specodex.llm import _client_for, generate_content
 
 
 @pytest.mark.unit
@@ -25,7 +25,7 @@ class TestGenerateContent:
         # it so every test sees its own mock.
         _client_for.cache_clear()
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_pdf_content(self, mock_genai: MagicMock) -> None:
         """PDF bytes are sent via Part.from_bytes with application/pdf mime type."""
         mock_client = MagicMock()
@@ -45,7 +45,7 @@ class TestGenerateContent:
             mime_type="application/pdf",
         )
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_html_content(self, mock_genai: MagicMock) -> None:
         """HTML string is sent as inline text, not as a Part."""
         mock_client = MagicMock()
@@ -70,7 +70,7 @@ class TestGenerateContent:
         assert "HTML Content:" in contents[0]
         assert "<html><body>specs</body></html>" in contents[0]
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_with_context(self, mock_genai: MagicMock) -> None:
         """When context is provided, prompt includes context fields as known-data."""
         mock_client = MagicMock()
@@ -99,7 +99,7 @@ class TestGenerateContent:
         assert "Series X" in prompt_text
         assert "https://example.com/ds.pdf" in prompt_text
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_without_context(self, mock_genai: MagicMock) -> None:
         """When context is None, prompt uses generic extraction instructions."""
         mock_client = MagicMock()
@@ -119,7 +119,7 @@ class TestGenerateContent:
         # Prompt describes the structured value/unit output shape.
         assert "value" in prompt_text and "unit" in prompt_text
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_uses_json_response_schema(self, mock_genai: MagicMock) -> None:
         """Generated config passes a JSON schema to Gemini."""
         mock_client = MagicMock()
@@ -141,7 +141,7 @@ class TestGenerateContent:
         assert props["fieldbus"]["items"]["type"] == "STRING"
         assert "EtherCAT" in props["fieldbus"]["items"]["enum"]
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_invalid_content_type(self, mock_genai: MagicMock) -> None:
         """Unsupported content_type raises ValueError."""
         mock_client = MagicMock()
@@ -150,7 +150,7 @@ class TestGenerateContent:
         with pytest.raises(ValueError, match="Unsupported content_type: xml"):
             generate_content(b"data", "test-key", "motor", content_type="xml")
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_bytes_for_html_raises(self, mock_genai: MagicMock) -> None:
         """Passing bytes when content_type='html' raises ValueError."""
         mock_client = MagicMock()
@@ -159,7 +159,7 @@ class TestGenerateContent:
         with pytest.raises(ValueError, match="HTML content must be string"):
             generate_content(b"bytes", "test-key", "motor", content_type="html")
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_str_for_pdf_raises(self, mock_genai: MagicMock) -> None:
         """Passing string when content_type='pdf' raises ValueError."""
         mock_client = MagicMock()
@@ -168,7 +168,7 @@ class TestGenerateContent:
         with pytest.raises(ValueError, match="PDF content must be bytes"):
             generate_content("string data", "test-key", "motor", content_type="pdf")
 
-    @patch("datasheetminer.llm.genai")
+    @patch("specodex.llm.genai")
     def test_uses_correct_model(self, mock_genai: MagicMock) -> None:
         """Verify the call uses the configured MODEL constant."""
         mock_client = MagicMock()

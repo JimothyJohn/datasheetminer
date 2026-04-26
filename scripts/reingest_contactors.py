@@ -23,13 +23,13 @@ load_dotenv(REPO / ".env")
 os.environ.setdefault("MAX_PER_PAGE_CALLS", "100")
 os.environ.setdefault("PAGES_PER_CHUNK", "3")
 
-from datasheetminer.config import SCHEMA_CHOICES  # noqa: E402
-from datasheetminer.db.dynamo import DynamoDBClient  # noqa: E402
-from datasheetminer.ids import compute_product_id  # noqa: E402
-from datasheetminer.merge import merge_per_page_products  # noqa: E402
-from datasheetminer.page_finder import find_spec_pages_scored  # noqa: E402
-from datasheetminer.quality import filter_products  # noqa: E402
-from datasheetminer.scraper import _extract_per_page  # noqa: E402
+from specodex.config import SCHEMA_CHOICES  # noqa: E402
+from specodex.db.dynamo import DynamoDBClient  # noqa: E402
+from specodex.ids import compute_product_id  # noqa: E402
+from specodex.merge import merge_per_page_products  # noqa: E402
+from specodex.page_finder import find_spec_pages_scored  # noqa: E402
+from specodex.quality import filter_products  # noqa: E402
+from specodex.scraper import _extract_per_page  # noqa: E402
 
 PDF = REPO / "tests/benchmark/datasheets/mitsubishi-contactors-catalog.pdf"
 PUBLIC_URL = (

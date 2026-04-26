@@ -93,7 +93,7 @@ def _get_s3():
 
 
 def _get_dynamo():
-    from datasheetminer.db.dynamo import DynamoDBClient
+    from specodex.db.dynamo import DynamoDBClient
 
     table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
     return DynamoDBClient(table_name=table)
@@ -126,10 +126,10 @@ def _extract_products(
     metadata: dict[str, Any],
 ) -> list[Any]:
     """Run Gemini extraction + validation + quality filtering. Returns models."""
-    from datasheetminer.config import SCHEMA_CHOICES
-    from datasheetminer.llm import generate_content
-    from datasheetminer.utils import parse_gemini_response
-    from datasheetminer.quality import filter_products
+    from specodex.config import SCHEMA_CHOICES
+    from specodex.llm import generate_content
+    from specodex.utils import parse_gemini_response
+    from specodex.quality import filter_products
 
     if product_type not in SCHEMA_CHOICES:
         raise ValueError(
@@ -277,8 +277,8 @@ def _move_to_done(bucket: str, key: str) -> None:
 
 def cmd_schemas(_args: argparse.Namespace) -> None:
     """List available product schemas."""
-    from datasheetminer.config import SCHEMA_CHOICES
-    from datasheetminer.quality import spec_fields_for_model
+    from specodex.config import SCHEMA_CHOICES
+    from specodex.quality import spec_fields_for_model
 
     schemas = []
     for name, cls in sorted(SCHEMA_CHOICES.items()):

@@ -1,8 +1,8 @@
-"""Tests for datasheetminer.ids — deterministic product ID generation."""
+"""Tests for specodex.ids — deterministic product ID generation."""
 
 import uuid
 
-from datasheetminer.ids import PRODUCT_NAMESPACE, compute_product_id, normalize_string
+from specodex.ids import PRODUCT_NAMESPACE, compute_product_id, normalize_string
 
 
 class TestNormalizeString:

@@ -303,8 +303,8 @@ class TestExtractProducts:
         with pytest.raises(ValueError, match="Unknown product type"):
             _extract_products(b"fake-pdf", "nonexistent", "key", {})
 
-    @patch("datasheetminer.llm.generate_content")
-    @patch("datasheetminer.utils.parse_gemini_response")
+    @patch("specodex.llm.generate_content")
+    @patch("specodex.utils.parse_gemini_response")
     def test_no_products_raises(self, mock_parse, mock_gen):
         mock_gen.return_value = MagicMock()
         mock_parse.return_value = []
@@ -312,11 +312,11 @@ class TestExtractProducts:
         with pytest.raises(ValueError, match="no valid products"):
             _extract_products(b"pdf", "motor", "key", {"manufacturer": MFG})
 
-    @patch("datasheetminer.llm.generate_content")
-    @patch("datasheetminer.utils.parse_gemini_response")
-    @patch("datasheetminer.quality.filter_products")
+    @patch("specodex.llm.generate_content")
+    @patch("specodex.utils.parse_gemini_response")
+    @patch("specodex.quality.filter_products")
     def test_successful_extraction(self, mock_filter, mock_parse, mock_gen):
-        from datasheetminer.models.motor import Motor
+        from specodex.models.motor import Motor
 
         motor = Motor(
             product_name="TestMotor",

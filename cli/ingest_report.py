@@ -31,8 +31,8 @@ import sys
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List
 
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.ingest_log import STATUS_QUALITY_FAIL
+from specodex.db.dynamo import DynamoDBClient
+from specodex.ingest_log import STATUS_QUALITY_FAIL
 
 logger: logging.Logger = logging.getLogger("ingest-report")
 

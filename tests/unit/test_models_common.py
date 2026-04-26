@@ -4,7 +4,7 @@ Covers uncovered branches in handle_value_unit_input and handle_min_max_unit_inp
 """
 
 import pytest
-from datasheetminer.models.common import (
+from specodex.models.common import (
     _coerce_ip_rating,
     handle_value_unit_input,
     handle_min_max_unit_input,

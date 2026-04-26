@@ -2,7 +2,7 @@
 """CLI entry point for the product webpage scraper.
 
 Fetches JS-rendered product pages via Playwright, extracts specs using
-the same Gemini LLM pipeline as datasheetminer, and pushes results to
+the same Gemini LLM pipeline as specodex, and pushes results to
 DynamoDB. Operates in two modes:
 
   - **add** (default): create new product entries
@@ -26,19 +26,19 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from datasheetminer.config import SCHEMA_CHOICES
-from datasheetminer.db.dynamo import DynamoDBClient
-from datasheetminer.llm import generate_content
-from datasheetminer.models.product import ProductBase
-from datasheetminer.quality import filter_products
-from datasheetminer.utils import parse_gemini_response, validate_api_key, UUIDEncoder
+from specodex.config import SCHEMA_CHOICES
+from specodex.db.dynamo import DynamoDBClient
+from specodex.llm import generate_content
+from specodex.models.product import ProductBase
+from specodex.quality import filter_products
+from specodex.utils import parse_gemini_response, validate_api_key, UUIDEncoder
 
 from webscraper.browser import PageContent, fetch_page
 
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Same namespace used by datasheetminer.scraper for deterministic IDs.
+# Same namespace used by specodex.scraper for deterministic IDs.
 PRODUCT_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
 

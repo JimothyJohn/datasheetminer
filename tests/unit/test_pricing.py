@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from datasheetminer.pricing.extract import classify_url, extract_price
-from datasheetminer.pricing.fetch import FetchResult, PriceFetcher
-from datasheetminer.pricing.resolver import (
+from specodex.pricing.extract import classify_url, extract_price
+from specodex.pricing.fetch import FetchResult, PriceFetcher
+from specodex.pricing.resolver import (
     Candidate,
     resolve_candidates,
     source_type_for_domain,

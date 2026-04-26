@@ -102,7 +102,7 @@ def check_manufacturer_identity(scan: BaseModel) -> GuardVerdict:
     If the triage scan can't determine who makes the product, the
     extraction pipeline will also fail at ID generation.
     """
-    from datasheetminer.spec_rules import GENERIC_MANUFACTURERS
+    from specodex.spec_rules import GENERIC_MANUFACTURERS
 
     name = "manufacturer_identity"
     mfr = getattr(scan, "manufacturer", None)

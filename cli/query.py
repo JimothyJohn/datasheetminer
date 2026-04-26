@@ -118,14 +118,14 @@ def _json_out(data: Any, *, exit_code: int = 0) -> None:
 
 
 def _get_db():
-    from datasheetminer.db.dynamo import DynamoDBClient
+    from specodex.db.dynamo import DynamoDBClient
 
     table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
     return DynamoDBClient(table_name=table)
 
 
 def _get_model_class(product_type: str):
-    from datasheetminer.config import SCHEMA_CHOICES
+    from specodex.config import SCHEMA_CHOICES
 
     if product_type not in SCHEMA_CHOICES:
         valid = sorted(SCHEMA_CHOICES.keys())
@@ -143,7 +143,7 @@ def _fetch_products(product_type: str | None = None, limit: int | None = None) -
         cls = _get_model_class(product_type)
         return db.list(cls, limit=limit)
 
-    from datasheetminer.config import SCHEMA_CHOICES
+    from specodex.config import SCHEMA_CHOICES
 
     all_products: list = []
     for ptype in sorted(QUERYABLE_TYPES & set(SCHEMA_CHOICES)):
@@ -537,7 +537,7 @@ def cmd_find(args: argparse.Namespace) -> None:
 
 def cmd_types(_args: argparse.Namespace) -> None:
     """Show product type counts."""
-    from datasheetminer.config import SCHEMA_CHOICES
+    from specodex.config import SCHEMA_CHOICES
 
     db = _get_db()
     counts: dict[str, int] = {}
@@ -568,7 +568,7 @@ def cmd_fields(args: argparse.Namespace) -> None:
         _json_out({"error": "--type is required for fields"}, exit_code=1)
 
     cls = _get_model_class(args.type)
-    from datasheetminer.quality import spec_fields_for_model
+    from specodex.quality import spec_fields_for_model
 
     spec_names = spec_fields_for_model(cls)
     raw_annotations = cls.__annotations__

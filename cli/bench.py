@@ -82,7 +82,7 @@ def _save_cached_response(slug: str, data: dict[str, Any]) -> None:
 
 def _benchmark_page_finding(pdf_bytes: bytes) -> dict[str, Any]:
     """Run both old (binary) and new (scored) page detection and return metrics."""
-    from datasheetminer.page_finder import (
+    from specodex.page_finder import (
         find_spec_pages_by_text,
         find_spec_pages_scored,
     )
@@ -139,9 +139,9 @@ def _run_extraction(
     pages: list[int] | None,
 ) -> dict[str, Any]:
     """Run Gemini extraction and return metrics + raw response data."""
-    from datasheetminer.config import MODEL, SCHEMA_CHOICES
-    from datasheetminer.llm import generate_content
-    from datasheetminer.utils import parse_gemini_response, validate_api_key
+    from specodex.config import MODEL, SCHEMA_CHOICES
+    from specodex.llm import generate_content
+    from specodex.utils import parse_gemini_response, validate_api_key
 
     api_key = validate_api_key(os.environ.get("GEMINI_API_KEY"))
     product_type = fixture["product_type"]

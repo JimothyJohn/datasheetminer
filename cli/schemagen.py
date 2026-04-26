@@ -37,7 +37,7 @@ log = logging.getLogger("schemagen")
 
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS_DIR = ROOT / "datasheetminer" / "models"
+MODELS_DIR = ROOT / "specodex" / "models"
 COMMON_PY = MODELS_DIR / "common.py"
 
 # Gemini accepts PDF + these image mimes via Part.from_bytes. Keep the
@@ -203,8 +203,8 @@ def _run_verification(
     # Re-import to pick up the newly-added SCHEMA_CHOICES entry.
     import importlib
 
-    import datasheetminer.config as cfg
-    import datasheetminer.models as models_pkg
+    import specodex.config as cfg
+    import specodex.models as models_pkg
 
     importlib.reload(models_pkg)  # best-effort; submodules already imported
     importlib.reload(cfg)
@@ -218,8 +218,8 @@ def _run_verification(
         )
         return
 
-    from datasheetminer.llm import generate_content
-    from datasheetminer.utils import parse_gemini_response
+    from specodex.llm import generate_content
+    from specodex.utils import parse_gemini_response
 
     print(f"\n=== Verification pass: extracting with new {product_type!r} schema ===")
     is_image = mime_type.startswith("image/")
@@ -278,11 +278,11 @@ def main(argv: List[str] | None = None) -> int:
     class_name = args.class_name or _derive_class_name(args.product_type)
 
     # Import late so argparse --help doesn't require the dependencies.
-    from datasheetminer.config import SCHEMA_CHOICES
-    from datasheetminer.page_finder import find_spec_pages_by_text
-    from datasheetminer.schemagen.llm import propose_model
-    from datasheetminer.schemagen.prompt import build_field_registry
-    from datasheetminer.schemagen.renderer import (
+    from specodex.config import SCHEMA_CHOICES
+    from specodex.page_finder import find_spec_pages_by_text
+    from specodex.schemagen.llm import propose_model
+    from specodex.schemagen.prompt import build_field_registry
+    from specodex.schemagen.renderer import (
         render_model_file,
         render_product_type_patch,
         render_reasoning_doc,
@@ -291,7 +291,7 @@ def main(argv: List[str] | None = None) -> int:
     if args.product_type in SCHEMA_CHOICES:
         sys.exit(
             f"ERROR: product_type {args.product_type!r} is already registered "
-            "(found in datasheetminer/models/). Pick a different name, or "
+            "(found in specodex/models/). Pick a different name, or "
             "extend the existing model by hand."
         )
 
@@ -428,7 +428,7 @@ def main(argv: List[str] | None = None) -> int:
             "python",
             "-c",
             (
-                "from datasheetminer.config import SCHEMA_CHOICES; "
+                "from specodex.config import SCHEMA_CHOICES; "
                 f"assert {args.product_type!r} in SCHEMA_CHOICES, "
                 f"'{args.product_type} missing from SCHEMA_CHOICES'"
             ),

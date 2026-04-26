@@ -1,7 +1,7 @@
 """One-shot: clean up legacy ``"value;unit"`` strings stored in DynamoDB
 that bypassed ``DynamoDBClient._parse_compact_units`` at ingest time.
 
-The writer at ``datasheetminer/db/dynamo.py:71`` converts canonical
+The writer at ``specodex/db/dynamo.py:71`` converts canonical
 ``"value;unit"`` strings into ``{value, unit}`` dicts before
 ``put_item``. Any item whose string value still contains ``;`` was
 written before that step ran (or by a path that bypassed it).
@@ -55,7 +55,7 @@ load_dotenv(REPO / ".env")
 
 import boto3  # noqa: E402
 
-from datasheetminer.db.dynamo import DynamoDBClient  # noqa: E402
+from specodex.db.dynamo import DynamoDBClient  # noqa: E402
 
 GARBAGE_UNITS = {"null", "unknown", "none", "", "n/a", "tbd", "?", "na"}
 

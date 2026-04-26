@@ -236,7 +236,7 @@ def promote_pdf(
 
     Returns a summary dict with the new S3 key and datasheet_id.
     """
-    from datasheetminer.models.datasheet import Datasheet
+    from specodex.models.datasheet import Datasheet
 
     if s3_client is None:
         import boto3
@@ -246,7 +246,7 @@ def promote_pdf(
         )
 
     if dynamo_client is None:
-        from datasheetminer.db.dynamo import DynamoDBClient
+        from specodex.db.dynamo import DynamoDBClient
 
         table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
         dynamo_client = DynamoDBClient(table_name=table)
@@ -331,7 +331,7 @@ def intake_single(
         )
 
     if dynamo_client is None:
-        from datasheetminer.db.dynamo import DynamoDBClient
+        from specodex.db.dynamo import DynamoDBClient
 
         table = os.environ.get("DYNAMODB_TABLE_NAME", "products")
         dynamo_client = DynamoDBClient(table_name=table)

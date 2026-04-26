@@ -1,12 +1,12 @@
 """
 Queue processor — downloads PDFs from the S3 upload queue,
-runs them through the datasheetminer extraction pipeline,
+runs them through the specodex extraction pipeline,
 and writes results to DynamoDB.
 
 Usage:
     ./Quickstart process [--stage dev] [--once]
 
-Zero external dependencies beyond what datasheetminer already requires.
+Zero external dependencies beyond what specodex already requires.
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ def _get_s3_client():
 
 
 def _get_dynamo_client():
-    """Lazy-load the datasheetminer DynamoDB client."""
-    from datasheetminer.db.dynamo import DynamoDBClient
+    """Lazy-load the specodex DynamoDB client."""
+    from specodex.db.dynamo import DynamoDBClient
 
     return DynamoDBClient()
 
@@ -106,10 +106,10 @@ def process_pdf(
     Run the extraction pipeline on raw PDF bytes.
     Returns: 'success', 'skipped', or 'failed'
     """
-    from datasheetminer.config import SCHEMA_CHOICES
-    from datasheetminer.llm import generate_content
-    from datasheetminer.utils import parse_gemini_response
-    from datasheetminer.quality import filter_products
+    from specodex.config import SCHEMA_CHOICES
+    from specodex.llm import generate_content
+    from specodex.utils import parse_gemini_response
+    from specodex.quality import filter_products
 
     product_type = metadata["product_type"]
     manufacturer = metadata.get("manufacturer", "Unknown")
@@ -239,7 +239,7 @@ def update_datasheet_status(datasheet_id: str, status: str) -> None:
 
 def run(bucket: str, *, once: bool = False, api_key: str | None = None) -> None:
     """Main processing loop."""
-    from datasheetminer.utils import validate_api_key
+    from specodex.utils import validate_api_key
 
     key = api_key or os.environ.get("GEMINI_API_KEY")
     validated_key = validate_api_key(key)

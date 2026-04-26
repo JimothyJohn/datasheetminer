@@ -5,7 +5,7 @@ Related: todo/fundamental-flaws.md (flaw #1).
 Two corruption patterns are detected:
 
 1. Multi-semicolon strings like "1;2;V" — `_parse_compact_units` in
-   datasheetminer/db/dynamo.py uses a greedy `(.*)` capture for the unit
+   specodex/db/dynamo.py uses a greedy `(.*)` capture for the unit
    portion, so these read back as {value=1, unit="2;V"} instead of falling
    through to the passthrough path.
 
@@ -40,7 +40,7 @@ from typing import Any, Iterator
 
 import boto3  # type: ignore
 
-from datasheetminer.config import REGION, TABLE_NAME
+from specodex.config import REGION, TABLE_NAME
 
 
 logger: logging.Logger = logging.getLogger("dsm.audit-units")

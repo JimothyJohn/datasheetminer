@@ -23,7 +23,7 @@ router.get('/docs', (_req: Request, res: Response) => {
   res.type('html').send(`<!DOCTYPE html>
 <html>
 <head>
-  <title>DatasheetMiner API Docs</title>
+  <title>Specodex API Docs</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
