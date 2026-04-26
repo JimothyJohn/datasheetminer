@@ -6,6 +6,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { FilterCriterion, AttributeMetadata, getAvailableOperators } from '../types/filters';
 import { Product } from '../types/models';
+import { useApp } from '../context/AppContext';
+import {
+  toCanonical,
+  toDisplay,
+  displayUnit,
+} from '../utils/unitConversion';
 
 interface FilterChipProps {
   filter: FilterCriterion;
@@ -69,6 +75,7 @@ export default function FilterChip({
   attributeMetadata,
   allProducts
 }: FilterChipProps) {
+  const { unitSystem } = useApp();
   const [editValue, setEditValue] = useState(() => {
     if (filter.value !== undefined && !Array.isArray(filter.value)) {
       return String(filter.value);
@@ -219,6 +226,16 @@ export default function FilterChip({
     });
   };
 
+  // Filter state stays canonical metric. When the user types a number
+  // into a unit-bearing field with imperial display active, convert
+  // their imperial input back to canonical before storing.
+  const canonicalizeInput = (n: number): number => {
+    if (attributeMetadata?.unit) {
+      return toCanonical(n, attributeMetadata.unit, unitSystem);
+    }
+    return n;
+  };
+
   // Update filter value on every keystroke for real-time filtering
   const handleValueChange = (newValue: string) => {
     setEditValue(newValue);
@@ -243,7 +260,7 @@ export default function FilterChip({
       if (!isMultiSelectField) {
         // Try to parse as number
         const numValue = parseFloat(newValue);
-        const finalValue = !isNaN(numValue) ? numValue : newValue.trim();
+        const finalValue = !isNaN(numValue) ? canonicalizeInput(numValue) : newValue.trim();
         onUpdate({ ...filter, value: finalValue });
       }
     } else {
@@ -277,6 +294,8 @@ export default function FilterChip({
       // Single value - replace existing
       setEditValue(String(value));
       const numValue = parseFloat(String(value));
+      // Suggestions come from canonical-metric records, so don't
+      // re-canonicalize numeric suggestions even when imperial is active.
       const finalValue = !isNaN(numValue) ? numValue : value;
       onUpdate({ ...filter, value: finalValue });
       setShowDropdown(false);
@@ -421,43 +440,53 @@ export default function FilterChip({
 
 
 
-        {/* Render slider for numeric ValueUnit/MinMaxUnit fields */}
-        {showSlider && rangeInfo ? (
-          <div className="filter-slider-wrapper">
-            <div className="filter-slider-range-labels">
-              <span>{rangeInfo.min}</span>
-              <span>{rangeInfo.max}</span>
+        {/* Render slider for numeric ValueUnit/MinMaxUnit fields. The
+            slider operates in *canonical* metric (filter state stays
+            metric), while the labels and current-value readout convert
+            to the active display system. This keeps comparators and
+            sort logic untouched. */}
+        {showSlider && rangeInfo ? (() => {
+          const dispMin = toDisplay(rangeInfo.min, rangeInfo.unit, unitSystem);
+          const dispMax = toDisplay(rangeInfo.max, rangeInfo.unit, unitSystem);
+          const dispCurrent = toDisplay(localSliderValue, rangeInfo.unit, unitSystem);
+          const dispUnit = displayUnit(rangeInfo.unit, unitSystem);
+          return (
+            <div className="filter-slider-wrapper">
+              <div className="filter-slider-range-labels">
+                <span>{dispMin}</span>
+                <span>{dispMax}</span>
+              </div>
+              <div className="filter-slider-track-container">
+                <div
+                  className="filter-slider-active-region"
+                  style={{
+                    left: (filter.operator === '<' || filter.operator === '<=')
+                      ? '0%'
+                      : `${sliderPercent}%`,
+                    right: (filter.operator === '<' || filter.operator === '<=')
+                      ? `${100 - sliderPercent}%`
+                      : '0%',
+                  }}
+                />
+                <input
+                  type="range"
+                  className="filter-slider"
+                  min={rangeInfo.min}
+                  max={rangeInfo.max}
+                  step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
+                  value={localSliderValue}
+                  onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div className="filter-slider-value">
+                <span className="filter-slider-operator">{filter.operator || '>='}</span>
+                {' '}{dispCurrent.toFixed(1)} {dispUnit}
+              </div>
             </div>
-            <div className="filter-slider-track-container">
-              <div
-                className="filter-slider-active-region"
-                style={{
-                  left: (filter.operator === '<' || filter.operator === '<=')
-                    ? '0%'
-                    : `${sliderPercent}%`,
-                  right: (filter.operator === '<' || filter.operator === '<=')
-                    ? `${100 - sliderPercent}%`
-                    : '0%',
-                }}
-              />
-              <input
-                type="range"
-                className="filter-slider"
-                min={rangeInfo.min}
-                max={rangeInfo.max}
-                step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
-                value={localSliderValue}
-                onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <div className="filter-slider-value">
-              <span className="filter-slider-operator">{filter.operator || '>='}</span>
-              {' '}{localSliderValue.toFixed(1)} {rangeInfo.unit}
-            </div>
-          </div>
-        ) : (
+          );
+        })() : (
           // Render text input for non-slider fields
           <div className="filter-input-wrapper" ref={wrapperRef}>
             <input

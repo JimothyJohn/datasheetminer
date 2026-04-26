@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Product } from '../types/models';
+import { useApp } from '../context/AppContext';
+import { toDisplay } from '../utils/unitConversion';
 
 interface DistributionChartProps {
   products: Product[];
@@ -8,25 +10,42 @@ interface DistributionChartProps {
 }
 
 export default function DistributionChart({ products, attribute, title }: DistributionChartProps) {
-  const getValue = (product: any, path: string): string => {
-    if (!product) return 'Unknown';
+  const { unitSystem } = useApp();
+
+  const resolve = (product: any, path: string): any => {
+    if (!product) return null;
     if (path.includes('.')) {
       const parts = path.split('.');
       let current = product;
       for (const part of parts) {
-        if (current === null || current === undefined) return 'Unknown';
+        if (current === null || current === undefined) return null;
         current = current[part];
       }
-      return formatValue(current);
+      return current;
     }
-    return formatValue(product[path]);
+    return product[path];
   };
 
-  const formatValue = (val: any): string => {
+  // Bucket by canonical value (so toggling units doesn't reshuffle the
+  // chart), but render labels through toDisplay() so imperial readers
+  // see imperial numbers. Unit string is sniffed from the first value
+  // that carries one — for ValueUnit/MinMaxUnit fields they all match.
+  const formatLabel = (val: any, unit: string | null): string => {
     if (val === null || val === undefined) return 'Unknown';
     if (typeof val === 'object') {
-      if ('value' in val) return String(val.value);
-      if ('min' in val && 'max' in val) return `${val.min}-${val.max}`;
+      if ('value' in val) {
+        const u = val.unit ?? unit ?? '';
+        return typeof val.value === 'number' && u
+          ? String(toDisplay(val.value, u, unitSystem))
+          : String(val.value);
+      }
+      if ('min' in val && 'max' in val) {
+        const u = val.unit ?? unit ?? '';
+        if (u && typeof val.min === 'number' && typeof val.max === 'number') {
+          return `${toDisplay(val.min, u, unitSystem)}-${toDisplay(val.max, u, unitSystem)}`;
+        }
+        return `${val.min}-${val.max}`;
+      }
       return JSON.stringify(val);
     }
     return String(val);
@@ -36,9 +55,28 @@ export default function DistributionChart({ products, attribute, title }: Distri
     const counts: Record<string, number> = {};
     let total = 0;
 
+    // First pass: sniff the canonical unit for this attribute so the
+    // label formatter can convert consistently regardless of which
+    // record happens to be first.
+    let attrUnit: string | null = null;
+    for (const product of products) {
+      const raw = resolve(product, attribute);
+      if (
+        raw !== null
+        && typeof raw === 'object'
+        && raw !== null
+        && 'unit' in raw
+        && typeof raw.unit === 'string'
+      ) {
+        attrUnit = raw.unit;
+        break;
+      }
+    }
+
     products.forEach(product => {
-      const value = getValue(product, attribute);
-      counts[value] = (counts[value] || 0) + 1;
+      const raw = resolve(product, attribute);
+      const label = formatLabel(raw, attrUnit);
+      counts[label] = (counts[label] || 0) + 1;
       total++;
     });
 
@@ -64,7 +102,7 @@ export default function DistributionChart({ products, attribute, title }: Distri
     }
 
     return { items: result, total };
-  }, [products, attribute]);
+  }, [products, attribute, unitSystem]);
 
   const colors = ['#3b82f6', '#10b981', '#f59e0b'];
 

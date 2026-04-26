@@ -1,11 +1,11 @@
 {
-  "name": "DatasheetMiner - Product Search",
-  "short_name": "DatasheetMiner",
-  "description": "Search and filter motors and drives with advanced filtering capabilities",
+  "name": "Specodex — Product selection",
+  "short_name": "Specodex",
+  "description": "Specodex — a product selection frontend for industrial spec data. Filter chips, metric/imperial toggle, datasheet links, BOM-style export.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1e1b",
-  "theme_color": "#242a25",
+  "background_color": "#1a1a14",
+  "theme_color": "#3b4a2a",
   "orientation": "any",
   "icons": [
     {

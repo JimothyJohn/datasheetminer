@@ -3,6 +3,11 @@
  */
 
 import { isPlaceholder } from './sanitize';
+import {
+  UnitSystem,
+  convertValueUnit,
+  convertMinMaxUnit,
+} from './unitConversion';
 
 /**
  * Format a snake_case property key into a properly capitalized label
@@ -63,7 +68,12 @@ export const formatPropertyLabel = (key: string): string => {
  * @param maxDepth - Maximum recursion depth (default: 5)
  * @returns Formatted string representation
  */
-export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5): string => {
+export const formatValue = (
+  value: any,
+  depth: number = 0,
+  maxDepth: number = 5,
+  system: UnitSystem = 'metric',
+): string => {
   // Prevent infinite recursion
   if (depth > maxDepth) {
     return '[Max depth exceeded]';
@@ -85,43 +95,49 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
     // Check if array contains objects with value/unit pattern
     if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
       if ('value' in value[0] && 'unit' in value[0]) {
-        const formattedValues = value.map(item => String(item.value)).join(', ');
-        const commonUnit = value[0].unit;
+        const converted = value.map(item => convertValueUnit(item, system));
+        const formattedValues = converted.map(item => String(item.value)).join(', ');
+        const commonUnit = converted[0].unit;
         return `${formattedValues} ${commonUnit}`;
       }
-      
+
       // Check if array contains objects with min/max/unit pattern
       if ('min' in value[0] && 'max' in value[0] && 'unit' in value[0]) {
-         const formattedValues = value.map(item => `${item.min}-${item.max}`).join(', ');
-         const commonUnit = value[0].unit;
+         const converted = value.map(item => convertMinMaxUnit(item, system));
+         const formattedValues = converted.map(item => `${item.min}-${item.max}`).join(', ');
+         const commonUnit = converted[0].unit;
          return `${formattedValues} ${commonUnit}`;
       }
     }
 
     // Otherwise, recursively format each element
-    return value.map(item => formatValue(item, depth + 1, maxDepth)).join(', ');
+    return value.map(item => formatValue(item, depth + 1, maxDepth, system)).join(', ');
   }
 
   // Handle objects
   if (typeof value === 'object') {
     // Pattern: { value, unit }
     if ('value' in value && 'unit' in value) {
-      return `${value.value} ${value.unit}`;
+      const c = convertValueUnit(value, system);
+      return `${c.value} ${c.unit}`;
     }
 
     // Pattern: { min, max, unit }
     if ('min' in value && 'max' in value && 'unit' in value) {
-      return `${value.min}-${value.max} ${value.unit}`;
+      const c = convertMinMaxUnit(value, system);
+      return `${c.min}-${c.max} ${c.unit}`;
     }
 
     // Pattern: { nominal, unit }
     if ('nominal' in value && 'unit' in value) {
-      return `${value.nominal} ${value.unit}`;
+      const c = convertValueUnit({ value: value.nominal, unit: value.unit }, system);
+      return `${c.value} ${c.unit}`;
     }
 
     // Pattern: { rated, unit }
     if ('rated' in value && 'unit' in value) {
-      return `${value.rated} ${value.unit}`;
+      const c = convertValueUnit({ value: value.rated, unit: value.unit }, system);
+      return `${c.value} ${c.unit}`;
     }
 
     // Pattern: { min, max } without unit
@@ -137,31 +153,41 @@ export const formatValue = (value: any, depth: number = 0, maxDepth: number = 5)
     const unitEntry = entries.find(([key]) => key.toLowerCase() === 'unit');
 
     if (unitEntry) {
+      const canonicalUnit = String(unitEntry[1]);
       const numericEntries = entries.filter(([key, val]) =>
         key.toLowerCase() !== 'unit' && typeof val === 'number'
       );
 
       if (numericEntries.length > 0 && numericEntries.length === entries.length - 1) {
-        // All non-unit entries are numeric
-        const formatted = numericEntries.map(([key, val]) =>
+        // All non-unit entries are numeric — convert each through the
+        // common unit so dimensions {width, height, depth, unit: "mm"}
+        // flip cleanly when the unit toggle flips.
+        const converted = numericEntries.map(([key, val]) => {
+          const c = convertValueUnit({ value: val as number, unit: canonicalUnit }, system);
+          return [key, c.value, c.unit] as const;
+        });
+        const finalUnit = converted[0]?.[2] ?? canonicalUnit;
+        const formatted = converted.map(([key, val]) =>
           `${formatPropertyLabel(key)}: ${val}`
         ).join(', ');
-        return `${formatted} ${unitEntry[1]}`;
+        return `${formatted} ${finalUnit}`;
       }
     }
 
     // Generic nested object: format as key-value pairs
     const formattedEntries = entries
       .filter(([key]) => key.toLowerCase() !== 'unit') // Filter out standalone unit keys
-      .map(([key, val]) => ({ label: formatPropertyLabel(key), formattedVal: formatValue(val, depth + 1, maxDepth) }))
+      .map(([key, val]) => ({ label: formatPropertyLabel(key), formattedVal: formatValue(val, depth + 1, maxDepth, system) }))
       .filter(({ formattedVal }) => formattedVal !== '')
       .map(({ label, formattedVal }) => `${label}: ${formattedVal}`);
 
     if (formattedEntries.length === 0) return '';
 
-    // If there was a unit at this level, append it
+    // If there was a unit at this level, append it (in the active system)
     if (unitEntry) {
-      return `${formattedEntries.join(', ')} ${unitEntry[1]}`;
+      const canonicalUnit = String(unitEntry[1]);
+      const c = convertValueUnit({ value: 0, unit: canonicalUnit }, system);
+      return `${formattedEntries.join(', ')} ${c.unit}`;
     }
 
     return formattedEntries.join(', ');

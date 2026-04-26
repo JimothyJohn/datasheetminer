@@ -23,11 +23,13 @@
  */
 
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import ThemeToggle from './components/ThemeToggle';
+import UnitToggle from './components/UnitToggle';
 import NetworkStatus from './components/NetworkStatus';
 import ErrorBoundary from './components/ErrorBoundary';
+import BuildTray from './components/BuildTray';
 import './App.css';
 
 // ========== App Mode ==========
@@ -37,6 +39,11 @@ const isAdmin = APP_MODE === 'admin';
 
 // ========== Eager Imports ==========
 import ProductList from './components/ProductList';
+
+// ========== Lazy Imports ==========
+// Welcome (Specodex landing) — Stage 1 rebrand. Lazy because most users
+// land directly on the catalog at "/"; the marketing surface is opt-in.
+const Welcome = lazy(() => import('./components/Welcome'));
 
 
 // ========== Lazy Imports (admin-only, tree-shaken in public builds) ==========
@@ -78,49 +85,74 @@ function LoadingFallback() {
   );
 }
 
+function AppShell() {
+  // The Specodex landing renders its own chrome (OD-green band, footer)
+  // and shouldn't sit underneath the existing "Product Search" header.
+  const { pathname } = useLocation();
+  const isLanding = pathname === '/welcome';
+
+  return (
+    <>
+      {/* ===== NETWORK STATUS INDICATOR ===== */}
+      {/* Shows banner when offline (mobile & desktop) */}
+      <NetworkStatus />
+
+      <div className="app">
+        {!isLanding && (
+          <header className="header">
+            <div className="header-left">
+              <h1>
+                <NavLink to="/welcome" className="header-wordmark-link" aria-label="Specodex landing">
+                  SPECODEX
+                </NavLink>
+              </h1>
+              <nav className="nav-inline">
+                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
+                {isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
+                {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
+                {isAdmin && <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>}
+              </nav>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <UnitToggle />
+              <ThemeToggle />
+            </div>
+          </header>
+        )}
+
+        {/* ===== ROUTES WITH SUSPENSE + ERROR BOUNDARY ===== */}
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* ProductList: Eager loaded (default view, always available) */}
+              <Route path="/" element={<ProductList />} />
+
+              {/* Specodex landing (Stage 1 rebrand) */}
+              <Route path="/welcome" element={<Welcome />} />
+
+              {/* Admin-only routes (hidden in public mode) */}
+              {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}
+              {ProductManagement && <Route path="/management" element={<ProductManagement />} />}
+              {AdminPanel && <Route path="/admin" element={<AdminPanel />} />}
+
+              {/* Catch-all: Redirect to products */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+        {!isLanding && <BuildTray />}
+      </div>
+    </>
+  );
+}
+
 function App() {
   console.log('[App] Rendering application');
 
   return (
     <AppProvider>
       <BrowserRouter>
-        {/* ===== NETWORK STATUS INDICATOR ===== */}
-        {/* Shows banner when offline (mobile & desktop) */}
-        <NetworkStatus />
-
-        <div className="app">
-          {/* ===== HEADER WITH INLINE NAVIGATION ===== */}
-          <header className="header">
-            <div className="header-left">
-              <h1>Product Search</h1>
-              <nav className="nav-inline">
-                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
-{isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
-                {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
-                {isAdmin && <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>}
-              </nav>
-            </div>
-            <ThemeToggle />
-          </header>
-
-          {/* ===== ROUTES WITH SUSPENSE + ERROR BOUNDARY ===== */}
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                {/* ProductList: Eager loaded (default view, always available) */}
-                <Route path="/" element={<ProductList />} />
-
-                {/* Admin-only routes (hidden in public mode) */}
-                {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}
-                {ProductManagement && <Route path="/management" element={<ProductManagement />} />}
-                {AdminPanel && <Route path="/admin" element={<AdminPanel />} />}
-
-                {/* Catch-all: Redirect to products */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </ErrorBoundary>
-        </div>
+        <AppShell />
       </BrowserRouter>
     </AppProvider>
   );

@@ -1,56 +1,61 @@
-/* CSS Variables for theming - Earthy Green Aesthetic */
+/* CSS Variables — Specodex army-green / mil-spec palette (rebrand stage 2).
+ * Mapped to the manila/OD/ink/stencil/stamp palette in todo/REBRAND.md.
+ * Variable names stay identical to the previous earthy-green theme so
+ * existing consumers across the app inherit the rebrand for free. */
 :root[data-theme="light"] {
   /* Product grid layout variables */
   --product-grid-padding: 0.8rem;
   --product-grid-gap: 1.2rem;
   --product-part-width: 120px;
 
-  /* Warm cream/stone backgrounds */
-  --bg-primary: #f3f2ed;
-  --bg-secondary: #e9e7e0;
-  --bg-tertiary: #dbd9d0;
-  --bg-gradient-start: #f5f4ef;
-  --bg-gradient-end: #eceae3;
+  /* Manila / aged-paper backgrounds */
+  --bg-primary: #e8e2c9;
+  --bg-secondary: #ddd5b6;
+  --bg-tertiary: #c8be9c;
+  --bg-gradient-start: #e8e2c9;
+  --bg-gradient-end: #e8e2c9;
 
-  /* Earthy brown-green text */
-  --text-primary: #2e3028;
-  --text-secondary: #5c5a4e;
-  --text-tertiary: #8e8c7e;
+  /* Manual-ink text (avoid pure black per palette spec) */
+  --text-primary: #1a1a14;
+  --text-secondary: #3a3a2e;
+  --text-tertiary: #6a6a56;
 
-  /* Warm stone borders */
-  --border-color: #c8c5b8;
-  --border-color-light: #dad8ce;
+  /* Hairline rules — ink for primary, muted khaki for secondary */
+  --border-color: #5c5c4a;
+  --border-color-light: #b8ac85;
 
-  /* Olive-sage accents */
-  --accent-primary: #7b8a68;
-  --accent-secondary: #6a7858;
-  --accent-gradient-start: #7b8a68;
-  --accent-gradient-end: #82906e;
+  /* Khaki-amber accents (highlighter on a field manual, used sparingly).
+   * Replaced stencil orange to stop the OD-green chrome reading "Christmas". */
+  --accent-primary: #9c7a16;
+  --accent-secondary: #7d6112;
+  --accent-gradient-start: #9c7a16;
+  --accent-gradient-end: #9c7a16;
 
-  /* Card with warm cream background */
-  --card-bg: #f5f4ef;
-  --card-border: #dad8ce;
+  /* Card on slightly lighter paper */
+  --card-bg: #efead2;
+  --card-border: #b8ac85;
 
-  /* Warm olive header */
-  --header-bg-start: #3a3d32;
-  --header-bg-end: #4a4d42;
-  --header-text: #f3f2ed;
+  /* OD-green chrome (army olive drab #7) */
+  --header-bg-start: #3b4a2a;
+  --header-bg-end: #3b4a2a;
+  --header-text: #e8e2c9;
 
   /* Navigation */
-  --nav-bg: #f5f4ef;
-  --nav-border: #dad8ce;
+  --nav-bg: #ddd5b6;
+  --nav-border: #b8ac85;
 
   /* Softer shadows */
-  --shadow-sm: rgba(50, 48, 40, 0.06);
-  --shadow-md: rgba(50, 48, 40, 0.10);
-  --shadow-lg: rgba(50, 48, 40, 0.14);
-  --shadow-xl: rgba(50, 48, 40, 0.18);
-  --glow-accent: rgba(123, 138, 104, 0.2);
+  --shadow-sm: rgba(26, 26, 20, 0.06);
+  --shadow-md: rgba(26, 26, 20, 0.10);
+  --shadow-lg: rgba(26, 26, 20, 0.14);
+  --shadow-xl: rgba(26, 26, 20, 0.18);
+  --glow-accent: rgba(156, 122, 22, 0.20);
 
-  /* Muted status colors */
-  --success: #7b8a68;
-  --warning: #b5a476;
-  --danger: #a87a68;
+  /* Status colors — ink for success (was olive, fed the Christmas vibe),
+   * amber for warning, stamp-red for danger. */
+  --success: #5c5c4a;
+  --warning: #c8941a;
+  --danger: #7a1f1f;
 }
 
 :root[data-theme="dark"],
@@ -67,53 +72,58 @@
    * cross-platform monospace fonts so we don't rely on IBM Plex Mono
    * being installed. */
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Courier New', monospace;
+  --font-headline: 'Oswald', 'Roboto Condensed', 'Arial Narrow', sans-serif;
 
-  /* Deep warm backgrounds with olive undertones */
-  --bg-primary: #1b1d19;
-  --bg-secondary: #252821;
-  --bg-tertiary: #33362e;
-  --bg-gradient-start: #1b1d19;
-  --bg-gradient-end: #252821;
+  /* Deep ink + OD undertones */
+  --bg-primary: #1a1a14;
+  --bg-secondary: #25241b;
+  --bg-tertiary: #2c3820;
+  --bg-gradient-start: #1a1a14;
+  --bg-gradient-end: #1a1a14;
 
-  /* Warm cream text */
-  --text-primary: #e3e2dc;
-  --text-secondary: #b8b5ab;
-  --text-tertiary: #8e8c80;
+  /* Manila / paper text on dark — tertiary used to be muted olive
+   * (#7a8a5a), which read green against amber accents. Now warm sand. */
+  --text-primary: #e8e2c9;
+  --text-secondary: #b8ac85;
+  --text-tertiary: #a09c80;
 
-  /* Warm olive borders */
-  --border-color: #3a3d34;
-  --border-color-light: #30322b;
+  /* Warm-ink borders — were OD; pulled green out so the only OD surface
+   * left in dark theme is the header bar (chrome only, per REBRAND.md). */
+  --border-color: #5c5c4a;
+  --border-color-light: #3a3a2e;
 
-  /* Olive-sage accents */
-  --accent-primary: #8b9874;
-  --accent-secondary: #7b8865;
-  --accent-gradient-start: #8b9874;
-  --accent-gradient-end: #919c7a;
+  /* Khaki-amber accents (brighter for dark-bg contrast; same hue family
+   * as light theme). Replaced stencil orange to kill the green+orange
+   * Christmas read. */
+  --accent-primary: #d4a52a;
+  --accent-secondary: #e8b840;
+  --accent-gradient-start: #d4a52a;
+  --accent-gradient-end: #d4a52a;
 
-  /* Cards with warm dark background */
-  --card-bg: #252821;
-  --card-border: #3a3d34;
+  /* Cards on shaded ink — border now warm gray, not OD */
+  --card-bg: #25241b;
+  --card-border: #5c5c4a;
 
-  /* Header */
-  --header-bg-start: #1b1d19;
-  --header-bg-end: #252821;
-  --header-text: #e3e2dc;
+  /* OD-deep header on dark — last remaining OD surface (intentional) */
+  --header-bg-start: #2c3820;
+  --header-bg-end: #2c3820;
+  --header-text: #e8e2c9;
 
   /* Navigation */
-  --nav-bg: #252821;
-  --nav-border: #3a3d34;
+  --nav-bg: #25241b;
+  --nav-border: #5c5c4a;
 
   /* Softer shadows */
   --shadow-sm: rgba(0, 0, 0, 0.18);
   --shadow-md: rgba(0, 0, 0, 0.22);
   --shadow-lg: rgba(0, 0, 0, 0.28);
   --shadow-xl: rgba(0, 0, 0, 0.32);
-  --glow-accent: rgba(139, 152, 116, 0.15);
+  --glow-accent: rgba(212, 165, 42, 0.18);
 
-  /* Muted status colors */
-  --success: #8b9874;
-  --warning: #b5a476;
-  --danger: #b08674;
+  /* Status colors — success was olive (read green), now warm sand */
+  --success: #a09c80;
+  --warning: #c8941a;
+  --danger: #a03525;
 }
 
 * {
@@ -126,7 +136,7 @@ body {
   font-family: var(--font-mono);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   letter-spacing: 0;
   font-weight: 400;
@@ -142,21 +152,17 @@ body {
 }
 
 .header {
-  background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
-  backdrop-filter: blur(20px);
-  color: var(--text-primary);
+  background-color: var(--header-bg-start);
+  color: var(--header-text);
   padding: 0.6rem 1.5rem;
-  box-shadow:
-    0 4px 12px var(--shadow-md),
-    0 8px 24px var(--shadow-sm),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--text-primary);
+  box-shadow: 0 2px 6px var(--shadow-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .header-left {
@@ -166,14 +172,25 @@ body {
 }
 
 .header h1 {
-  font-size: 1.3rem;
+  font-family: var(--font-headline);
+  font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-gradient-start), var(--accent-gradient-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
+  color: var(--header-text);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
   margin: 0;
+  line-height: 1;
+}
+
+.header-wordmark-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.header-wordmark-link:hover,
+.header-wordmark-link:focus-visible {
+  color: var(--accent-primary);
+  outline: none;
 }
 
 .theme-toggle {
@@ -220,30 +237,32 @@ body {
 .nav-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.8rem;
+  padding: 0.4rem 0.85rem;
   text-decoration: none;
-  color: var(--bg-primary);
-  background: var(--accent-primary);
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0;
+  color: var(--header-text);
+  background: transparent;
+  border: 1px solid rgba(232, 226, 201, 0.35);
+  border-radius: 2px;
+  font-family: var(--font-headline);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px var(--shadow-sm);
+  transition: background-color 0.12s linear, color 0.12s linear, border-color 0.12s linear;
 }
 
 .nav-btn:hover {
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
+  background: var(--header-text);
+  color: var(--header-bg-start);
+  border-color: var(--header-text);
 }
 
 .nav-btn.active {
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
-  font-weight: 700;
-  box-shadow: 0 2px 6px var(--shadow-md);
+  background: var(--accent-primary);
+  color: var(--header-text);
+  border-color: var(--accent-primary);
+  font-weight: 600;
 }
 
 .container {
@@ -318,7 +337,7 @@ body {
 }
 
 .product-list {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -380,9 +399,9 @@ body {
 .filter-bar {
   margin-bottom: 1.5rem;
   padding: 1.5rem;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px var(--shadow-sm);
 }
 
 .filter-bar-header {
@@ -403,10 +422,11 @@ body {
 
 .filter-bar-select {
   padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 1rem;
-  background: white;
+  background: var(--card-bg);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -860,11 +880,11 @@ body {
   margin-top: 1rem;
   padding: 1rem;
   text-align: center;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px var(--shadow-sm);
 }
 
 button {
@@ -971,8 +991,8 @@ button.secondary:hover {
 /* Filter section - centered and prominent */
 .filter-section {
   padding: 3rem 2rem;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 /* Minimal filter bar */
@@ -981,15 +1001,15 @@ button.secondary:hover {
 }
 
 .filter-sidebar-title {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-family: var(--font-headline);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
   color: var(--text-primary);
   margin-bottom: 0.6rem;
   padding-bottom: 0.4rem;
-  background: linear-gradient(90deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  border-bottom: 1px solid var(--text-primary);
   position: relative;
 }
 
@@ -2354,27 +2374,35 @@ button.secondary:hover {
   margin: 0;
 }
 
-/* Column headers for product grid */
+/* Column headers for product grid — mil-spec: uppercase, hairline above
+ * and below, no banding, flat fill. */
 .product-grid-headers {
   display: table-row;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: var(--bg-secondary);
 }
 
 .product-grid-header-item {
   display: table-cell;
   vertical-align: middle;
   text-align: center;
-  padding: 0.3rem 0.4rem;
-  border-bottom: 2px solid var(--border-color);
+  padding: 0.4rem 0.4rem;
+  border-top: 1px solid var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
   position: relative;
   background: var(--bg-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--font-headline);
+  font-weight: 500;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-primary);
 }
 
 .product-grid-header-item.clickable {
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.12s linear;
 }
 
 .product-grid-header-item.clickable:hover {
@@ -3596,22 +3624,29 @@ button:hover,
   font-weight: 700;
 }
 
-/* Data table styling */
+/* Data table styling — mil-spec: uppercase headers, hairline rules above
+ * and below header row, no row banding (per todo/REBRAND.md). */
 table {
   border-collapse: collapse;
   width: 100%;
 }
 
 table th {
-  font-weight: 600;
-  border-bottom: 2px solid var(--border-color);
+  font-family: var(--font-headline);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-top: 1px solid var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
   padding: 0.5rem 0.75rem;
   text-align: left;
-  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: transparent;
 }
 
 table td {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color-light);
   padding: 0.5rem 0.75rem;
   font-weight: 400;
 }
@@ -3810,5 +3845,363 @@ hr::after {
 .numeric-display {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
+}
+
+/* ============================================================================
+ * Compatibility checker — ProductDetailModal "Check against another" panel.
+ * Fits-partial mode: only `ok` and `partial` statuses ever appear.
+ * ============================================================================ */
+
+.compat-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.compat-badge-ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.compat-badge-partial {
+  background: rgba(234, 179, 8, 0.12);
+  color: #b45309;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+.compat-checker {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--border-color);
+}
+
+.compat-checker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.compat-type-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.compat-type-tab {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.compat-type-tab.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.compat-type-tab-dot {
+  margin-left: 0.25rem;
+  color: var(--accent-primary);
+}
+
+.compat-type-tab.active .compat-type-tab-dot {
+  color: white;
+}
+
+.compat-candidate-tag {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-radius: 9999px;
+  vertical-align: 1px;
+}
+
+.compat-candidate.active .compat-candidate-tag {
+  background: var(--bg-primary);
+  color: var(--accent-primary);
+}
+
+.compat-picker {
+  margin-bottom: 0.75rem;
+}
+
+.compat-search {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.compat-candidate-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color-light);
+  border-radius: 4px;
+}
+
+.compat-candidate {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-color-light);
+  cursor: pointer;
+}
+
+.compat-candidate:last-child {
+  border-bottom: none;
+}
+
+.compat-candidate:hover {
+  background: var(--bg-secondary);
+}
+
+.compat-candidate.active {
+  background: var(--accent-gradient-start);
+  color: white;
+}
+
+.compat-hint {
+  margin: 0.25rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.compat-error {
+  margin: 0.25rem 0;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.compat-overall {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.compat-junction {
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border-color-light);
+}
+
+.compat-junction-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* "Add to build" / "Replace" button below CompatChecker */
+.build-add-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border-color-light);
+}
+
+.build-add-btn {
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.build-add-btn:hover {
+  filter: brightness(1.1);
+}
+
+.build-add-btn-remove {
+  background: transparent;
+  color: var(--accent-primary);
+}
+
+/* ============================================================================
+ * Build tray — sticky bottom strip showing the in-progress motion system.
+ * ============================================================================ */
+
+.build-tray {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--accent-primary);
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.build-tray-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.build-tray-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
+}
+
+.build-tray-slot-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.build-tray-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  font-size: 0.85rem;
+}
+
+.build-tray-slot.empty {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.build-tray-slot-type {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.build-tray-slot-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.build-tray-slot-empty {
+  font-style: italic;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.build-tray-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+
+.build-tray-remove:hover {
+  color: var(--accent-primary);
+}
+
+.build-tray-junction {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0.1rem;
+}
+
+.build-tray-arrow {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.build-tray-clear {
+  margin-left: auto;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.build-tray-clear:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Banner at top of ProductList showing how many compatible items remain. */
+.compat-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.compat-filter-banner-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
 }
 

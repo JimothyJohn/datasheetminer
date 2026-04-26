@@ -123,4 +123,35 @@ describe('formatValue', () => {
   it('returns empty string for object with all missing values', () => {
     expect(formatValue({ a: null, b: undefined })).toBe('');
   });
+
+  it('default (no system arg) keeps metric output stable', () => {
+    expect(formatValue({ value: 100, unit: 'N' })).toBe('100 N');
+  });
+
+  it('imperial flips ValueUnit (Nm → in·lb)', () => {
+    const out = formatValue({ value: 1, unit: 'Nm' }, 0, 5, 'imperial');
+    expect(out).toContain('in·lb');
+    expect(out).toMatch(/^8\.85/);
+  });
+
+  it('imperial flips MinMaxUnit temperature with offset', () => {
+    expect(
+      formatValue({ min: -20, max: 60, unit: '°C' }, 0, 5, 'imperial'),
+    ).toBe('-4-140 °F');
+  });
+
+  it('imperial leaves voltage (no idiomatic imperial) unchanged', () => {
+    expect(formatValue({ value: 24, unit: 'V' }, 0, 5, 'imperial')).toBe('24 V');
+  });
+
+  it('imperial flips dimensions object with shared unit', () => {
+    const out = formatValue(
+      { width: 100, height: 50, unit: 'mm' },
+      0,
+      5,
+      'imperial',
+    );
+    expect(out).toContain('in');
+    expect(out).not.toContain(' mm');
+  });
 });
