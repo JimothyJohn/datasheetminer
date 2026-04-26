@@ -6,7 +6,44 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from datasheetminer.models.motor import Motor
-from datasheetminer.scraper import ElapsedTimeFormatter, process_datasheet
+from datasheetminer.scraper import (
+    ElapsedTimeFormatter,
+    _chunk_pages,
+    process_datasheet,
+)
+
+
+@pytest.mark.unit
+class TestChunkPages:
+    """Tests for the page-chunking algorithm. See todo/CHUNKS.md."""
+
+    def test_empty(self) -> None:
+        assert _chunk_pages([]) == []
+
+    def test_single_page(self) -> None:
+        assert _chunk_pages([5]) == [[5]]
+
+    def test_consecutive_within_max(self) -> None:
+        assert _chunk_pages([3, 4, 5]) == [[3, 4, 5]]
+
+    def test_consecutive_splits_at_max(self) -> None:
+        assert _chunk_pages([3, 4, 5, 6, 7], chunk_max=4) == [[3, 4, 5, 6], [7]]
+
+    def test_bridges_one_gap(self) -> None:
+        # MPP-shaped: every-other-page hits collapse into runs, gaps get filled.
+        out = _chunk_pages([3, 5, 7, 9, 11, 13, 15, 23], chunk_max=4, bridge_gap=1)
+        assert out == [[3, 4, 5, 6], [7, 8, 9, 10], [11, 12, 13, 14], [15], [23]]
+
+    def test_does_not_bridge_large_gap(self) -> None:
+        assert _chunk_pages([3, 9], chunk_max=4, bridge_gap=1) == [[3], [9]]
+
+    def test_dedupes_and_sorts(self) -> None:
+        assert _chunk_pages([5, 3, 4, 4]) == [[3, 4, 5]]
+
+    def test_zero_bridge_keeps_singletons(self) -> None:
+        # bridge_gap=0 means only adjacent pages merge.
+        assert _chunk_pages([3, 5, 7], bridge_gap=0) == [[3], [5], [7]]
+        assert _chunk_pages([3, 4, 5], bridge_gap=0) == [[3, 4, 5]]
 
 
 @pytest.mark.unit

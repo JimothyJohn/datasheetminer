@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from datasheetminer.llm import generate_content
+from datasheetminer.llm import _client_for, generate_content
 
 
 @pytest.mark.unit
@@ -18,6 +18,12 @@ class TestGenerateContent:
         generate_content.retry.wait = wait_none()
         generate_content.retry.stop = stop_after_attempt(1)
         generate_content.retry.reraise = True
+
+        # _client_for is lru-cached for prod hot-path reuse; that cache
+        # leaks across tests (each test installs its own genai mock but the
+        # cached client returned by an earlier test ignores the patch). Wipe
+        # it so every test sees its own mock.
+        _client_for.cache_clear()
 
     @patch("datasheetminer.llm.genai")
     def test_pdf_content(self, mock_genai: MagicMock) -> None:

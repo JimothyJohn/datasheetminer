@@ -7,6 +7,8 @@ dropped empty cells.
 """
 
 import logging
+import re
+from functools import lru_cache
 from typing import Any, Optional, Dict
 
 from google import genai
@@ -23,9 +25,45 @@ from datasheetminer.models.llm_schema import to_gemini_schema
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=4)
+def _client_for(api_key: str) -> genai.Client:
+    """Cache the genai.Client per api_key so we don't rebuild the underlying
+    httpx connection pool on every call. Cached by the api_key string so
+    test fixtures with different keys still get isolated clients."""
+    return genai.Client(api_key=api_key)
+
+
+# Gemini 429 responses carry a structured retry hint:
+#     {'@type': '...RetryInfo', 'retryDelay': '35s'}
+# Plain exponential backoff (4, 8, 16, …) gives up well before that 35s,
+# so a hot page exhausts tenacity's 5 attempts without ever waiting long
+# enough to recover. Honor the hint when present.
+_RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"](\d+(?:\.\d+)?)s['\"]")
+_EXPONENTIAL_BACKOFF = wait_exponential(multiplier=1, min=4, max=60)
+
+
+def _wait_with_retry_hint(retry_state: Any) -> float:
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    if exc is not None:
+        m = _RETRY_DELAY_RE.search(str(exc))
+        if m:
+            try:
+                # Add a 1s cushion and cap at 90s so a misconfigured
+                # retryDelay can't stall us indefinitely.
+                delay = min(float(m.group(1)) + 1.0, 90.0)
+                logger.info(
+                    "Gemini asked us to retry in %.1fs — waiting before next attempt",
+                    delay,
+                )
+                return delay
+            except ValueError:
+                pass
+    return _EXPONENTIAL_BACKOFF(retry_state)
+
+
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=4, max=60),
+    wait=_wait_with_retry_hint,
 )
 def generate_content(
     doc_data: bytes | str,
@@ -52,7 +90,7 @@ def generate_content(
     accessed via ``response.text`` and parsed downstream by
     ``datasheetminer.utils.parse_gemini_response``.
     """
-    client: genai.Client = genai.Client(api_key=api_key)
+    client: genai.Client = _client_for(api_key)
 
     full_schema_type = SCHEMA_CHOICES[schema]
     response_schema = to_gemini_schema(full_schema_type, as_array=True)

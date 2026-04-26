@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, List, Optional, Type
 
@@ -48,8 +49,58 @@ from datasheetminer.utils import (
 from datasheetminer.llm import generate_content
 from datasheetminer.page_finder import find_spec_pages_by_text  # noqa: E402
 
-PAGES_PER_CHUNK = int(os.environ.get("PAGES_PER_CHUNK", "1"))
+PAGES_PER_CHUNK = int(os.environ.get("PAGES_PER_CHUNK", "4"))
 MAX_PER_PAGE_CALLS = int(os.environ.get("MAX_PER_PAGE_CALLS", "30"))
+# Bridge small gaps between page_finder hits so a non-keyword continuation
+# page rides along in the same chunk as the table it continues. See
+# todo/CHUNKS.md for the algorithm and the failure mode that motivated it.
+BRIDGE_GAP = int(os.environ.get("BRIDGE_GAP", "1"))
+# Number of chunk-extraction LLM calls to run in parallel within one PDF.
+# Each chunk is independent (its own slice of the PDF); the scheduler is
+# bound by the LLM provider's RPM, not by anything in our code. 4 fits
+# comfortably under any paid tier; drop to 1 if you're rate-limit pinned.
+MAX_CONCURRENT_LLM_CALLS = int(os.environ.get("MAX_CONCURRENT_LLM_CALLS", "4"))
+
+
+def _chunk_pages(
+    pages_0idx: List[int],
+    chunk_max: int = 4,
+    bridge_gap: int = 1,
+) -> List[List[int]]:
+    """Group page_finder hits into chunks of up to ``chunk_max`` pages.
+
+    Two adjustments vs naive stride-N chunking:
+
+    * Pages whose 0-indexed gap is ``≤ bridge_gap`` are treated as one
+      run, and the run is **filled** with the missing pages between them
+      (e.g. ``[3, 5]`` becomes ``[3, 4, 5]``). This keeps a spec-table
+      continuation page that didn't match the keyword set in the same
+      chunk as the table it continues.
+    * A run longer than ``chunk_max`` is split into back-to-back chunks
+      of size ≤ ``chunk_max``. Tables that straddle a chunk boundary
+      still get split, but at most once instead of every page.
+
+    See ``todo/CHUNKS.md`` for the algorithm + worked examples.
+    """
+    if not pages_0idx:
+        return []
+    sorted_pages = sorted(set(pages_0idx))
+    runs: List[List[int]] = []
+    current: List[int] = []
+    for p in sorted_pages:
+        if not current or p - current[-1] - 1 <= bridge_gap:
+            current.append(p)
+        else:
+            runs.append(current)
+            current = [p]
+    if current:
+        runs.append(current)
+    chunks: List[List[int]] = []
+    for run in runs:
+        expanded = list(range(run[0], run[-1] + 1))
+        for i in range(0, len(expanded), chunk_max):
+            chunks.append(expanded[i : i + chunk_max])
+    return chunks
 
 
 class ElapsedTimeFormatter(logging.Formatter):
@@ -547,34 +598,44 @@ def _extract_per_page(
     content_type: str,
     tokens: Optional[dict] = None,
 ) -> List[Any]:
-    """Extract products one page (or chunk) at a time, tagging each with source page."""
-    all_products: List[Any] = []
-    chunk_size = max(1, PAGES_PER_CHUNK)
+    """Extract products from each chunk in parallel, tagging each with source pages.
 
-    chunks = [
-        pages_0idx[i : i + chunk_size] for i in range(0, len(pages_0idx), chunk_size)
-    ]
+    Per-chunk failures are isolated: one bad chunk doesn't kill the rest.
+    Order of completion is non-deterministic, but the merge step downstream
+    (merge_per_page_products) is order-independent, and each product carries
+    its own ``pages`` annotation so source-page traceability is preserved.
+    """
+    chunks = _chunk_pages(
+        pages_0idx,
+        chunk_max=max(1, PAGES_PER_CHUNK),
+        bridge_gap=max(0, BRIDGE_GAP),
+    )
+    if not chunks:
+        return []
 
-    for chunk in chunks:
+    def _run_chunk(chunk: List[int]) -> List[Any]:
         pages_1idx = [p + 1 for p in chunk]
         logger.info("Extracting page(s) %s (1-indexed)", pages_1idx)
-
         try:
             page_pdf = _extract_bundled_pdf(full_pdf, chunk)
             page_context = dict(context, single_page_mode=True)
             products = _call_llm(
                 page_pdf, api_key, product_type, page_context, content_type, tokens
             )
-
             for model in products:
                 model.pages = pages_1idx
-
-            all_products.extend(products)
             logger.info("Got %d products from page(s) %s", len(products), pages_1idx)
+            return products
         except Exception as e:
             logger.error("Failed to extract page(s) %s: %s", pages_1idx, e)
-            continue
+            return []
 
+    workers = max(1, min(len(chunks), MAX_CONCURRENT_LLM_CALLS))
+    all_products: List[Any] = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_run_chunk, c) for c in chunks]
+        for fut in as_completed(futures):
+            all_products.extend(fut.result())
     return all_products
 
 
@@ -810,7 +871,10 @@ def process_datasheet(
                 model.datasheet_url = url
 
             mfg = model.manufacturer or manufacturer
-            pid = compute_product_id(mfg, model.part_number, model.product_name)
+            family_for_id = getattr(model, "product_family", None) or product_family
+            pid = compute_product_id(
+                mfg, model.part_number, model.product_name, family_for_id
+            )
             if pid is None:
                 logger.error(
                     "Could not generate ID for product '%s'. "

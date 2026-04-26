@@ -347,9 +347,18 @@ def get_document(
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
-                "Accept-Encoding": "gzip, deflate, br",
+                # Skip brotli — urllib doesn't ship a brotli decoder, and the
+                # response-decompress branch below only knows gzip/deflate.
+                "Accept-Encoding": "gzip, deflate",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1",
+                # parker.com's Akamai gateway 403s requests that don't look
+                # like a top-level browser navigation. These four headers
+                # are what Chrome sends on a normal page load.
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
             }
             req: Request = Request(url, headers=headers)
             logger.debug(f"Request headers: {json.dumps(headers, indent=2)}")
@@ -367,6 +376,15 @@ def get_document(
                 ssl_ctx = ssl.create_default_context(cafile=certifi.where())
             except ImportError:
                 ssl_ctx = ssl.create_default_context()
+
+            # Some vendor CDNs (parkermotion.com, observed 2026-04) reset
+            # the connection unless we accept the broader cipher suite that
+            # SECLEVEL=1 enables. Lower the seclevel here — we're already
+            # accepting whatever TLS public PDFs are served over.
+            try:
+                ssl_ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
+            except ssl.SSLError:
+                pass
 
             with urlopen(req, timeout=25.0, context=ssl_ctx) as response:
                 # AI-generated comment:

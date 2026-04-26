@@ -88,6 +88,7 @@ def merge_per_page_products(products: List[ProductBase]) -> List[ProductBase]:
             product.manufacturer,
             product.part_number,
             product.product_name,
+            getattr(product, "product_family", None),
         )
         if pid is None:
             no_id.append(product)
