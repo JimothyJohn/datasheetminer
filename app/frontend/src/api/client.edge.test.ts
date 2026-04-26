@@ -39,11 +39,14 @@ describe('ApiClient — retry behaviour', () => {
       return jsonResponse({ success: false, error: 'boom' }, 500);
     });
 
-    const promise = apiClient.getSummary();
-
-    // Drain all pending timers so backoff sleeps resolve immediately.
+    // Attach the rejection handler synchronously so `runAllTimersAsync`
+    // can't drain the backoff timers and surface the rejection as
+    // unhandled before vitest registers a listener.
+    const captured = apiClient.getSummary().catch((e: unknown) => e);
     await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow('boom');
+    const error = await captured;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('boom');
     // Initial call + 3 retries = 4
     expect(calls).toBe(4);
   });
@@ -66,9 +69,11 @@ describe('ApiClient — retry behaviour', () => {
       throw new TypeError('Failed to fetch');
     });
 
-    const promise = apiClient.getSummary();
+    const captured = apiClient.getSummary().catch((e: unknown) => e);
     await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow(/Network error/);
+    const error = await captured;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/Network error/);
     expect(calls).toBe(4);
   });
 
@@ -85,9 +90,11 @@ describe('ApiClient — retry behaviour', () => {
       throw err;
     });
 
-    const promise = apiClient.getSummary();
+    const captured = apiClient.getSummary().catch((e: unknown) => e);
     await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow(/timed out/);
+    const error = await captured;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/timed out/);
     expect(calls).toBe(4);
   });
 });

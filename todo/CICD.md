@@ -2,15 +2,20 @@
 
 ## Current state — the headline problem
 
-CI has been **red on every push to master since 2026-03-30** (9 consecutive failures, last green deploy unknown). The latest failure (`gh run 24871095130`) is `ModuleNotFoundError: No module named 'datasheetminer.admin'` in `tests/unit/test_admin.py:12` — the module was refactored under `cli/admin.py` but the test still imports the old path.
+CI has been **red on every push to master since 2026-03-30** (9+ consecutive failures, last green deploy unknown).
 
-Consequences:
+**P0 root causes fixed 2026-04-26** (CI not yet re-run as of this edit):
+
+1. **`tests/unit/test_admin.py` failed to import `specodex.admin`.** Surface error was the obvious `ModuleNotFoundError`, but the underlying cause was `.gitignore` line 280: a bare `admin/` pattern that silently nuked both `specodex/admin/` (the Python module — `Blacklist`, `promote`, `demote`, `purge`) and `admin/blacklist.json` (the data file the docstring claims is "checked into git for code review"). Pattern was too broad — gitignore matches `admin/` anywhere in the tree, not just at repo root. Fix: dropped the pattern (top-level `admin/` only contains the data file, and we want it tracked). Now `git ls-tree HEAD specodex/admin/` shows the module; pytest collects it cleanly. Originally the doc framed this as "delete or repoint test imports to `cli.admin`" — that would have been wrong, since `specodex.admin` is the real implementation and `cli.admin` is just the argparse wrapper.
+
+2. **Frontend Vitest "passed" but exit-1'd on 3 unhandled rejections** in `client.edge.test.ts` (added in commit `04bbf39`, lines up with the 2026-03-30 CI-red start date). Pattern was `const p = call(); await runAllTimersAsync(); await expect(p).rejects.toThrow(...)` — the rejection fires during timer drain *before* `expect().rejects` registers a handler. Fix: attach the handler synchronously via `.catch(e => e)` on the same line as the call. Same diagnosis applies to all three retry tests (5xx, network, timeout). 7/7 edge tests pass and 243/243 vitest pass with zero unhandled errors.
+
+`./Quickstart test` now exits 0 locally. Next push will tell whether CI agrees.
+
+Consequences (still open):
 - Production has not been deployed by CI in three+ weeks. Whatever is in prod got there by hand or is stale.
-- The `deploy-staging` → `smoke-staging` → `deploy-prod` chain is gated on `test-python` passing, so **the entire pipeline is dark**.
-- The repo's CI signal is now noise: contributors (human and agent) learn to ignore the red ❌, which is how real regressions slip through.
-- `./Quickstart test` and CI run *almost* the same commands but not exactly the same — agents who run Quickstart locally and see green still get a red CI surprise. (CI lints, Quickstart doesn't. CI builds backend/frontend, Quickstart doesn't.)
-
-**Until CI is green we are flying blind.** Step 0 of any other improvement is to delete or fix `tests/unit/test_admin.py` so the gate works.
+- The `deploy-staging` → `smoke-staging` → `deploy-prod` chain has not been exercised end-to-end on master since the breakage. The OIDC migration in commit `9f054a4` (Phase P4) hasn't been validated yet either.
+- `./Quickstart test` and CI run *almost* the same commands but not exactly the same — agents who run Quickstart locally and see green still get a red CI surprise. (CI lints, Quickstart doesn't. CI builds backend/frontend, Quickstart doesn't.) → addressed in P1 below.
 
 ## What's in place today
 
@@ -66,8 +71,9 @@ Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI 
 
 ### P0 — unblock the gate
 
-- [ ] **Fix `tests/unit/test_admin.py`.** Either repoint imports to `cli.admin`, delete it, or rename to match the post-refactor module layout. Verify locally: `uv run pytest tests/unit/test_admin.py -v`.
-- [ ] **Add a CI sanity test that `Quickstart test` exits 0 on a clean checkout.** Trivial job, but it forces local/CI parity for the test command.
+- [x] **Fix `tests/unit/test_admin.py`** (2026-04-26). Real cause was the `.gitignore admin/` pattern; module is now tracked. 26/26 tests pass.
+- [x] **Fix Frontend Vitest unhandled rejections** (2026-04-26). Async-handler race in 3 retry tests; rewrote to attach the rejection handler synchronously. 243/243 vitest pass with 0 unhandled errors. (Not in the original P0 plan — surfaced once Test Python was unblocked.)
+- [ ] **Add a CI sanity test that `Quickstart test` exits 0 on a clean checkout.** Trivial job, but it forces local/CI parity for the test command. *(Folds into the P1 `./Quickstart verify` work — handle there.)*
 - [ ] **Confirm prod is in the state we think it is.** `aws cloudformation describe-stacks --stack-name DatasheetMiner-Prod-*` for each stack, sanity-check `LastUpdatedTime`. If prod has drifted, decide whether to redeploy from `master` HEAD once CI is green.
 
 ### P1 — close the local↔CI loop
@@ -101,7 +107,7 @@ Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI 
 
 ### P4 — secret hygiene & supply chain
 
-- [ ] **Migrate to GitHub OIDC for AWS.** Drop `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secrets entirely. Add `permissions: id-token: write` and use `aws-actions/configure-aws-credentials` with `role-to-assume`. Two roles: `gh-deploy-staging` (limited to staging stacks), `gh-deploy-prod` (limited to prod stacks). One-time IAM setup; eliminates rotation forever.
+- [x] **Migrate to GitHub OIDC for AWS** (2026-04-26, commit `9f054a4`). Workflow now has `permissions: id-token: write` and both staging + prod deploy jobs use `role-to-assume: arn:aws:iam::403059190476:role/gh-deploy-datasheetminer`. Single role for now (not per-stage); the role name still uses the legacy `datasheetminer` slug — Phase 3c of REBRAND will rename it. **Not yet validated end-to-end** because the deploy jobs were skipped while Test Python was red; first real exercise is the next CI run after the P0 fixes ship.
 - [ ] **`pip-audit` and `npm audit --omit=dev`** in CI as a non-blocking job (warn, don't fail). Promote to blocking after one cycle of cleanup.
 - [ ] **CodeQL workflow** (Python + JavaScript). GitHub provides a starter; ~5-min job. Catches obvious injection / unsafe patterns.
 
