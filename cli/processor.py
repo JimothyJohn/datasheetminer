@@ -168,7 +168,13 @@ def process_pdf(
             elif norm_mfg and norm_name:
                 id_string = f"{norm_mfg}:{norm_name}"
             else:
-                log.warning(f"Cannot generate ID for {model.product_name}, skipping")
+                log.warning(
+                    "Cannot generate ID — skipping. product_name=%r "
+                    "manufacturer=%r part_number=%r",
+                    model.product_name,
+                    model.manufacturer,
+                    getattr(model, "part_number", None),
+                )
                 continue
 
             model.product_id = uuid.uuid5(PRODUCT_NAMESPACE, id_string)

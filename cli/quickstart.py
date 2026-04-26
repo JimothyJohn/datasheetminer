@@ -59,6 +59,12 @@ logging.basicConfig(
 )
 log = logging.getLogger("quickstart")
 
+# Subprocesses (uv, npm, cdk) inherit our env but pull in chatty third-party
+# loggers when they invoke Python tooling. Mirror agent.py so a `Quickstart
+# process` run doesn't fill quickstart.log with TLS handshake debug.
+for _noisy in ("httpcore", "httpx", "google_genai.models.AFC", "urllib3"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 # ── Colors ─────────────────────────────────────────────────────────
 
 _USE_COLOR = sys.stderr.isatty()
@@ -105,11 +111,39 @@ def require_cmd(name: str) -> str:
 
 
 def run(cmd: list[str], *, cwd: Path | None = None, env: dict | None = None) -> None:
-    """Run a command, streaming output. Exit on failure."""
+    """Run a command, streaming output. Exit on failure with last stderr lines."""
+    from collections import deque
+    import threading
+
     merged = {**os.environ, **(env or {})}
-    result = subprocess.run(cmd, cwd=cwd, env=merged)
-    if result.returncode != 0:
-        fail(f"Command failed (exit {result.returncode}): {' '.join(cmd)}")
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        env=merged,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+    tail: deque[str] = deque(maxlen=20)
+
+    def _pump_stderr() -> None:
+        assert proc.stderr is not None
+        for line in proc.stderr:
+            sys.stderr.write(line)
+            sys.stderr.flush()
+            tail.append(line.rstrip())
+
+    pump = threading.Thread(target=_pump_stderr, daemon=True)
+    pump.start()
+    proc.wait()
+    pump.join(timeout=2)
+
+    if proc.returncode != 0:
+        tail_text = "\n  ".join(tail) if tail else "(no stderr captured)"
+        fail(
+            f"Command failed (exit {proc.returncode}): {' '.join(cmd)}\n"
+            f"  Last stderr lines:\n  {tail_text}"
+        )
 
 
 def run_quiet(cmd: list[str], *, cwd: Path | None = None) -> str:
@@ -250,7 +284,13 @@ def cmd_dev(args: argparse.Namespace) -> None:
             for p in procs:
                 ret = p.poll()
                 if ret is not None:
-                    warn(f"Process exited with code {ret}")
+                    # Treat SIGTERM (143/-15) and SIGINT (130/-2) as clean
+                    # shutdowns — these fire whenever the user hits Ctrl-C
+                    # or another process terminates ours, not real failures.
+                    if ret in (0, 130, 143, -signal.SIGINT, -signal.SIGTERM):
+                        info(f"Process exited cleanly (code {ret})")
+                    else:
+                        warn(f"Process exited with code {ret}")
                     shutdown()
             time.sleep(1)
     except KeyboardInterrupt:

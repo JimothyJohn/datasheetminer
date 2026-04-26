@@ -54,6 +54,12 @@ logging.basicConfig(
 )
 log = logging.getLogger("dsm-agent")
 
+# Quiet noisy third-party loggers — TLS handshake debug from httpx/httpcore
+# and AFC retry chatter from google_genai used to swamp every Gemini call
+# with ~14 lines of unread chatter. Override with LOG_LEVEL=DEBUG if needed.
+for _noisy in ("httpcore", "httpx", "google_genai.models.AFC", "urllib3"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -172,7 +178,14 @@ def _extract_products(
         elif norm_mfg and norm_name:
             id_str = f"{norm_mfg}:{norm_name}"
         else:
-            log.warning("Cannot generate ID for %s — skipping", model.product_name)
+            log.warning(
+                "Cannot generate ID — skipping. product_name=%r manufacturer=%r "
+                "part_number=%r datasheet_url=%s",
+                model.product_name,
+                model.manufacturer,
+                getattr(model, "part_number", None),
+                context.get("datasheet_url"),
+            )
             continue
 
         id_pairs.append((model, id_str))
