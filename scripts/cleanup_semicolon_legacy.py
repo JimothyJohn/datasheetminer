@@ -53,7 +53,6 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 load_dotenv(REPO / ".env")
 
-import boto3  # noqa: E402
 
 from specodex.db.dynamo import DynamoDBClient  # noqa: E402
 

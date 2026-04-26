@@ -76,17 +76,13 @@ Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI 
 - [ ] **Add a CI sanity test that `Quickstart test` exits 0 on a clean checkout.** Trivial job, but it forces local/CI parity for the test command. *(Folds into the P1 `./Quickstart verify` work — handle there.)*
 - [ ] **Confirm prod is in the state we think it is.** `aws cloudformation describe-stacks --stack-name DatasheetMiner-Prod-*` for each stack, sanity-check `LastUpdatedTime`. If prod has drifted, decide whether to redeploy from `master` HEAD once CI is green.
 
-### P1 — close the local↔CI loop
+### P1 — close the local↔CI loop ✅ shipped 2026-04-26
 
-- [ ] **Add `./Quickstart verify` (alias: `./Quickstart ci`).** One command, runs *exactly* what CI runs:
-  - `uv run ruff check . && uv run ruff format --check .`
-  - `uv run pytest tests/unit/ -m "not slow"`
-  - `(cd app/backend && npm run lint && npm test && npm run build)`
-  - `(cd app/frontend && npm run lint && npm test && npm run build)`
-  - Optional `--integration` flag adds `tests/integration/` (requires AWS creds / moto fixtures).
-  - CI's per-job `run:` blocks become `./Quickstart verify --only <python|backend|frontend>`. Single source of truth for what "tested" means.
-- [ ] **Add lint + build to `./Quickstart test`** (or fold `test` into `verify`). Today it lies — green means "some tests passed."
-- [ ] **Update `CLAUDE.md` Smoke-testing section** to instruct agents to run `./Quickstart verify` before pushing, and remove the now-redundant `(cd app/backend && npx tsc --noEmit)` step.
+- [x] **`./Quickstart verify` (alias: `./Quickstart ci`)** lands in `cli/quickstart.py:cmd_verify`. Stages: ruff check + ruff format --check + pytest tests/unit/ for Python; `npm run lint && npm test && npm run build` for backend and frontend. `--only python|backend|frontend` runs a single stage; `--integration` adds `tests/integration/` to the Python stage. Skips `npm install` and `uv sync` — assumes those ran upstream (CI's `npm ci` / `uv sync --quiet` steps; locally the user's existing dev env). Fails fast with a hint if `app/node_modules` is missing.
+- [x] **CI calls verify.** Each `test-*` job in `.github/workflows/ci.yml` is now `./Quickstart verify --only <stage>` instead of inline run blocks. Single source of truth for what "tested" means. Note: CI keeps its own `actions/setup-uv` + `uv sync` and `actions/setup-node` + `npm ci` setup steps — verify doesn't reinvent those.
+- [x] **Pre-existing 22 ruff errors cleaned up** so the new `verify` gate doesn't false-red on day one. 17 autofix (unused imports, f-strings without placeholders), 5 manual (one `once_flag` deadcode in `quickstart.py`, one `__all__` in `specodex/models/__init__.py`, one `l → line` rename in `page_finder.py`, two unused locals in tests). 1050 unit tests still green.
+- [x] **`./Quickstart test` kept lean** (just tests, no lint/build) for fast dev-loop feedback; help text now explicitly directs pre-push users to `verify`. Folding `test` into `verify` would have lost the fast inner loop.
+- [x] **CLAUDE.md updated.** Entry-point section advertises both `test` (fast) and `verify` (gate). Smoke-testing-a-new-type checklist now says "step 1: `./Quickstart verify`" instead of the old `(cd app/{backend,frontend} && npx tsc --noEmit)` pair, since verify covers tsc via the build stage.
 
 ### P2 — make CI faster, more honest, and more diagnosable
 

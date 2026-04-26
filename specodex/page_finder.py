@@ -254,7 +254,7 @@ def _score_page(text: str, tables: list) -> dict:
 
     Returns a dict with the composite score and component signals.
     """
-    lines = [l for l in text.split("\n") if l.strip()]
+    lines = [line for line in text.split("\n") if line.strip()]
     n_lines = max(len(lines), 1)
     text_lower = text.lower()
 

@@ -7,11 +7,11 @@ and failure scenarios to ensure robust error handling throughout the application
 
 import json
 import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 import httpx
 
 from specodex import app, gemini
-from tests.fixtures import create_test_event, assert_error_response, lambda_context
+from tests.fixtures import create_test_event, assert_error_response
 
 
 class TestErrorHandling:

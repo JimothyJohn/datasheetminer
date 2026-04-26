@@ -7,7 +7,7 @@ used across unit and integration tests.
 
 import json
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 
 @pytest.fixture

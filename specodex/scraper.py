@@ -25,7 +25,7 @@ from typing import Any, List, Optional, Type
 
 from specodex.config import SCHEMA_CHOICES
 from specodex.db.dynamo import DynamoDBClient
-from specodex.ids import compute_product_id, normalize_string, PRODUCT_NAMESPACE
+from specodex.ids import compute_product_id
 from specodex.ingest_log import (
     STATUS_EXTRACT_FAIL,
     STATUS_QUALITY_FAIL,

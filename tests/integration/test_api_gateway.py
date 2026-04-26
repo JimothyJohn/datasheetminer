@@ -227,7 +227,6 @@ class TestApiGateway:
     def test_api_gateway_concurrent_requests(self, api_gateway_url):
         """Test multiple concurrent requests to API Gateway"""
         import concurrent.futures
-        import threading
 
         headers = {"x-api-key": os.getenv("GEMINI_API_KEY")}
 

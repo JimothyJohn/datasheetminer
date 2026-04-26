@@ -7,7 +7,11 @@ A UI and API that sorts and filters industrial product specs from a database, pl
 Everything goes through `./Quickstart <command>`. It's a bash shim that delegates to `cli/quickstart.py`. Available commands:
 
     ./Quickstart dev              Local dev servers (default)
-    ./Quickstart test             Unit tests (Python + Node)
+    ./Quickstart test             Unit tests only (fast feedback during dev)
+    ./Quickstart verify           Pre-push gate: lint + tests + build (alias: ci).
+                                  Mirrors .github/workflows/ci.yml exactly. Run this
+                                  before pushing — green here means CI will be green.
+                                  --only python|backend|frontend  Run one stage
     ./Quickstart staging [URL]    Staging contract tests
     ./Quickstart deploy [--stage] Deploy to AWS via CDK
     ./Quickstart smoke [URL]      Post-deploy smoke tests
@@ -62,22 +66,16 @@ Step 1 can be scaffolded with `./Quickstart schemagen <pdf>... --type <name>`, w
 
 After touching the six files above, run this loop locally before pushing. Skipping any step is how types silently 400 in prod.
 
-1. **Python auto-discovery.** `./Quickstart test` runs unit tests — `SCHEMA_CHOICES` coverage + model round-trip validation. A missing `common.py` patch fails here.
-2. **TypeScript type-check both workspaces:**
-
-        (cd app/backend && npx tsc --noEmit)
-        (cd app/frontend && npx tsc --noEmit)
-
-   A missing zod enum or interface fails here before runtime.
-3. **Seed at least one record.** Drop a PDF in `tests/benchmark/datasheets/`, add a fixture entry, and run `./Quickstart bench --live --update-cache --filter <slug>` — the extraction path writes nothing to DynamoDB but validates the model end-to-end. To actually populate dev DynamoDB, point `./Quickstart process` at a local S3 upload (see "Processing the upload queue" in `cli/processor.py`).
-4. **Start dev servers** with `./Quickstart dev` (backend: `localhost:3001`, frontend Vite: `localhost:5173`).
-5. **Verify API surface:**
+1. **Pre-push gate.** `./Quickstart verify` runs the same lint + tests + build that CI runs (Python ruff + pytest, backend lint + jest + tsc, frontend lint + vitest + tsc + vite). Green here means CI will be green; red here is your problem to fix before pushing. A missing `common.py` patch fails the Python pytest stage; a missing zod enum or interface fails the TypeScript build stage.
+2. **Seed at least one record.** Drop a PDF in `tests/benchmark/datasheets/`, add a fixture entry, and run `./Quickstart bench --live --update-cache --filter <slug>` — the extraction path writes nothing to DynamoDB but validates the model end-to-end. To actually populate dev DynamoDB, point `./Quickstart process` at a local S3 upload (see "Processing the upload queue" in `cli/processor.py`).
+3. **Start dev servers** with `./Quickstart dev` (backend: `localhost:3001`, frontend Vite: `localhost:5173`).
+4. **Verify API surface:**
 
         curl -s localhost:3001/api/products/categories | jq '.data[].type'       # new type listed
         curl -s "localhost:3001/api/v1/search?type=<new>" | jq '.success'         # returns true (not 400)
 
    If `categories` omits the type, step 3 (`VALID_PRODUCT_TYPES`) is missing. If `search` 400s, step 5 (zod enum) is missing.
-6. **UI check.** Load `http://localhost:5173`, select the new type in the sidebar dropdown, confirm filter chips and table columns render. Missing frontend `ProductType` entry manifests as "type is not assignable" at compile time OR as the type silently filtered out by `deriveAttributesFromRecords`.
+5. **UI check.** Load `http://localhost:5173`, select the new type in the sidebar dropdown, confirm filter chips and table columns render. Missing frontend `ProductType` entry manifests as "type is not assignable" at compile time OR as the type silently filtered out by `deriveAttributesFromRecords`.
 
 ## Frontend UI conventions
 

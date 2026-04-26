@@ -108,7 +108,7 @@ class TestSecurityHygiene:
         req = Request(f"{base_url}/api/nonexistent-endpoint-smoke-test")
         req.add_header("Accept", "application/json")
         try:
-            with urlopen(req, timeout=10) as resp:
+            with urlopen(req, timeout=10):
                 # Should not reach here — expect 404
                 pass
         except HTTPError as e:

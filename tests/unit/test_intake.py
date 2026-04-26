@@ -181,7 +181,7 @@ class TestPromotePdf:
         dynamo.create.return_value = True
         scan = _scan_result(valid=True, product_name=None)
 
-        result = promote_pdf(
+        promote_pdf(
             "test-bucket",
             "triage/some_motor.pdf",
             scan,

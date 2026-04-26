@@ -241,9 +241,9 @@ def to_gemini_schema(
         return {
             "type": "ARRAY",
             "description": (
-                f"One entry per distinct product variant found in the "
-                f"document. Leave optional fields unset when the spec "
-                f"is genuinely absent from the document."
+                "One entry per distinct product variant found in the "
+                "document. Leave optional fields unset when the spec "
+                "is genuinely absent from the document."
             ),
             "items": object_schema,
         }

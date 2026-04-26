@@ -5,6 +5,10 @@ DatasheetMiner CLI — single entry point for all stages.
 Usage:
     ./Quickstart dev              Start local dev servers (default)
     ./Quickstart test             Run all unit tests
+    ./Quickstart verify           Pre-push gate: lint + tests + build (alias: ci)
+                                  Mirrors .github/workflows/ci.yml exactly.
+                                  --only python|backend|frontend  Run one stage
+                                  --integration                   Add integration tests
     ./Quickstart staging [URL]    Run staging contract tests
     ./Quickstart deploy [--stage] Deploy to AWS via CDK
     ./Quickstart smoke [URL]      Run post-deployment smoke tests
@@ -298,7 +302,12 @@ def cmd_dev(args: argparse.Namespace) -> None:
 
 
 def cmd_test(args: argparse.Namespace) -> None:
-    """Run all unit tests across Python, backend, and frontend."""
+    """Run all unit tests across Python, backend, and frontend.
+
+    For the full pre-push gate that mirrors CI exactly (lint + tests +
+    build), use ``./Quickstart verify`` instead — green here means
+    "tests passed" but CI may still fail on lint or build.
+    """
     info("Checking dependencies")
     check_node_version()
     check_python_version()
@@ -317,6 +326,76 @@ def cmd_test(args: argparse.Namespace) -> None:
     run(["npm", "test"], cwd=APP / "frontend", env={"CI": "true"})
 
     info("All unit tests passed")
+
+
+def cmd_verify(args: argparse.Namespace) -> None:
+    """Run exactly what CI runs — the pre-push gate.
+
+    Mirrors ``.github/workflows/ci.yml`` per-job ``run:`` blocks. CI
+    invokes the same command via ``./Quickstart verify --only <stage>``,
+    so this is the single source of truth for what "tested" means.
+
+    Stages:
+      python   ruff check + ruff format --check + pytest tests/unit/
+      backend  npm run lint + npm test + npm run build
+      frontend npm run lint + npm test + npm run build
+
+    Flags:
+      --only <stage>   Run a single stage (CI uses this per job)
+      --integration    Add tests/integration/ to the Python stage
+    """
+    only = getattr(args, "only", None)
+    stages = [only] if only else ["python", "backend", "frontend"]
+    do_integration = getattr(args, "integration", False)
+
+    info("Checking dependencies")
+    if "python" in stages:
+        check_python_version()
+        require_cmd("uv")
+    if "backend" in stages or "frontend" in stages:
+        check_node_version()
+        require_cmd("npm")
+        if not (APP / "node_modules").exists():
+            fail("app/node_modules missing — run `(cd app && npm install)` first.")
+
+    if "python" in stages:
+        info("Python: ruff check")
+        run(["uv", "run", "ruff", "check"], cwd=ROOT)
+
+        info("Python: ruff format --check")
+        run(["uv", "run", "ruff", "format", "--check"], cwd=ROOT)
+
+        info("Python: pytest tests/unit/ -m 'not slow'")
+        run(
+            ["uv", "run", "pytest", "tests/unit/", "-m", "not slow", "-v"],
+            cwd=ROOT,
+        )
+
+        if do_integration:
+            info("Python: pytest tests/integration/")
+            run(["uv", "run", "pytest", "tests/integration/", "-v"], cwd=ROOT)
+
+    if "backend" in stages:
+        info("Backend: lint")
+        run(["npm", "run", "lint"], cwd=APP / "backend")
+
+        info("Backend: test")
+        run(["npm", "test"], cwd=APP / "backend")
+
+        info("Backend: build")
+        run(["npm", "run", "build"], cwd=APP / "backend")
+
+    if "frontend" in stages:
+        info("Frontend: lint")
+        run(["npm", "run", "lint"], cwd=APP / "frontend")
+
+        info("Frontend: test")
+        run(["npm", "test"], cwd=APP / "frontend", env={"CI": "true"})
+
+        info("Frontend: build")
+        run(["npm", "run", "build"], cwd=APP / "frontend")
+
+    info("All verify stages passed")
 
 
 def cmd_staging(args: argparse.Namespace) -> None:
@@ -555,7 +634,6 @@ def cmd_process(args: argparse.Namespace) -> None:
         ),
         "AWS_REGION": os.environ.get("AWS_REGION", "us-east-1"),
     }
-    once_flag = ["--once"] if args.once else []
 
     run(
         [
@@ -585,6 +663,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     # test
     sub.add_parser("test", help="Run all unit tests (Python + backend + frontend)")
+
+    # verify (alias: ci) — full pre-push gate, mirrors CI exactly
+    p = sub.add_parser(
+        "verify",
+        aliases=["ci"],
+        help="Run exactly what CI runs (lint + tests + build) — pre-push gate",
+    )
+    p.add_argument(
+        "--only",
+        choices=["python", "backend", "frontend"],
+        help="Run a single stage (CI uses this per job)",
+    )
+    p.add_argument(
+        "--integration",
+        action="store_true",
+        help="Add tests/integration/ to the Python stage (requires AWS creds / moto)",
+    )
 
     # staging
     p = sub.add_parser("staging", help="Run staging contract tests against a server")
@@ -681,6 +776,8 @@ def main() -> None:
     commands = {
         "dev": cmd_dev,
         "test": cmd_test,
+        "verify": cmd_verify,
+        "ci": cmd_verify,  # alias for verify
         "staging": cmd_staging,
         "deploy": cmd_deploy,
         "smoke": cmd_smoke,

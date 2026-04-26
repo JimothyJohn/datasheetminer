@@ -14,7 +14,7 @@ Conventions:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Type
+from typing import Any, Dict, List, Optional, Type
 
 from specodex.admin.blacklist import Blacklist
 from specodex.config import SCHEMA_CHOICES

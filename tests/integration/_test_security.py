@@ -5,8 +5,6 @@ This module tests security aspects like input validation, injection attempts,
 and potential security vulnerabilities in the API.
 """
 
-import json
-import pytest
 import requests
 from tests.integration.test_api_gateway import TestApiGateway
 
