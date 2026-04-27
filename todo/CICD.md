@@ -1,8 +1,18 @@
 # CI/CD: tighten the dev loop, make it agent-friendly
 
-## Current state — what's blocking and what's next (2026-04-26 PM)
+## Current state — full deploy chain green for the first time since 2026-03-30 (2026-04-26 PM)
 
-**Test gates green for the first time since 2026-03-30.** Run `24965057525` on commit `2371798` had `Test Python ✅, Test Backend ✅, Test Frontend ✅`. P0 (admin module + frontend race) and P1 (`./Quickstart verify` parity) did the work. `Deploy Staging` then failed; OIDC trust policy fix applied 2026-04-26 PM, awaiting validation rerun.
+**Run [`24972771362`](https://github.com/JimothyJohn/specodex/actions/runs/24972771362) on commit `5274945` (after `bb5913d` + `5274945`):** all gates green through Smoke Staging.
+
+| Job | Result | Time |
+|---|---|---|
+| Test Python / Backend / Frontend | ✅ | 22s / 44s / 44s |
+| Deploy Staging | ✅ | 1m42s |
+| Smoke Staging | ✅ | 20s |
+| Deploy Prod | ⏸ environment approval gate |
+| Smoke Prod | (downstream of Deploy Prod) |
+
+Took three commits to get here from the 2026-03-30 red gate: `2371798` (P0+P1 — tests green), `bb5913d` (P2 — OIDC trust policy + IAM permissions + workflow SSM skip), `5274945` (P2.1 — URL-encode the smoke `where=` query). Prod deploy is the next click; it'll be the first prod CI deploy in ~3 weeks.
 
 ### ✅ OIDC trust policy + role permissions fixed (2026-04-26 PM)
 
@@ -132,13 +142,14 @@ Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI 
 
 ### P2 — make CI faster, more honest, and more diagnosable
 
-- [ ] **`paths-ignore` and `paths` filters** on workflow triggers. Doc-only changes (`*.md`, `todo/**`, `outputs/**`) skip the deploy chain. Per-job filters: backend changes don't trigger frontend tests.
-- [ ] **`concurrency:` block** on each workflow keyed by ref + workflow, `cancel-in-progress: true` for non-deploy stages, `cancel-in-progress: false` for `deploy-prod`.
-- [ ] **Cache `uv` and `npm` deps** via `actions/setup-node`'s built-in `cache: npm` and `astral-sh/setup-uv`'s `enable-cache: true`. Shaves ~2 min/run.
+- [x] **`concurrency:` block** (2026-04-26) keyed by `${{ github.workflow }}-${{ github.ref }}`. `cancel-in-progress` is true for non-master refs (PRs cancel on push) and false on master so an in-flight deploy chain isn't aborted by a follow-up commit. The `environment: production` approval gate remains the dominant safeguard for prod.
+- [x] **Cache `uv` and `npm` deps** (2026-04-26). `actions/setup-node` now has `cache: npm` + `cache-dependency-path: app/package-lock.json` on all 4 callsites; `astral-sh/setup-uv` has `enable-cache: true` + `cache-dependency-glob: uv.lock` on all 5. First post-deploy run is the cache-miss baseline; subsequent runs should shave ~30-60s/job on installs.
+- [x] **Fix prod SSM-put empty-string bug** (2026-04-26). Same skip-when-unset guard as staging — was missed in the earlier `replace_all` because the prod step lacked the leading comment block. Would have failed prod deploy with `ValidationException` whenever `STRIPE_LAMBDA_URL` is unset (which is the default).
+- [ ] **`paths-ignore` and `paths` filters** on workflow triggers. Doc-only changes (`*.md`, `todo/**`, `outputs/**`) skip the deploy chain. Per-job filters: backend changes don't trigger frontend tests. *Deferred — interacts with branch protection's required-status-checks list. Need to confirm what's required before skipping the workflow entirely.*
 - [ ] **Move JSON-parsing logic out of YAML.** Add `./Quickstart cdk-outputs --key SiteUrl --fallback CloudFrontUrl` and `--key DistributionId` so CI is `URL=$(./Quickstart cdk-outputs --key SiteUrl)`. Tested in Python, not embedded in shell heredoc.
 - [ ] **Unify the `/health` poll.** One helper in `quickstart.py` (already exists at `:159`), parameterized by retries, called from both `cmd_smoke` and CI. CI invokes `./Quickstart smoke "$URL" --wait 60`.
 - [ ] **`--junitxml` on every pytest run + `actions/upload-artifact@v4`** for the XML and `cdk-outputs.json`. Add a job summary step (`echo "..." >> $GITHUB_STEP_SUMMARY`) listing pass/fail counts.
-- [ ] **Refresh action versions.** `actions/checkout@v5`, `actions/setup-node@v5`, `astral-sh/setup-uv@v6` (whatever's current at ship time). Keeps SHA-pinning convention. Resolves the Node 20 deprecation warning.
+- [ ] **Refresh action versions.** `actions/checkout@v5`, `actions/setup-node@v5`, `astral-sh/setup-uv@v6` (whatever's current at ship time). Keeps SHA-pinning convention. Resolves the Node 20 deprecation warning. *Deferred — pinned-SHA convention means each bump needs the actual latest SHA looked up; fold into a separate "actions refresh" PR in May.*
 
 ### P3 — wire up the missing test surface
 

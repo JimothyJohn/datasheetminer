@@ -17,6 +17,13 @@ permissions:
   contents: read
   id-token: write
 
+# Cancel redundant in-progress runs on the same ref. Master + production
+# deploys keep cancel-in-progress=false so a deploy chain isn't aborted
+# mid-flight by a follow-up commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 jobs:
   # ── Stage 1a: Python unit tests ─────────────────────────────────
   # Each test-* job delegates to ./Quickstart verify --only <stage> so the
@@ -32,6 +39,8 @@ jobs:
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --quiet
@@ -50,6 +59,8 @@ jobs:
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install workspace dependencies
         working-directory: app
@@ -69,6 +80,8 @@ jobs:
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install workspace dependencies
         working-directory: app
@@ -97,11 +110,15 @@ jobs:
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install uv (for Quickstart CLI)
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
@@ -175,6 +192,8 @@ jobs:
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --quiet
@@ -222,11 +241,15 @@ jobs:
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install uv (for Quickstart CLI)
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
@@ -258,9 +281,14 @@ jobs:
           SSM_PREFIX: /datasheetminer/prod
           STRIPE_LAMBDA_URL: ${{ secrets.STRIPE_LAMBDA_URL }}
         run: |
-          aws ssm put-parameter \
-            --name "${SSM_PREFIX}/stripe-lambda-url" \
-            --type String --value "${STRIPE_LAMBDA_URL:-}" --overwrite
+          # See deploy-staging for rationale (empty == unconfigured).
+          if [ -n "${STRIPE_LAMBDA_URL:-}" ]; then
+            aws ssm put-parameter \
+              --name "${SSM_PREFIX}/stripe-lambda-url" \
+              --type String --value "${STRIPE_LAMBDA_URL}" --overwrite
+          else
+            echo "STRIPE_LAMBDA_URL secret unset — skipping ${SSM_PREFIX}/stripe-lambda-url"
+          fi
 
       - name: Deploy prod via Quickstart
         env:
@@ -319,6 +347,8 @@ jobs:
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --quiet
