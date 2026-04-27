@@ -287,6 +287,7 @@ Verified with `(cd app/backend && npx tsc --noEmit)` (11 errors — same count a
 - *Webhooks targeting the old URL keep working.* GitHub redirects webhook deliveries internally. Receivers (if any external) keep functioning.
 - *Submodules referencing the old URL break.* This repo has no submodules; nothing to do.
 - *Local clones on other machines still pointing at old origin.* They keep working via redirect, but `git remote set-url` is cleaner. Document in MANUAL_UPDATES.md so any other clones (work laptop, etc.) can be updated.
+- ***IAM roles with OIDC trust policies hardcoding the old repo name silently break CI deploys.*** Hit on 2026-04-26 — `gh-deploy-datasheetminer` trust policy allowed `repo:JimothyJohn/datasheetminer:*` only; first post-rename CI run failed every deploy job with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The role *name* doesn't matter (only the `sub` claim does), but every `StringLike` `sub` pattern must list the new repo slug. **Pre-rename audit:** `aws iam list-roles | jq '.Roles[] | select(.AssumeRolePolicyDocument | tostring | contains("JimothyJohn/datasheetminer"))'`. **Safer pattern:** add the new pattern *before* renaming (so both work), then remove the old one after CI is green. **Fix:** `aws iam update-assume-role-policy --role-name <role> --policy-document file://<patched.json>`.
 
 #### Phase 3e — Documentation + copy sweep
 

@@ -115,10 +115,15 @@ jobs:
           STRIPE_LAMBDA_URL: ${{ secrets.STRIPE_LAMBDA_URL }}
         run: |
           # Stripe Lambda URL (String, optional). Subscription middleware
-          # treats empty as 'unconfigured' and lets requests through.
-          aws ssm put-parameter \
-            --name "${SSM_PREFIX}/stripe-lambda-url" \
-            --type String --value "${STRIPE_LAMBDA_URL:-}" --overwrite
+          # treats empty/missing as 'unconfigured' and lets requests through.
+          # SSM PutParameter rejects empty strings, so skip when unset.
+          if [ -n "${STRIPE_LAMBDA_URL:-}" ]; then
+            aws ssm put-parameter \
+              --name "${SSM_PREFIX}/stripe-lambda-url" \
+              --type String --value "${STRIPE_LAMBDA_URL}" --overwrite
+          else
+            echo "STRIPE_LAMBDA_URL secret unset — skipping ${SSM_PREFIX}/stripe-lambda-url"
+          fi
 
       - name: Deploy staging via Quickstart
         env:

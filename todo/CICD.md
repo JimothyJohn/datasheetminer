@@ -1,21 +1,67 @@
 # CI/CD: tighten the dev loop, make it agent-friendly
 
-## Current state — the headline problem
+## Current state — what's blocking and what's next (2026-04-26 PM)
 
-CI has been **red on every push to master since 2026-03-30** (9+ consecutive failures, last green deploy unknown).
+**Test gates green for the first time since 2026-03-30.** Run `24965057525` on commit `2371798` had `Test Python ✅, Test Backend ✅, Test Frontend ✅`. P0 (admin module + frontend race) and P1 (`./Quickstart verify` parity) did the work. `Deploy Staging` then failed; OIDC trust policy fix applied 2026-04-26 PM, awaiting validation rerun.
 
-**P0 root causes fixed 2026-04-26** (CI not yet re-run as of this edit):
+### ✅ OIDC trust policy + role permissions fixed (2026-04-26 PM)
 
-1. **`tests/unit/test_admin.py` failed to import `specodex.admin`.** Surface error was the obvious `ModuleNotFoundError`, but the underlying cause was `.gitignore` line 280: a bare `admin/` pattern that silently nuked both `specodex/admin/` (the Python module — `Blacklist`, `promote`, `demote`, `purge`) and `admin/blacklist.json` (the data file the docstring claims is "checked into git for code review"). Pattern was too broad — gitignore matches `admin/` anywhere in the tree, not just at repo root. Fix: dropped the pattern (top-level `admin/` only contains the data file, and we want it tracked). Now `git ls-tree HEAD specodex/admin/` shows the module; pytest collects it cleanly. Originally the doc framed this as "delete or repoint test imports to `cli.admin`" — that would have been wrong, since `specodex.admin` is the real implementation and `cli.admin` is just the argparse wrapper.
+`Deploy Staging` failed run `24965057525` with `Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`. Root cause: REBRAND Phase 3d (GitHub repo rename `JimothyJohn/datasheetminer` → `JimothyJohn/specodex`) shipped, so GitHub's OIDC token now carries `sub: repo:JimothyJohn/specodex:environment:staging`. The IAM role's trust policy was authored for the old repo name and only allowed `repo:JimothyJohn/datasheetminer:*` — tokens never matched.
 
-2. **Frontend Vitest "passed" but exit-1'd on 3 unhandled rejections** in `client.edge.test.ts` (added in commit `04bbf39`, lines up with the 2026-03-30 CI-red start date). Pattern was `const p = call(); await runAllTimersAsync(); await expect(p).rejects.toThrow(...)` — the rejection fires during timer drain *before* `expect().rejects` registers a handler. Fix: attach the handler synchronously via `.catch(e => e)` on the same line as the call. Same diagnosis applies to all three retry tests (5xx, network, timeout). 7/7 edge tests pass and 243/243 vitest pass with zero unhandled errors.
+Applied:
 
-`./Quickstart test` now exits 0 locally. Next push will tell whether CI agrees.
+```bash
+aws iam update-assume-role-policy \
+  --role-name gh-deploy-datasheetminer \
+  --policy-document file:///tmp/trust-policy.json
+```
 
-Consequences (still open):
-- Production has not been deployed by CI in three+ weeks. Whatever is in prod got there by hand or is stale.
-- The `deploy-staging` → `smoke-staging` → `deploy-prod` chain has not been exercised end-to-end on master since the breakage. The OIDC migration in commit `9f054a4` (Phase P4) hasn't been validated yet either.
-- `./Quickstart test` and CI run *almost* the same commands but not exactly the same — agents who run Quickstart locally and see green still get a red CI surprise. (CI lints, Quickstart doesn't. CI builds backend/frontend, Quickstart doesn't.) → addressed in P1 below.
+…with the four `sub` patterns rewritten from `JimothyJohn/datasheetminer:*` to `JimothyJohn/specodex:*`. Verified via `aws iam get-role --role-name gh-deploy-datasheetminer`.
+
+The first rerun cleared OIDC (assumed-role line in logs confirms) but exposed a second gap: the workflow's `Provision staging SSM params` step and the post-deploy `cloudfront create-invalidation` step run *outside* CDK with the deploy role's identity, and the inline `CdkDeploy` policy didn't grant `ssm:PutParameter` or `cloudfront:CreateInvalidation`. Expanded the policy with two new statements:
+
+- `ProvisionStageSsmParams`: `ssm:{Put,Get,Delete}Parameter` on `parameter/{datasheetminer,specodex}/{staging,prod}/*` (both prefixes so Phase 3c is a no-op for IAM).
+- `InvalidateCloudFront`: `cloudfront:{Create,Get}Invalidation` on `*` (CloudFront actions don't accept resource-level scoping for these).
+
+Verified via `aws iam get-role-policy --role-name gh-deploy-datasheetminer --policy-name CdkDeploy`. Five Sids now: `AssumeCdkBootstrapRoles`, `ReadCloudFormationStateForCdkCli`, `ReadCdkBootstrapSsmParam`, `ProvisionStageSsmParams`, `InvalidateCloudFront`.
+
+The role *name* (`gh-deploy-datasheetminer`) still references the legacy slug — that's REBRAND Phase 3c (AWS resource cosmetics) and intentionally deferred. The role name doesn't appear in OIDC claims; only the `sub` does.
+
+### Other AWS-side rebrand state (2026-04-26 audit)
+
+All other AWS resources still carry the legacy names — and intentionally so per REBRAND.md Phase 3c posture (rename = delete+recreate, no user benefit, deferred until 3a/3b soak):
+
+| Resource | Current name | Plan |
+|---|---|---|
+| Lambda functions | `datasheetminer-api-{dev,staging,prod}` | Phase 3c rename |
+| S3 frontend buckets | `datasheetminer-{stage}-fronten-frontendbucket…` | Phase 3c rename |
+| S3 upload buckets | `datasheetminer-uploads-{stage}-403059190476` | **Leave** (data; rename = recreate) |
+| CFN stacks | `DatasheetMiner-{Dev,Staging,Prod}-{Database,Api,Frontend}` × 9 | **Leave** (per REBRAND.md decision) |
+| CDK-generated IAM roles | `DatasheetMiner-…-ApiHandlerServiceRole…` etc. | Re-created on next deploy as side-effect |
+| SSM prefix `/datasheetminer/{stage}` | configured in `lib/config.ts` + CI env | Currently empty (no params under either prefix); harmless until consumers exist |
+| Inline CdkDeploy permissions policy | delegates to `cdk-hnb659fds-*-role` via `sts:AssumeRole` | No change needed; modern CDK pattern |
+
+So: no other AWS-side fix required to unblock CI. The trust policy was the single landmine.
+
+### Cross-stage hazard to record in REBRAND.md
+
+REBRAND Phase 3d (repo rename) silently breaks any IAM role whose trust policy hardcodes the old repo name in `token.actions.githubusercontent.com:sub` patterns. Future repo-rename runbooks should: (a) audit IAM trust policies for the old name *before* renaming, OR (b) add an alternative pattern entry for the new name and remove the old one only after CI is green. Currently REBRAND.md Phase 3d's contingency list mentions submodules and webhooks but not OIDC. Add it.
+
+### After the OIDC fix, what's left in the deploy chain
+
+Even with the trust policy fixed, the `Deploy Staging` job still has untested surfaces from the OIDC migration commit (`9f054a4`):
+
+- The role's *permissions policy* (not trust policy) needs to allow `cdk deploy`'s API calls — CloudFormation, IAM PassRole, S3, Lambda, API Gateway, CloudFront, DynamoDB, ACM, Route 53 (for the custom domain). If it's missing any, CDK will fail mid-deploy. The error will be specific (e.g. `User: ... is not authorized to perform: lambda:CreateFunction`).
+- `./Quickstart deploy --stage staging` will then run on the renamed `specodex/` Python package for the first time end-to-end. If CDK packaging implicitly relied on the old package directory name anywhere in `app/infrastructure/`, that surfaces here.
+- Smoke Staging runs `tests/staging/` + `tests/post_deploy/` against the deployed URL. These call the API endpoints listed in CLAUDE.md — should pass if Deploy Staging completed cleanly.
+
+### Untouched items (still open)
+
+- Production has not been deployed by CI in three+ weeks. Whatever is in prod got there by hand or is stale. After staging is green, the `deploy-prod` job (gated on `environment: production` approval) will be the first prod CI deploy in a long time.
+- `staging.yml` workflow still exists; still duplicates what `smoke-staging` already does (P5 item).
+- `tests/integration/` still not wired into CI (P3).
+- 11 backend `tsc --noEmit` errors are pre-existing in `tests/` and excluded from `npm run build`'s `tsconfig.json` `include`. Not blocking. Worth a separate cleanup pass eventually but out of scope for CI hygiene.
+- Node 20 deprecation warning still emitted by every action — refresh action versions when convenient (P2).
 
 ## What's in place today
 
