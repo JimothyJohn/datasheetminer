@@ -13,6 +13,7 @@ import json
 import os
 import pytest
 from urllib.error import HTTPError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
@@ -123,9 +124,9 @@ class TestSearchByType:
         assert body["success"] is True
 
     def test_search_with_where_filter(self):
-        status, body = api_request(
-            "GET", "/api/v1/search?type=motor&where=rated_power>=0"
-        )
+        # `>` is RFC 3986 reserved — CloudFront 400s an unencoded query.
+        qs = urlencode({"type": "motor", "where": "rated_power>=0"})
+        status, body = api_request("GET", f"/api/v1/search?{qs}")
         assert status == 200
         assert body["success"] is True
 
