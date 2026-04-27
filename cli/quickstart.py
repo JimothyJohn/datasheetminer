@@ -615,6 +615,29 @@ def cmd_smoke(args: argparse.Namespace) -> None:
     info("Smoke tests passed")
 
 
+def cmd_cdk_outputs(args: argparse.Namespace) -> None:
+    """Look up a value from app/infrastructure/cdk-outputs.json by key substring.
+
+    Tries each --key in order; the first match across any stack wins. Used by CI
+    to read CloudFront URLs and distribution IDs without inline python heredocs
+    in YAML — keep parsing in Python, where it's testable.
+    """
+    path = APP / "infrastructure" / "cdk-outputs.json"
+    if not path.exists():
+        fail(f"cdk-outputs.json not found at {path}")
+
+    data = json.loads(path.read_text())
+    for needle in args.key:
+        for stack in data.values():
+            for k, v in stack.items():
+                if needle in k:
+                    print(v)
+                    return
+    if args.allow_missing:
+        return
+    fail(f"No key matching {args.key} in {path}")
+
+
 def cmd_process(args: argparse.Namespace) -> None:
     """Process queued PDF uploads from S3."""
     stage = args.stage
@@ -721,6 +744,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--once", action="store_true", help="Process queue once and exit (don't poll)"
     )
 
+    # cdk-outputs — extract a value from app/infrastructure/cdk-outputs.json
+    # by key-substring match. CI uses this to read CloudFront URL / distribution
+    # ID without inline python heredocs in YAML.
+    p = sub.add_parser(
+        "cdk-outputs",
+        help="Read app/infrastructure/cdk-outputs.json by key substring",
+    )
+    p.add_argument(
+        "--key",
+        action="append",
+        required=True,
+        help="Key substring to match (repeat for fallbacks; first hit wins)",
+    )
+    p.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="Print nothing and exit 0 if no key matches (default: exit 1)",
+    )
+
     # admin is intercepted in main() before argparse runs, so the remaining
     # args can flow through to cli.admin's own parser.
 
@@ -782,6 +824,7 @@ def main() -> None:
         "deploy": cmd_deploy,
         "smoke": cmd_smoke,
         "process": cmd_process,
+        "cdk-outputs": cmd_cdk_outputs,
     }
     commands[args.command](args)
 

@@ -149,22 +149,9 @@ jobs:
 
       - name: Extract stack outputs
         id: extract
-        working-directory: app/infrastructure
         run: |
-          URL=$(python3 -c "
-          import json, sys
-          data = json.load(open('cdk-outputs.json'))
-          for stack in data.values():
-              for k, v in stack.items():
-                  if 'CloudFrontUrl' in k: print(v); sys.exit()
-          ")
-          DIST_ID=$(python3 -c "
-          import json, sys
-          data = json.load(open('cdk-outputs.json'))
-          for stack in data.values():
-              for k, v in stack.items():
-                  if 'DistributionId' in k: print(v); sys.exit()
-          ")
+          URL=$(./Quickstart cdk-outputs --key CloudFrontUrl)
+          DIST_ID=$(./Quickstart cdk-outputs --key DistributionId)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$DIST_ID" >> "$GITHUB_OUTPUT"
           echo "Staging URL: $URL"
@@ -301,25 +288,11 @@ jobs:
 
       - name: Extract stack outputs
         id: extract
-        working-directory: app/infrastructure
         run: |
-          URL=$(python3 -c "
-          import json, sys
-          data = json.load(open('cdk-outputs.json'))
-          for stack in data.values():
-              for k, v in stack.items():
-                  if 'SiteUrl' in k: print(v); sys.exit()
-          for stack in data.values():
-              for k, v in stack.items():
-                  if 'CloudFrontUrl' in k: print(v); sys.exit()
-          ")
-          DIST_ID=$(python3 -c "
-          import json, sys
-          data = json.load(open('cdk-outputs.json'))
-          for stack in data.values():
-              for k, v in stack.items():
-                  if 'DistributionId' in k: print(v); sys.exit()
-          ")
+          # Prod stack uses the custom-domain SiteUrl when present; fall back
+          # to the CloudFront URL if the custom-domain output isn't there yet.
+          URL=$(./Quickstart cdk-outputs --key SiteUrl --key CloudFrontUrl)
+          DIST_ID=$(./Quickstart cdk-outputs --key DistributionId)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$DIST_ID" >> "$GITHUB_OUTPUT"
           echo "Production URL: $URL"
