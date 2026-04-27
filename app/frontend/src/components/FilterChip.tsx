@@ -4,13 +4,14 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { FilterCriterion, AttributeMetadata, getAvailableOperators } from '../types/filters';
+import { FilterCriterion, AttributeMetadata, ComparisonOperator, getAvailableOperators } from '../types/filters';
 import { Product } from '../types/models';
 import { useApp } from '../context/AppContext';
 import {
   toCanonical,
   toDisplay,
   displayUnit,
+  isIntegerUnit,
 } from '../utils/unitConversion';
 
 interface FilterChipProps {
@@ -19,7 +20,8 @@ interface FilterChipProps {
   products: Product[];
   onUpdate: (updatedFilter: FilterCriterion) => void;
   onRemove: () => void;
-  onEditAttribute: () => void;
+  onEditAttribute: (cursor: { x: number; y: number } | null) => void;
+  onSortByOperator?: (attribute: string, displayName: string, direction: 'asc' | 'desc') => void;
   suggestedValues?: Array<string | number>;
   attributeMetadata?: AttributeMetadata;
   allProducts?: Product[];
@@ -64,6 +66,47 @@ const getUnitString = (value: any): string | null => {
   return null;
 };
 
+/**
+ * Slider scaling — percentile / quantile mapping. The slider has SLIDER_RES+1
+ * discrete positions; position p maps to the value at empirical CDF
+ * position p/SLIDER_RES of the data. Outliers occupy a slice of the track
+ * proportional to their rarity, so a single 10000 in a 0..100 distribution
+ * sits in the top 0.5% rather than monopolizing 99% of the slider. Linear
+ * range mapping was previously useless on long-tailed catalogs.
+ */
+const SLIDER_RES = 1000;
+
+/**
+ * Map a comparison operator to the user's "seek direction" — `>` / `>=`
+ * means hunting for high values (sort desc), `<` / `<=` means low values
+ * (sort asc). `=` and `!=` carry no direction.
+ */
+const directionForOperator = (
+  op: ComparisonOperator | undefined,
+): 'asc' | 'desc' | null => {
+  if (op === '>' || op === '>=') return 'desc';
+  if (op === '<' || op === '<=') return 'asc';
+  return null;
+};
+
+const valueToPosition = (value: number, sortedValues: number[]): number => {
+  const n = sortedValues.length;
+  if (n <= 1) return 0;
+  // Binary search for first index whose value is >= the target.
+  let lo = 0;
+  let hi = n - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sortedValues[mid] < value) lo = mid + 1;
+    else hi = mid;
+  }
+  let idx = lo;
+  if (lo > 0 && Math.abs(sortedValues[lo - 1] - value) < Math.abs(sortedValues[lo] - value)) {
+    idx = lo - 1;
+  }
+  return Math.round((idx / (n - 1)) * SLIDER_RES);
+};
+
 export default function FilterChip({
   filter,
   attributeType,
@@ -71,6 +114,7 @@ export default function FilterChip({
   onUpdate,
   onRemove,
   onEditAttribute,
+  onSortByOperator,
   suggestedValues = [],
   attributeMetadata,
   allProducts
@@ -85,9 +129,23 @@ export default function FilterChip({
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState(suggestedValues);
   const [localSliderValue, setLocalSliderValue] = useState<number>(0);
+  // Slider override: when true, the value readout swaps in a small number
+  // input pre-populated with the currently-displayed value. Hidden behind
+  // a click on the readout so the slider stays the primary interaction
+  // and a stray tap doesn't accidentally land in an editable field.
+  const [editingSliderValue, setEditingSliderValue] = useState(false);
+  const [sliderValueDraft, setSliderValueDraft] = useState<string>('');
+  // Drag state for the rubber-band slider. `dragCursorT` is the raw cursor
+  // position along the track (0..1) during an active drag; null otherwise.
+  // Used purely for the thumb's visual stress curve — the underlying
+  // filter value still snaps to the nearest data point on every move.
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
+  const [dragCursorT, setDragCursorT] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sliderValueInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const sliderTrackRef = useRef<HTMLDivElement>(null);
 
   // Get available operators based on actual data values
   const availableOperators = useMemo(
@@ -95,19 +153,24 @@ export default function FilterChip({
     [products, filter.attribute]
   );
 
-  // Calculate min/max value for slider (for ValueUnit and MinMaxUnit fields)
+  // Slider/numeric fields cycle just '>=' and '<' — drag-from-zero with a
+  // single click to flip into upper-bound mode. The legacy
+  // '=' / '!=' / '>' / '<=' permutations were never used in practice and
+  // forced multiple clicks to reach the desired direction.
+  const SLIDER_OPERATORS: ComparisonOperator[] = useMemo(() => ['>=', '<'], []);
+
+  // Build slider scale from the actual value distribution. Stores the full
+  // sorted array so position→value can map by empirical CDF (see
+  // positionToValue). Outliers no longer dominate the track.
   const rangeInfo = useMemo(() => {
-    // Only calculate for 'object' and 'range' types
     if (attributeType !== 'object' && attributeType !== 'range') {
       return null;
     }
 
-    let maxValue = -Infinity;
-    let minValue = Infinity;
+    const values: number[] = [];
     let unit: string | null = null;
-    let foundValues = false;
 
-    // Use allProducts if available to ensure slider range is stable across filters
+    // Use allProducts if available to keep the slider scale stable across filters
     const productsToUse = allProducts || products;
 
     productsToUse.forEach(product => {
@@ -115,11 +178,7 @@ export default function FilterChip({
       if (value !== undefined && value !== null) {
         const numValue = extractNumericValue(value);
         if (numValue !== null) {
-          foundValues = true;
-          if (numValue > maxValue) maxValue = numValue;
-          if (numValue < minValue) minValue = numValue;
-          
-          // Get unit from this value
+          values.push(numValue);
           if (!unit) {
             unit = getUnitString(value);
           }
@@ -127,28 +186,24 @@ export default function FilterChip({
       }
     });
 
-    // If we found values, return min/max with some headroom
-    if (foundValues) {
-      const range = maxValue - minValue;
-      // Add 5% padding to range, but don't go below 0 if original min was >= 0
-      const padding = range * 0.05;
-      
-      return {
-        max: Math.ceil(maxValue + padding),
-        min: minValue >= 0 ? Math.max(0, Math.floor(minValue - padding)) : Math.floor(minValue - padding),
-        unit: unit || attributeMetadata?.unit || ''
-      };
-    }
+    if (values.length === 0) return null;
 
-    return null;
+    values.sort((a, b) => a - b);
+
+    return {
+      min: values[0],
+      max: values[values.length - 1],
+      sortedValues: values,
+      unit: unit || attributeMetadata?.unit || ''
+    };
   }, [products, allProducts, filter.attribute, attributeType, attributeMetadata]);
 
-  // Sync local slider value with filter value, defaulting to range minimum
+  // Sync local slider value with filter value, defaulting to 0. Starting at
+  // zero matches the user mental model: "drag right to raise the floor"
+  // with operator '>=' (or "drag right to raise the cap" with '<').
   useEffect(() => {
     if (typeof filter.value === 'number') {
       setLocalSliderValue(filter.value);
-    } else if (rangeInfo) {
-      setLocalSliderValue(rangeInfo.min);
     } else {
       setLocalSliderValue(0);
     }
@@ -160,13 +215,21 @@ export default function FilterChip({
     return (attributeType === 'object' || attributeType === 'range') && rangeInfo !== null;
   }, [attributeType, rangeInfo]);
 
-  // Auto-initialize slider filter value when slider first becomes available
+  // Auto-initialize slider filter value when slider first becomes available.
+  // Always starts at 0 with '>=' so the slider shows "everything" by default
+  // and the user drags right to tighten — clicking the operator flips to '<'
+  // for upper-bound mode. Sort is NOT seeded here — adding a spec leaves the
+  // table's current order alone. Sort changes only when the user explicitly
+  // clicks the operator button.
   useEffect(() => {
     if (showSlider && rangeInfo && filter.value === undefined) {
+      const op = filter.operator && SLIDER_OPERATORS.includes(filter.operator)
+        ? filter.operator
+        : '>=';
       onUpdate({
         ...filter,
-        value: rangeInfo.min,
-        operator: filter.operator || '>='
+        value: 0,
+        operator: op,
       });
     }
   }, [showSlider, rangeInfo]);
@@ -178,9 +241,14 @@ export default function FilterChip({
            availableOperators.every(op => op === '=' || op === '!=');
   }, [availableOperators]);
 
-  // Only show operator button if there are multiple operators available AND not multi-select
-  // We allow operator button even for sliders now
-  const showOperatorButton = availableOperators.length > 1 && !isMultiSelectField;
+  // For slider fields: cycle button toggles '>=' ↔ '<'. For other numeric/
+  // comparison fields: cycle through whatever operators the data supports,
+  // skipping multi-select (which uses the chip-list UI instead).
+  // Slider fields don't render the standalone left button — the operator
+  // glyph next to the value is itself the cycle button (see below).
+  const cycleOperators = showSlider ? SLIDER_OPERATORS : availableOperators;
+  const showOperatorButton =
+    !showSlider && availableOperators.length > 1 && !isMultiSelectField;
 
   // Get current selected values (as array) - filter out booleans and tuples
   const selectedValues = useMemo(() => {
@@ -198,23 +266,49 @@ export default function FilterChip({
     return [];
   }, [filter.value]);
 
-  // Cycle through comparison operators based on available operators
+  // Cycle through comparison operators. Slider fields toggle '>=' ↔ '<';
+  // non-slider numeric fields cycle whatever the data supports. The new
+  // operator also re-sorts the table to match the seek direction so the
+  // user sees the most-relevant results at the top immediately.
   const cycleOperator = () => {
-    if (availableOperators.length <= 1) return; // Don't allow cycling if only one operator
-
-    const currentIndex = availableOperators.indexOf(filter.operator || '=');
-    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % availableOperators.length;
-    const nextOp = availableOperators[nextIndex];
+    if (cycleOperators.length <= 1) return;
+    const currentIndex = cycleOperators.indexOf(filter.operator || cycleOperators[0]);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOperators.length;
+    const nextOp = cycleOperators[nextIndex];
     onUpdate({ ...filter, operator: nextOp });
+    const dir = directionForOperator(nextOp);
+    if (dir && onSortByOperator) {
+      onSortByOperator(filter.attribute, filter.displayName, dir);
+    }
   };
 
-  // Compute slider fill percentage for active-region coloring
-  const sliderPercent = useMemo(() => {
+  // The user's chosen index in sortedValues, kept alongside the value
+  // it represents. Lets the thumb stay where the user dragged it even
+  // when the value has many duplicates — otherwise valueToPosition's
+  // leftmost-binary-search would snap the thumb back to the first
+  // occurrence of the cluster, looking like a "round down" on release.
+  const [thumbIdx, setThumbIdx] = useState<{ value: number; idx: number } | null>(null);
+
+  // Slider position (0..SLIDER_RES) for the current value, by percentile rank.
+  // Drives both the <input> thumb and the active-region overlay so the slice
+  // of the track filled = the slice of products that match.
+  const sliderPosition = useMemo(() => {
     if (!rangeInfo) return 0;
-    const range = rangeInfo.max - rangeInfo.min;
-    if (range <= 0) return 0;
-    return ((localSliderValue - rangeInfo.min) / range) * 100;
-  }, [localSliderValue, rangeInfo]);
+    const n = rangeInfo.sortedValues.length;
+    if (n <= 1) return 0;
+    if (
+      thumbIdx &&
+      thumbIdx.value === localSliderValue &&
+      thumbIdx.idx >= 0 &&
+      thumbIdx.idx < n &&
+      rangeInfo.sortedValues[thumbIdx.idx] === thumbIdx.value
+    ) {
+      return Math.round((thumbIdx.idx / (n - 1)) * SLIDER_RES);
+    }
+    return valueToPosition(localSliderValue, rangeInfo.sortedValues);
+  }, [thumbIdx, localSliderValue, rangeInfo]);
+
+  const sliderPercent = (sliderPosition / SLIDER_RES) * 100;
 
   // Handle slider value change — update local state AND filter results immediately
   const handleSliderChange = (newValue: number) => {
@@ -224,6 +318,145 @@ export default function FilterChip({
       value: newValue,
       operator: filter.operator || '>='
     });
+  };
+
+  // Rubber-band thumb position. While dragging, the cursor sits at
+  // `dragCursorT` (0..1). The underlying value snaps to the nearest data
+  // point each frame, but the thumb's *visual* position uses a bell-curve
+  // stress: it stretches toward the cursor up to mid-zone, then returns
+  // to the snap point as the cursor approaches the boundary. Crossing the
+  // boundary commits the next/prev value, the snap anchor jumps, and the
+  // bell starts over — so the user sees the thumb stress-and-snap-back
+  // for every gap traversal instead of the slider sitting frozen.
+  const RUBBER_BAND_AMPLITUDE = 0.65;
+  const thumbPercent = useMemo(() => {
+    if (!isSliderDragging || dragCursorT === null || !rangeInfo) {
+      return sliderPercent;
+    }
+    const n = rangeInfo.sortedValues.length;
+    if (n <= 1) return 0;
+
+    const snapIdx = Math.round(dragCursorT * (n - 1));
+    const snapT = snapIdx / (n - 1);
+    const zoneHalfWidth = 0.5 / (n - 1);
+    const zoneOffset = dragCursorT - snapT; // signed, in [-zoneHalfWidth, zoneHalfWidth]
+    const phase = Math.min(1, Math.abs(zoneOffset) / zoneHalfWidth); // 0..1
+    // Bell curve: 0 at snap, peaks at mid-zone, back to 0 at boundary.
+    const stress = Math.sin(phase * Math.PI);
+    const thumbT =
+      snapT + Math.sign(zoneOffset) * stress * zoneHalfWidth * RUBBER_BAND_AMPLITUDE;
+    return Math.max(0, Math.min(100, thumbT * 100));
+  }, [isSliderDragging, dragCursorT, sliderPercent, rangeInfo]);
+
+  // Translate a pointer event to a track-relative t in [0, 1] and commit
+  // the snapped value. `dragCursorT` retains the raw cursor for the
+  // rubber-band visual; the filter value updates only when the snap
+  // index changes, so React doesn't churn on every pixel of mouse motion.
+  const updateFromPointer = (clientX: number) => {
+    const track = sliderTrackRef.current;
+    if (!track || !rangeInfo) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    setDragCursorT(t);
+    const n = rangeInfo.sortedValues.length;
+    if (n <= 1) return;
+    const idx = Math.round(t * (n - 1));
+    const newValue = rangeInfo.sortedValues[idx];
+    setThumbIdx({ value: newValue, idx });
+    if (newValue !== localSliderValue) {
+      handleSliderChange(newValue);
+    }
+  };
+
+  const handleSliderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!rangeInfo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sliderTrackRef.current?.setPointerCapture(e.pointerId);
+    setIsSliderDragging(true);
+    updateFromPointer(e.clientX);
+  };
+
+  const handleSliderPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSliderDragging) return;
+    updateFromPointer(e.clientX);
+  };
+
+  const handleSliderPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSliderDragging) return;
+    sliderTrackRef.current?.releasePointerCapture(e.pointerId);
+    setIsSliderDragging(false);
+    setDragCursorT(null);
+  };
+
+  // Keyboard nav — replaces the input[range] arrow-key affordance.
+  const handleSliderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!rangeInfo) return;
+    const n = rangeInfo.sortedValues.length;
+    if (n <= 1) return;
+    const currentIdx = rangeInfo.sortedValues.indexOf(localSliderValue);
+    const idx = currentIdx === -1 ? 0 : currentIdx;
+    let next = idx;
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowUp':
+        next = Math.min(n - 1, idx + 1);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        next = Math.max(0, idx - 1);
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = n - 1;
+        break;
+      case 'PageUp':
+        next = Math.min(n - 1, idx + Math.max(1, Math.round(n / 10)));
+        break;
+      case 'PageDown':
+        next = Math.max(0, idx - Math.max(1, Math.round(n / 10)));
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    setThumbIdx({ value: rangeInfo.sortedValues[next], idx: next });
+    handleSliderChange(rangeInfo.sortedValues[next]);
+  };
+
+  // Commit a typed slider override. Input is in the active *display*
+  // system (imperial when toggled), so canonicalize before storing —
+  // matches the text-input path. Out-of-range values are accepted as-is;
+  // the slider thumb visually clamps but the underlying filter value
+  // stays at the user's chosen number.
+  const commitSliderOverride = () => {
+    if (!rangeInfo) {
+      setEditingSliderValue(false);
+      return;
+    }
+    const trimmed = sliderValueDraft.trim();
+    if (trimmed === '') {
+      setEditingSliderValue(false);
+      return;
+    }
+    const parsed = parseFloat(trimmed);
+    if (Number.isNaN(parsed)) {
+      setEditingSliderValue(false);
+      return;
+    }
+    const canonical = rangeInfo.unit
+      ? toCanonical(parsed, rangeInfo.unit, unitSystem)
+      : parsed;
+    handleSliderChange(canonical);
+    setEditingSliderValue(false);
+  };
+
+  const cancelSliderOverride = () => {
+    setEditingSliderValue(false);
+    setSliderValueDraft('');
   };
 
   // Filter state stays canonical metric. When the user types a number
@@ -356,22 +589,23 @@ export default function FilterChip({
         <button
           className={`filter-mode-toggle ${filter.mode === 'exclude' ? 'filter-mode-exclude' : 'filter-mode-include'}`}
           onClick={() => onUpdate({ ...filter, mode: filter.mode === 'exclude' ? 'include' : 'exclude' })}
-          title={filter.mode === 'exclude' ? 'Omit mode — click to switch to Select' : 'Select mode — click to switch to Omit'}
+          aria-label={filter.mode === 'exclude' ? 'Excluding these values — click to include instead' : 'Including these values — click to exclude instead'}
+          title={filter.mode === 'exclude' ? 'Excluding — click to include' : 'Including — click to exclude'}
         >
-          {filter.mode === 'exclude' ? 'NOT' : 'IS'}
+          {filter.mode === 'exclude' ? '≠' : '='}
         </button>
         <span
           className="filter-attribute"
-          onClick={onEditAttribute}
+          onClick={(e) => onEditAttribute({ x: e.clientX, y: e.clientY })}
           style={{ cursor: 'pointer' }}
-          title="Click to change attribute"
+          title="Click to change spec"
         >
           {filter.displayName}
         </span>
         <button
           className="filter-remove"
           onClick={onRemove}
-          title="Remove filter"
+          title="Remove spec"
         >
           ×
         </button>
@@ -395,11 +629,11 @@ export default function FilterChip({
                 gap: '0.3rem',
                 padding: '0.15rem 0.35rem',
                 background: filter.mode === 'exclude'
-                  ? 'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)'
-                  : 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
-                color: 'white',
+                  ? 'var(--danger)'
+                  : 'var(--accent-primary)',
+                color: 'var(--bg-primary)',
                 borderRadius: '3px',
-                fontSize: '0.75rem',
+                fontSize: '0.85rem',
                 fontWeight: 600
               }}
             >
@@ -426,15 +660,16 @@ export default function FilterChip({
       )}
 
       <div className="filter-chip-controls">
-        {/* Show operator button if multiple operators available (but not for sliders) */}
+        {/* Operator cycle button. Sliders toggle '>=' ↔ '<';
+            other numeric fields walk whatever the data supports. */}
         {showOperatorButton && (
           <button
             className="filter-operator"
-            data-operator={filter.operator || '='}
+            data-operator={filter.operator || cycleOperators[0] || '='}
             onClick={cycleOperator}
-            title={`Click to cycle operator: ${availableOperators.join(' → ')}`}
+            title={`Click to cycle operator: ${cycleOperators.join(' → ')}`}
           >
-            {filter.operator || '='}
+            {filter.operator || cycleOperators[0] || '='}
           </button>
         )}
 
@@ -456,7 +691,21 @@ export default function FilterChip({
                 <span>{dispMin}</span>
                 <span>{dispMax}</span>
               </div>
-              <div className="filter-slider-track-container">
+              <div
+                ref={sliderTrackRef}
+                className={`filter-slider-track-container${isSliderDragging ? ' is-dragging' : ''}`}
+                role="slider"
+                tabIndex={0}
+                aria-valuemin={rangeInfo.min}
+                aria-valuemax={rangeInfo.max}
+                aria-valuenow={localSliderValue}
+                onPointerDown={handleSliderPointerDown}
+                onPointerMove={handleSliderPointerMove}
+                onPointerUp={handleSliderPointerEnd}
+                onPointerCancel={handleSliderPointerEnd}
+                onKeyDown={handleSliderKeyDown}
+              >
+                <div className="filter-slider-rail" />
                 <div
                   className="filter-slider-active-region"
                   style={{
@@ -468,21 +717,73 @@ export default function FilterChip({
                       : '0%',
                   }}
                 />
-                <input
-                  type="range"
-                  className="filter-slider"
-                  min={rangeInfo.min}
-                  max={rangeInfo.max}
-                  step={(rangeInfo.max - rangeInfo.min) > 1000 ? 10 : (rangeInfo.max - rangeInfo.min) > 100 ? 1 : 0.1}
-                  value={localSliderValue}
-                  onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
+                <div
+                  className="filter-slider-thumb"
+                  style={{ left: `${thumbPercent}%` }}
                 />
               </div>
               <div className="filter-slider-value">
-                <span className="filter-slider-operator">{filter.operator || '>='}</span>
-                {' '}{dispCurrent.toFixed(1)} {dispUnit}
+                <button
+                  type="button"
+                  className="filter-slider-operator"
+                  data-operator={filter.operator || '>='}
+                  onClick={cycleOperator}
+                  title={`Click to cycle operator: ${cycleOperators.join(' → ')}`}
+                  aria-label={`Operator ${filter.operator || '>='} — click to cycle`}
+                >
+                  {filter.operator || '>='}
+                </button>
+                {' '}
+                {editingSliderValue ? (
+                  <span className="filter-slider-value-edit">
+                    <input
+                      ref={sliderValueInputRef}
+                      type="number"
+                      className="filter-slider-value-input"
+                      value={sliderValueDraft}
+                      step="any"
+                      autoFocus
+                      onChange={(e) => setSliderValueDraft(e.target.value)}
+                      onBlur={commitSliderOverride}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitSliderOverride();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          cancelSliderOverride();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      aria-label="Override slider with typed value"
+                    />
+                    {dispUnit && <span className="filter-slider-value-unit">{dispUnit}</span>}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="filter-slider-value-readout"
+                    onClick={() => {
+                      // Integer units (rpm, V) seed the override draft as
+                      // a whole number; fractional units keep two decimals
+                      // so the user sees what they're editing.
+                      const draft = isIntegerUnit(rangeInfo.unit)
+                        ? String(Math.round(dispCurrent))
+                        : String(Number(dispCurrent.toFixed(2)));
+                      setSliderValueDraft(draft);
+                      setEditingSliderValue(true);
+                    }}
+                    title="Click to type an exact value"
+                  >
+                    <span>
+                      {isIntegerUnit(rangeInfo.unit)
+                        ? Math.round(dispCurrent)
+                        : dispCurrent.toFixed(1)} {dispUnit}
+                    </span>
+                    <span className="filter-slider-value-edit-hint" aria-hidden="true">✎</span>
+                  </button>
+                )}
               </div>
             </div>
           );

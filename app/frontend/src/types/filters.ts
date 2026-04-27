@@ -1121,18 +1121,23 @@ const matchesFilter = (value: any, filter: FilterCriterion): boolean => {
     }
 
     // MinMaxUnit: { min: number, max: number, unit: string }
-    // Use the bound most favorable to the motor for directional operators:
-    //   >= / > : use max (motor's best case meets the threshold)
-    //   <= / < : use min (motor's best case stays under the limit)
-    //   = / != : use average as a representative value
+    // Strict-bound matching — every value in the row's range must satisfy
+    // the threshold:
+    //   >= / > : compare against MIN (the bottom of the range clears the bar)
+    //   <= / < : compare against MAX (the top of the range stays under)
+    //   = / != : midpoint (representative point comparison)
+    // This is stricter than midpoint-only matching: a row whose displayed
+    // range straddles the threshold is excluded, so no cell ever shows a
+    // bound that contradicts the filter direction. Slider thumb and sort
+    // key still use midpoint, so the slider scale is unchanged.
     if ('min' in value && 'max' in value) {
       if (typeof filter.value === 'number') {
         const op = filter.operator || '=';
         let representative: number;
         if (op === '>=' || op === '>') {
-          representative = value.max;
-        } else if (op === '<=' || op === '<') {
           representative = value.min;
+        } else if (op === '<=' || op === '<') {
+          representative = value.max;
         } else {
           representative = (value.min + value.max) / 2;
         }

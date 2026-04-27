@@ -5,33 +5,35 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
-import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata } from '../types/filters';
+import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators } from '../types/filters';
 // Column order is authored in types/columnOrder.ts — edit that file to
 // change what columns appear and in what order.
 import { orderColumnAttributes } from '../types/columnOrder';
 import { formatValue } from '../utils/formatting';
 import { displayUnit, convertValueUnit, convertMinMaxUnit } from '../utils/unitConversion';
-import { extractNumeric, numericFromValue } from '../utils/filterValues';
+import { numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
 import {
   safeLoad,
   safeSave,
-  safeLoadString,
   isStringArray,
 } from '../utils/localStorage';
 import FilterBar from './FilterBar';
 import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
+import Dropdown from './Dropdown';
 import { ADJACENT_TYPES, BuildSlot, check as compatCheck } from '../utils/compat';
+import { getAttributeIcon } from '../utils/attributeIcons';
 
 export default function ProductList() {
-  const { products, categories, loading, error, loadProducts, loadCategories, unitSystem, build, compatibleOnly, setCompatibleOnly } = useApp();
+  const { products, categories, loading, error, loadProducts, loadCategories, unitSystem, build, compatibleOnly, setCompatibleOnly, rowDensity } = useApp();
   const [productType, setProductType] = useState<ProductType>(null);
   const [filters, setFilters] = useState<FilterCriterion[]>([]);
   const [sorts, setSorts] = useState<SortConfig[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showSortSelector, setShowSortSelector] = useState(false);
+  const [columnSelectorCursor, setColumnSelectorCursor] = useState<{ x: number; y: number } | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
   // Column visibility model — two sets, because default visibility
@@ -61,56 +63,23 @@ export default function ProductList() {
     safeSave('productListRestoredColumns', userRestoredKeys);
   }, [userRestoredKeys]);
 
-  // Cap on how many columns are displayed at once. null = no cap.
-  // Columns past the cap auto-hide to the "Restore" dropdown alongside
-  // user-hidden ones; they're still individually restorable. Default
-  // ceiling of 12 keeps the table scannable even on 30+ field schemas.
-  const [maxVisibleColumns, setMaxVisibleColumns] = useState<number | null>(() => {
-    if (typeof window === 'undefined') return 12;
-    const stored = window.localStorage.getItem('productListMaxVisibleColumns');
-    if (stored === null) return 12;
-    if (stored === 'null') return null;
-    const n = parseInt(stored, 10);
-    return Number.isFinite(n) && n > 0 ? n : 12;
-  });
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      'productListMaxVisibleColumns',
-      maxVisibleColumns === null ? 'null' : String(maxVisibleColumns),
-    );
-  }, [maxVisibleColumns]);
+  // Hard cap on simultaneously visible spec columns. Compact rows fit ten
+  // before the table feels crowded; comfy is six so the row breathes
+  // without horizontal scrolling. Extras spill into the restore dropdown
+  // and stay individually restorable.
+  const MAX_VISIBLE_COLUMNS = rowDensity === 'compact' ? 10 : 6;
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
-  const [gearRatio, setGearRatio] = useState<number>(1);
-  const [autoGear, setAutoGear] = useState<boolean>(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [appType, setAppType] = useState<'rotary' | 'linear' | 'z-axis'>('rotary');
   const [linearTravel, setLinearTravel] = useState<number>(0); // mm/rev
   const [screwEfficiency, setScrewEfficiency] = useState<number>(90); // % (ball screw ~90, lead screw ~30-50)
   const [loadMass, setLoadMass] = useState<number>(0); // kg (for Z-axis gravity calc)
 
-  // Row-height preference. Persisted across sessions so user doesn't
-  // have to re-toggle on every page load. 'compact' matches the
-  // historical density; 'comfy' bumps vertical padding for readability.
-  const [rowDensity, setRowDensity] = useState<'compact' | 'comfy'>(() =>
-    safeLoadString(
-      'productListRowDensity',
-      (v): v is 'compact' | 'comfy' => v === 'compact' || v === 'comfy',
-      'compact',
-    ),
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem('productListRowDensity', rowDensity);
-    } catch {
-      // noop
-    }
-  }, [rowDensity]);
-
-  // Default column widths (px): part number + spec columns
-  const defaultPartWidth = 120;
-  const defaultColWidth = 90;
+// Default column widths (px): part number + spec columns. Comfy mode
+// widens both so the bumped font size has room to breathe; toggling
+// density resets widths to that mode's defaults (see effect below).
+  const defaultPartWidth = rowDensity === 'compact' ? 120 : 160;
+  const defaultColWidth = rowDensity === 'compact' ? 90 : 130;
   const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
 
   // Keys that should never render as their own column. `part_number` is
@@ -156,7 +125,7 @@ export default function ProductList() {
   //   ValueUnit motor spec that's motor-designer-only)
   // - otherwise fall through to the kind-based default: ValueUnit /
   //   MinMaxUnit (nested:true) visible, everything else hidden.
-  // Then clamp to maxVisibleColumns; columns past the cap spill into
+  // Then clamp to MAX_VISIBLE_COLUMNS; columns past the cap spill into
   // the restore dropdown.
   const visibleColumnAttributes = useMemo<AttributeMetadata[]>(() => {
     const shown = columnAttributes.filter(a => {
@@ -166,8 +135,8 @@ export default function ProductList() {
       if (a.defaultVisible === false) return false;
       return a.nested === true;
     });
-    return maxVisibleColumns === null ? shown : shown.slice(0, maxVisibleColumns);
-  }, [columnAttributes, userHiddenKeys, userRestoredKeys, maxVisibleColumns]);
+    return shown.slice(0, MAX_VISIBLE_COLUMNS);
+  }, [columnAttributes, userHiddenKeys, userRestoredKeys, MAX_VISIBLE_COLUMNS]);
 
   // Restore-dropdown candidates: everything the user could bring back —
   // explicit hides, cap overflow, and the hidden-by-default non-unit
@@ -177,7 +146,10 @@ export default function ProductList() {
     return columnAttributes.filter(a => !visibleKeys.has(a.key));
   }, [columnAttributes, visibleColumnAttributes]);
 
-  // Sync column widths when the visible column set changes.
+  // Sync column widths when the visible column set changes. When
+  // `rowDensity` flips, we clobber instead of preserving so the new
+  // defaults actually take effect — manual resizes within a mode are
+  // still respected until the next density toggle.
   useEffect(() => {
     if (!productType) return;
     const defaults = visibleColumnAttributes.map(a => a.key);
@@ -190,6 +162,17 @@ export default function ProductList() {
       return next;
     });
   }, [productType, visibleColumnAttributes]);
+
+  // Reset widths to the active density's defaults whenever density flips.
+  useEffect(() => {
+    setColumnWidths(prev => {
+      const next: Record<string, number> = {};
+      for (const key of Object.keys(prev)) {
+        next[key] = key === 'part_number' ? defaultPartWidth : defaultColWidth;
+      }
+      return next;
+    });
+  }, [rowDensity, defaultPartWidth, defaultColWidth, setColumnWidths]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -215,53 +198,42 @@ export default function ProductList() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Slider-operator → sort direction. The user's "seek method": picking
+  // `>=` means they're hunting for high values (sort desc); picking `<`
+  // means they want low values (sort asc). If a sort already exists for
+  // this attribute (e.g. set via column-header click), flip its direction
+  // in place to preserve any multi-level sort hierarchy. If no prior sort,
+  // prepend so the seek direction takes the primary slot.
+  const handleSortByOperator = (
+    attribute: string,
+    displayName: string,
+    direction: 'asc' | 'desc',
+  ) => {
+    setSorts(prev => {
+      const idx = prev.findIndex(s => s.attribute === attribute);
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = { attribute, displayName, direction };
+        return next;
+      }
+      return [{ attribute, displayName, direction }, ...prev];
+    });
+  };
+
   // Handle product type change
   const handleProductTypeChange = (newType: ProductType) => {
     setProductType(newType);
     setFilters([]);
     setSorts([]);
-    setGearRatio(1);
     setAppType('rotary');
     setLinearTravel(0);
     setScrewEfficiency(90);
     setLoadMass(0);
   };
 
-  // Gear ratio keys — torque is multiplied, speed is divided at the output
+  // Torque/speed keys — used for linear-mode display conversions.
   const TORQUE_KEYS = ['rated_torque', 'peak_torque'];
   const SPEED_KEYS = ['rated_speed'];
-
-  // Transform filters so user-entered values represent the geared output (manual mode only).
-  const gearedFilters = useMemo(() => {
-    if (gearRatio === 1 || productType !== 'motor') return filters;
-    return filters.map(f => {
-      if (f.value === undefined || typeof f.value !== 'number') return f;
-      const baseAttr = f.attribute.split('.')[0];
-      if (TORQUE_KEYS.includes(baseAttr)) {
-        return { ...f, value: f.value / gearRatio };
-      }
-      if (SPEED_KEYS.includes(baseAttr)) {
-        return { ...f, value: f.value * gearRatio };
-      }
-      return f;
-    });
-  }, [filters, gearRatio, productType]);
-
-  const applyGearRatio = (value: any, ratio: number, multiply: boolean): any => {
-    if (!value || ratio === 1) return value;
-    const factor = multiply ? ratio : 1 / ratio;
-    if (typeof value === 'object' && 'value' in value && typeof value.value === 'number') {
-      return { ...value, value: parseFloat((value.value * factor).toPrecision(4)) };
-    }
-    if (typeof value === 'object' && 'min' in value && 'max' in value) {
-      return {
-        ...value,
-        min: value.min != null ? parseFloat((value.min * factor).toPrecision(4)) : value.min,
-        max: value.max != null ? parseFloat((value.max * factor).toPrecision(4)) : value.max,
-      };
-    }
-    return value;
-  };
 
   // Linear motion conversion helpers
   const isLinearMode = (appType === 'linear' || appType === 'z-axis') && linearTravel > 0;
@@ -302,104 +274,6 @@ export default function ProductList() {
     return value;
   };
 
-  // --- Auto-gear: compute per-motor optimal gear ratio ---
-  // For each motor, computes the minimum gear ratio that satisfies all torque/speed constraints.
-  // Torque at output = motor_torque * R, Speed at output = motor_speed / R.
-  const autoGearResults = useMemo(() => {
-    if (!autoGear || productType !== 'motor') return null;
-
-    // Split filters into gear-affected vs everything else
-    const gearFilters: FilterCriterion[] = [];
-    const otherFilters: FilterCriterion[] = [];
-    for (const f of filters) {
-      const base = f.attribute.split('.')[0];
-      if ((TORQUE_KEYS.includes(base) || SPEED_KEYS.includes(base)) && f.mode === 'include' && typeof f.value === 'number') {
-        gearFilters.push(f);
-      } else {
-        otherFilters.push(f);
-      }
-    }
-
-    if (gearFilters.length === 0) return null;
-
-    // Separate = and != filters — checked post-ratio-computation
-    const boundFilters = gearFilters.filter(f => f.operator !== '=' && f.operator !== '!=');
-    const postCheckFilters = gearFilters.filter(f => f.operator === '=' || f.operator === '!=');
-
-    const candidates = applyFilters(products, otherFilters);
-    const results: Array<Product & { _computedGearRatio: number }> = [];
-
-    for (const product of candidates) {
-      let rMin = 1;
-      let rMax = Infinity;
-      let feasible = true;
-
-      for (const f of boundFilters) {
-        const base = f.attribute.split('.')[0];
-        const raw = extractNumeric(product, f.attribute);
-        if (raw == null || raw === 0) { feasible = false; break; }
-
-        const target = f.value as number;
-        const isTorque = TORQUE_KEYS.includes(base);
-
-        if (isTorque) {
-          if (f.operator === '>=' || f.operator === '>') rMin = Math.max(rMin, target / raw);
-          if (f.operator === '<=' || f.operator === '<') rMax = Math.min(rMax, target / raw);
-        } else {
-          if (f.operator === '>=' || f.operator === '>') rMax = Math.min(rMax, raw / target);
-          if (f.operator === '<=' || f.operator === '<') rMin = Math.max(rMin, raw / target);
-        }
-      }
-
-      // '=' pins R exactly
-      for (const f of postCheckFilters) {
-        if (f.operator !== '=') continue;
-        const base = f.attribute.split('.')[0];
-        const raw = extractNumeric(product, f.attribute);
-        if (raw == null || raw === 0) { feasible = false; break; }
-        const target = f.value as number;
-        const pinned = TORQUE_KEYS.includes(base) ? target / raw : raw / target;
-        rMin = Math.max(rMin, pinned);
-        rMax = Math.min(rMax, pinned);
-      }
-
-      if (!feasible || rMin > rMax) continue;
-
-      const ratio = Math.max(1, parseFloat(rMin.toPrecision(4)));
-      if (ratio > rMax) continue;
-
-      // '!=' post-check
-      let excluded = false;
-      for (const f of postCheckFilters) {
-        if (f.operator !== '!=') continue;
-        const base = f.attribute.split('.')[0];
-        const raw = extractNumeric(product, f.attribute);
-        if (raw == null) continue;
-        const geared = TORQUE_KEYS.includes(base) ? raw * ratio : raw / ratio;
-        if (geared === (f.value as number)) { excluded = true; break; }
-      }
-      if (excluded) continue;
-
-      results.push({ ...product, _computedGearRatio: ratio } as Product & { _computedGearRatio: number });
-    }
-
-    return results;
-  }, [products, filters, autoGear, productType]);
-
-  const autoGearActive = autoGearResults !== null;
-
-  // Summary stats for computed ratios (displayed in sidebar)
-  const autoGearSummary = useMemo(() => {
-    if (!autoGearResults || autoGearResults.length === 0) return null;
-    const ratios = autoGearResults.map(r => r._computedGearRatio).sort((a, b) => a - b);
-    return {
-      min: ratios[0],
-      max: ratios[ratios.length - 1],
-      median: ratios[Math.floor(ratios.length / 2)],
-      count: ratios.length,
-    };
-  }, [autoGearResults]);
-
   // Build-aware compat narrowing. When the user has anchored part of their
   // motion-system build and the active type is adjacent to one of those
   // anchors, drop products that strict-fail compat. Soft-partials (missing
@@ -429,14 +303,9 @@ export default function ProductList() {
 
   const compatHiddenCount = compatFilterActive ? products.length - compatNarrowed.length : 0;
 
-  // Auto-gear path: filtering done inside autoGearResults.
-  // Manual path: use gearedFilters (values transformed by global ratio).
   const filteredProducts = useMemo(() => {
-    if (autoGearActive) {
-      return autoGearResults! as Product[];
-    }
-    return applyFilters(compatNarrowed, gearedFilters);
-  }, [compatNarrowed, gearedFilters, autoGearActive, autoGearResults]);
+    return applyFilters(compatNarrowed, filters);
+  }, [compatNarrowed, filters]);
 
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
@@ -444,59 +313,29 @@ export default function ProductList() {
     [filteredProducts, sorts]
   );
 
-  // Transform display values: gear ratio + linear conversion if applicable
-  const gearedProducts = useMemo(() => {
-    const applyLinearConversions = (copy: any) => {
-      if (!isLinearMode) return;
+  // Transform display values for linear / z-axis modes.
+  const displayProducts = useMemo(() => {
+    if (!isLinearMode) return sortedProducts;
+    return sortedProducts.map(p => {
+      const copy = { ...p } as any;
       for (const key of SPEED_KEYS) {
         if (copy[key]) copy[key] = rpmToLinearSpeed(copy[key]);
       }
       for (const key of TORQUE_KEYS) {
         if (copy[key]) copy[key] = torqueToThrust(copy[key]);
       }
-    };
-
-    if (autoGearActive) {
-      return sortedProducts.map(p => {
-        const ratio = (p as any)._computedGearRatio ?? 1;
-        const copy = { ...p } as any;
-        if (ratio !== 1) {
-          for (const key of TORQUE_KEYS) {
-            if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, true);
-          }
-          for (const key of SPEED_KEYS) {
-            if (copy[key]) copy[key] = applyGearRatio(copy[key], ratio, false);
-          }
-        }
-        applyLinearConversions(copy);
-        return copy as Product;
-      });
-    }
-    const needsGear = gearRatio !== 1 && productType === 'motor';
-    if (!needsGear && !isLinearMode) return sortedProducts;
-    return sortedProducts.map(p => {
-      const copy = { ...p } as any;
-      if (needsGear) {
-        for (const key of TORQUE_KEYS) {
-          if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, true);
-        }
-        for (const key of SPEED_KEYS) {
-          if (copy[key]) copy[key] = applyGearRatio(copy[key], gearRatio, false);
-        }
-      }
-      applyLinearConversions(copy);
       return copy as Product;
     });
-  }, [sortedProducts, gearRatio, productType, autoGearActive, isLinearMode, linearTravel, screwEfficiency]);
+  }, [sortedProducts, isLinearMode, linearTravel, screwEfficiency]);
 
   // Paginate products
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return gearedProducts.slice(startIndex, endIndex);
-  }, [gearedProducts, currentPage, itemsPerPage]);
+    return displayProducts.slice(startIndex, endIndex);
+  }, [displayProducts, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(gearedProducts.length / itemsPerPage);
+  const totalPages = Math.ceil(displayProducts.length / itemsPerPage);
 
   // Reset to page 1 when filters, sorts, or items per page change
   useEffect(() => {
@@ -570,59 +409,157 @@ export default function ProductList() {
     return null;
   };
 
-  // Get color based on proximity to filter value
+  // Min/max for each filtered numeric attribute across the visible result set.
+  // Drives the per-cell highlight gradient — see getProximityColor.
+  const filteredAttrRanges = useMemo(() => {
+    const map = new Map<string, { min: number; max: number }>();
+    for (const filter of filters) {
+      if (filter.value === undefined || filter.operator === '!=') continue;
+      const path = filter.attribute;
+      const [baseAttr, ...rest] = path.split('.');
+      const nestedKeys = rest;
+      let min = Infinity;
+      let max = -Infinity;
+      for (const p of filteredProducts) {
+        const root = (p as any)[baseAttr];
+        if (root == null) continue;
+        const sub = nestedKeys.length === 0
+          ? root
+          : nestedKeys.reduce((acc: any, k) => (acc == null ? acc : acc[k]), root);
+        const n = numericFromValue(sub);
+        if (n == null || !Number.isFinite(n)) continue;
+        if (n < min) min = n;
+        if (n > max) max = n;
+      }
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        map.set(path, { min, max });
+      }
+    }
+    return map;
+  }, [filters, filteredProducts]);
+
+  // Tint a cell in a filtered column based on where its value sits in the
+  // visible result set. Direction follows the operator: `>`/`>=` brightens
+  // high values, `<`/`<=` brightens low values, `=` brightens values nearest
+  // the filter value. Opacity is a hint, not a banner.
   const getProximityColor = (attribute: string, productValue: any): string => {
     const filter = filters.find(f => f.attribute === attribute || f.attribute.startsWith(attribute + '.'));
     if (!filter || filter.operator === '!=') return '';
 
     let numericProductValue: number | null = null;
-
     if (filter.attribute === attribute) {
       numericProductValue = numericFromValue(productValue);
     } else if (filter.attribute.startsWith(attribute + '.')) {
-      const nestedKey = filter.attribute.split('.').pop();
-      if (nestedKey && productValue && typeof productValue === 'object' && nestedKey in productValue) {
-        numericProductValue = numericFromValue(productValue[nestedKey]);
+      const nestedKey = filter.attribute.split('.').slice(1).join('.');
+      if (nestedKey && productValue && typeof productValue === 'object') {
+        const sub = nestedKey.split('.').reduce((acc: any, k) => (acc == null ? acc : acc[k]), productValue);
+        numericProductValue = numericFromValue(sub);
       }
     }
+    if (numericProductValue === null) return '';
+
+    const range = filteredAttrRanges.get(filter.attribute);
+    const span = range ? range.max - range.min : 0;
+    const pct = span > 0 && range
+      ? Math.max(0, Math.min(1, (numericProductValue - range.min) / span))
+      : 0.5;
 
     const numericFilterValue = numericFromValue(filter.value);
 
-    if (numericProductValue === null || numericFilterValue === null) return '';
-    if (numericFilterValue === 0) return '';
-
-    if (filter.operator === '=') {
-      const percentDiff = Math.abs((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
-      if (percentDiff === 0) return 'hsla(140, 40%, 50%, 0.25)';
-      if (percentDiff < 5) return 'hsla(140, 30%, 50%, 0.2)';
-      if (percentDiff < 10) return 'hsla(100, 30%, 50%, 0.2)';
-      if (percentDiff < 20) return 'hsla(60, 30%, 50%, 0.2)';
-      return '';
+    let intensity: number;
+    if (filter.operator === '=' && numericFilterValue !== null && numericFilterValue !== 0) {
+      const percentDiff = Math.abs((numericProductValue - numericFilterValue) / numericFilterValue);
+      intensity = Math.max(0, 1 - percentDiff * 5);
+    } else if (filter.operator === '<' || filter.operator === '<=') {
+      intensity = 1 - pct;
+    } else {
+      intensity = pct;
     }
 
-    if (filter.operator === '>') {
-      if (numericProductValue > numericFilterValue) {
-        const percentOver = ((numericProductValue - numericFilterValue) / numericFilterValue) * 100;
-        if (percentOver > 50) return 'hsla(140, 40%, 50%, 0.25)';
-        if (percentOver > 25) return 'hsla(140, 30%, 50%, 0.2)';
-        return 'hsla(100, 30%, 50%, 0.2)';
-      }
-    }
-
-    if (filter.operator === '<') {
-      if (numericProductValue < numericFilterValue) {
-        const percentUnder = ((numericFilterValue - numericProductValue) / numericFilterValue) * 100;
-        if (percentUnder > 50) return 'hsla(140, 40%, 50%, 0.25)';
-        if (percentUnder > 25) return 'hsla(140, 30%, 50%, 0.2)';
-        return 'hsla(100, 30%, 50%, 0.2)';
-      }
-    }
-
-    return '';
+    const opacity = 0.04 + intensity * 0.16;
+    return `hsla(45, 60%, 45%, ${opacity.toFixed(3)})`;
   };
 
   const isSortedAttribute = (attribute: string): boolean => {
     return sorts.some(sort => sort.attribute === attribute);
+  };
+
+  // Per-sort-attribute sorted numeric arrays over the visible (post-filter,
+  // post-linear-transform) set. Used to map each cell's value to its
+  // empirical CDF position, so the sort highlight gradient is robust to
+  // outliers — same idea as the slider's percentile mapping in FilterChip.
+  const sortedAttrValues = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const s of sorts) {
+      const path = s.attribute;
+      const [baseAttr, ...rest] = path.split('.');
+      const values: number[] = [];
+      for (const p of displayProducts) {
+        const root = (p as any)[baseAttr];
+        if (root == null) continue;
+        const sub = rest.length === 0
+          ? root
+          : rest.reduce((acc: any, k) => (acc == null ? acc : acc[k]), root);
+        const n = numericFromValue(sub);
+        if (n != null && Number.isFinite(n)) values.push(n);
+      }
+      if (values.length > 0) {
+        values.sort((a, b) => a - b);
+        map.set(path, values);
+      }
+    }
+    return map;
+  }, [sorts, displayProducts]);
+
+  // Tint a sorted column cell by the value's percentile rank in the visible
+  // set. Direction follows the sort: desc → high values brightest (they're
+  // at the top), asc → low values brightest. Linear min/max scaling would
+  // let a single 10× outlier compress the rest of the column into a flat
+  // band; percentile rank gives every row a fair share of the gradient.
+  const getSortGradientColor = (attribute: string, productValue: any): string => {
+    const sort = sorts.find(
+      s => s.attribute === attribute || s.attribute.startsWith(attribute + '.'),
+    );
+    if (!sort) return '';
+
+    let numericProductValue: number | null = null;
+    if (sort.attribute === attribute) {
+      numericProductValue = numericFromValue(productValue);
+    } else if (sort.attribute.startsWith(attribute + '.')) {
+      const nestedKey = sort.attribute.split('.').slice(1).join('.');
+      if (nestedKey && productValue && typeof productValue === 'object') {
+        const sub = nestedKey.split('.').reduce(
+          (acc: any, k) => (acc == null ? acc : acc[k]),
+          productValue,
+        );
+        numericProductValue = numericFromValue(sub);
+      }
+    }
+    if (numericProductValue === null) return '';
+
+    const sorted = sortedAttrValues.get(sort.attribute);
+    if (!sorted || sorted.length < 2) return '';
+
+    // Binary search for empirical CDF position (mirrors valueToPosition in FilterChip).
+    let lo = 0;
+    let hi = sorted.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sorted[mid] < numericProductValue) lo = mid + 1;
+      else hi = mid;
+    }
+    let idx = lo;
+    if (
+      lo > 0 &&
+      Math.abs(sorted[lo - 1] - numericProductValue) <
+        Math.abs(sorted[lo] - numericProductValue)
+    ) {
+      idx = lo - 1;
+    }
+    const pct = idx / (sorted.length - 1);
+    const intensity = sort.direction === 'asc' ? 1 - pct : pct;
+    const opacity = 0.04 + intensity * 0.22;
+    return `hsla(45, 70%, 50%, ${opacity.toFixed(3)})`;
   };
 
   const isFilteredAttribute = (attribute: string): boolean => {
@@ -643,6 +580,11 @@ export default function ProductList() {
   };
 
   const handleColumnSort = (attribute: string) => {
+    const staticAttrs = getAttributesForType(productType || 'motor');
+    const derivedAttrs = deriveAttributesFromRecords(products, productType);
+    const allAttrs = mergeAttributesByKey(staticAttrs, derivedAttrs);
+    const attributeMetadata = allAttrs.find(attr => attr.key === attribute);
+
     const existingSortIndex = sorts.findIndex(s => s.attribute === attribute);
 
     if (existingSortIndex !== -1) {
@@ -654,16 +596,42 @@ export default function ProductList() {
       } else {
         setSorts(sorts.filter((_, i) => i !== existingSortIndex));
       }
-    } else {
-      const attributes = getAttributesForType(productType || 'motor');
-      const attributeMetadata = attributes.find(attr => attr.key === attribute);
-      if (attributeMetadata) {
-        setSorts([...sorts, {
+    } else if (attributeMetadata) {
+      setSorts([...sorts, {
+        attribute: attribute,
+        direction: 'asc',
+        displayName: attributeMetadata.displayName
+      }]);
+    }
+
+    // Mirror the sort with a filter chip for the same spec, so the user can
+    // narrow as well as order in one click. Skip if a filter for this
+    // attribute (or its nested children, e.g. `rated_voltage.min`) is
+    // already present, and skip when we can't resolve metadata.
+    if (
+      attributeMetadata &&
+      !filters.some(
+        f => f.attribute === attribute || f.attribute.startsWith(attribute + '.'),
+      )
+    ) {
+      const availableOperators = getAvailableOperators(products, attribute);
+      const hasComparison = availableOperators.some(
+        op => op === '>' || op === '>=' || op === '<' || op === '<=',
+      );
+      const defaultOperator = hasComparison
+        ? '>='
+        : availableOperators.length > 0
+          ? availableOperators[0]
+          : '=';
+      setFilters([
+        ...filters,
+        {
           attribute: attribute,
-          direction: 'asc',
-          displayName: attributeMetadata.displayName
-        }]);
-      }
+          mode: 'include',
+          operator: defaultOperator,
+          displayName: attributeMetadata.displayName,
+        },
+      ]);
     }
   };
 
@@ -680,30 +648,12 @@ export default function ProductList() {
   // Restore a column. Two paths:
   // - Unit-bearing column was user-hidden → remove from userHiddenKeys.
   // - Non-unit column (hidden by default) → add to userRestoredKeys.
-  // If the column still falls past the cap after restoring, bump the
-  // cap just enough to fit it so the click produces visible feedback.
+  // With the cap locked (6 comfy / 10 compact), a restore that lands past
+  // the cap won't appear until the user hides one of the visible columns.
   const handleAddColumn = (attribute: ReturnType<typeof getAttributesForType>[0]) => {
-    const newHidden = userHiddenKeys.filter(k => k !== attribute.key);
-    setUserHiddenKeys(newHidden);
-    const newRestored = attribute.nested
-      ? userRestoredKeys
-      : userRestoredKeys.includes(attribute.key)
-        ? userRestoredKeys
-        : [...userRestoredKeys, attribute.key];
-    if (newRestored !== userRestoredKeys) setUserRestoredKeys(newRestored);
-
-    if (maxVisibleColumns !== null) {
-      // Recompute visible list with the new sets to find where the
-      // restored attribute lands alphabetically.
-      const newVisibleList = columnAttributes.filter(a => {
-        if (newHidden.includes(a.key)) return false;
-        if (a.nested) return true;
-        return newRestored.includes(a.key);
-      });
-      const pos = newVisibleList.findIndex(a => a.key === attribute.key);
-      if (pos >= 0 && pos >= maxVisibleColumns) {
-        setMaxVisibleColumns(pos + 1);
-      }
+    setUserHiddenKeys(userHiddenKeys.filter(k => k !== attribute.key));
+    if (!attribute.nested && !userRestoredKeys.includes(attribute.key)) {
+      setUserRestoredKeys([...userRestoredKeys, attribute.key]);
     }
     setShowSortSelector(false);
   };
@@ -718,51 +668,22 @@ export default function ProductList() {
           <div className="results-header-left">
             <div className="pagination-controls">
               <label className="pagination-label">Show:</label>
-              <select
-                className="pagination-select"
+              <Dropdown<number>
                 value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={250}>250</option>
-                <option value={500}>500</option>
-              </select>
+                onChange={setItemsPerPage}
+                ariaLabel="Items per page"
+                className="pagination-select"
+                options={[10, 25, 50, 100, 250, 500].map((n) => ({
+                  value: n,
+                  label: String(n),
+                }))}
+              />
             </div>
             <span className="results-count" style={{ marginLeft: '1rem' }}>
-              {gearedProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, gearedProducts.length)}`} of {gearedProducts.length}
+              {displayProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, displayProducts.length)}`} of {displayProducts.length}
             </span>
           </div>
 
-          <div className="results-header-right">
-            <label className="column-cap-control" title="Max number of spec columns shown at once. Extras are restorable.">
-              <span>Max cols:</span>
-              <select
-                value={maxVisibleColumns === null ? 'none' : String(maxVisibleColumns)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setMaxVisibleColumns(v === 'none' ? null : parseInt(v, 10));
-                }}
-              >
-                <option value="6">6</option>
-                <option value="8">8</option>
-                <option value="12">12</option>
-                <option value="16">16</option>
-                <option value="24">24</option>
-                <option value="none">All</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              className="density-toggle-btn"
-              onClick={() => setRowDensity(d => (d === 'compact' ? 'comfy' : 'compact'))}
-              title={rowDensity === 'compact' ? 'Switch to comfortable row height' : 'Switch to compact row height'}
-            >
-              {rowDensity === 'compact' ? '☰ Compact' : '≡ Comfy'}
-            </button>
-          </div>
         </div>
 
         {error && (
@@ -774,14 +695,14 @@ export default function ProductList() {
           </div>
         )}
 
-        {productType === null || (!loading && gearedProducts.length === 0) ? (
+        {productType === null || (!loading && displayProducts.length === 0) ? (
           <div className="empty-state-minimal">
             <p>
               {productType === null
                 ? 'Select a product type to begin'
                 : products.length === 0
                 ? 'No products in database'
-                : 'No results match your filters'}
+                : 'No results match your specs'}
             </p>
           </div>
         ) : (
@@ -822,7 +743,7 @@ export default function ProductList() {
                 className="product-grid-header-part clickable"
                 style={{ width: columnWidths['part_number'] ?? defaultPartWidth }}
                 onClick={() => handleColumnSort('part_number')}
-                title="Click to sort by Part Number"
+                title="Click anywhere to sort • click again to reverse, again to clear"
               >
                 Part Number
                 <span className="sort-indicator">
@@ -834,30 +755,20 @@ export default function ProductList() {
                 </span>
                 <div className="col-resize-handle" onMouseDown={(e) => startResize('part_number', e)} />
               </div>
-              {/* Auto-gear ratio column */}
-              {autoGearActive && (
-                <div
-                  className="product-grid-header-item gear-ratio-col"
-                  style={{ width: 60 }}
-                  title="Computed gear ratio needed to meet torque/speed filters"
-                >
-                  <div className="product-grid-header-label">Ratio</div>
-                  <div className="product-grid-header-unit">(: 1)</div>
-                </div>
-              )}
               {/* Spec columns — all visible columns get an × to hide
                   them; restore from the "+ Add Spec" dropdown. */}
               {getColumnHeaders().map((header) => {
                 const sortIndex = sorts.findIndex(s => s.attribute === header.key);
                 const isSorted = sortIndex !== -1;
                 const sortConfig = isSorted ? sorts[sortIndex] : null;
+                const Icon = getAttributeIcon(header.key);
 
                 return (
                   <div
                     key={header.key}
                     className="product-grid-header-item clickable removable"
                     style={{ width: columnWidths[header.key] ?? defaultColWidth }}
-                    title="Click anywhere to sort"
+                    title="Click anywhere to sort • click again to reverse, again to clear"
                     onClick={() => handleColumnSort(header.key)}
                   >
                     <button
@@ -870,6 +781,7 @@ export default function ProductList() {
                     >
                       ×
                     </button>
+                    {Icon && <Icon className="header-attr-icon" aria-hidden="true" />}
                     <div className="product-grid-header-label">
                       {header.label}
                       <span className="sort-indicator">
@@ -907,23 +819,19 @@ export default function ProductList() {
                   </div>
                 </>
               )}
-              {/* Computed inertia column for rotary */}
-              {appType === 'rotary' && productType === 'motor' && (autoGearActive || gearRatio > 1) && (
-                <div className="product-grid-header-item computed-col" style={{ width: 90 }}>
-                  <div className="product-grid-header-label">Refl. Inertia</div>
-                  <div className="product-grid-header-unit">(kg·cm²)</div>
-                </div>
-              )}
               {/* Restore-hidden-column button — only rendered when
                   there's something to restore. */}
               {hiddenColumnAttributes.length > 0 && (
                 <button
                   ref={(el) => setAddColumnBtnRef(el)}
                   className="add-column-btn"
-                  onClick={() => setShowSortSelector(true)}
-                  title={`Restore hidden columns (${hiddenColumnAttributes.length})`}
+                  onClick={(e) => {
+                    setColumnSelectorCursor({ x: e.clientX, y: e.clientY });
+                    setShowSortSelector(true);
+                  }}
+                  title={`Add spec column (${hiddenColumnAttributes.length} available)`}
                 >
-                  + {hiddenColumnAttributes.length} hidden
+                  + Add Spec
                 </button>
               )}
             </div>
@@ -953,15 +861,6 @@ export default function ProductList() {
                     </div>
                   </div>
 
-                  {/* Auto-gear ratio value */}
-                  {autoGearActive && (
-                    <div className="spec-header-item gear-ratio-cell">
-                      <div className="spec-header-value">
-                        {((product as any)._computedGearRatio ?? 1) <= 1.01 ? '1' : ((product as any)._computedGearRatio).toFixed(1)}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Spec values - each as a direct grid cell */}
                   {getColumnHeaders().map((header) => {
                     const attrKey = header.key;
@@ -969,6 +868,10 @@ export default function ProductList() {
                     const numericValue = extractNumericOnly(productValue);
                     const proximityColor = getProximityColor(attrKey, productValue);
                     const hasProximityColor = !!proximityColor;
+                    const sortColor = !hasProximityColor
+                      ? getSortGradientColor(attrKey, productValue)
+                      : '';
+                    const cellColor = proximityColor || sortColor || undefined;
 
                     return (
                       <div
@@ -978,7 +881,7 @@ export default function ProductList() {
                           !hasProximityColor && isSortedAttribute(attrKey) ? 'spec-header-item-sorted' : ''
                         }`}
                         style={{
-                          backgroundColor: proximityColor || undefined
+                          backgroundColor: cellColor
                         }}
                       >
                         <div className="spec-header-value">{numericValue || formatValue(productValue, 0, 5, unitSystem)}</div>
@@ -1008,20 +911,6 @@ export default function ProductList() {
                     );
                   })()}
 
-                  {/* Rotary reflected inertia */}
-                  {appType === 'rotary' && productType === 'motor' && (autoGearActive || gearRatio > 1) && (() => {
-                    const ratio = autoGearActive ? ((product as any)._computedGearRatio ?? gearRatio) : gearRatio;
-                    const rotorInertia = (product as any).rotor_inertia;
-                    const inertiaVal = rotorInertia && typeof rotorInertia === 'object' && 'value' in rotorInertia
-                      ? rotorInertia.value : null;
-                    // Reflected inertia at output = J_motor * ratio²
-                    const reflected = inertiaVal !== null ? parseFloat((inertiaVal * ratio * ratio).toPrecision(4)) : null;
-                    return (
-                      <div className="spec-header-item computed-cell">
-                        <div className="spec-header-value">{reflected !== null ? reflected.toFixed(2) : '-'}</div>
-                      </div>
-                    );
-                  })()}
                 </div>
               ))}
             </div>
@@ -1073,7 +962,7 @@ export default function ProductList() {
 
         <div className={`filter-sidebar-body${mobileFiltersOpen ? ' mobile-expanded' : ''}`}>
         {productType === 'motor' && (
-          <div className="gear-ratio-control">
+          <div className="transmission-control">
             {/* Application type selector */}
             <div className="transmission-type-row">
               {(['rotary', 'linear', 'z-axis'] as const).map(t => (
@@ -1090,92 +979,6 @@ export default function ProductList() {
                 </button>
               ))}
             </div>
-
-            {/* Gear ratio header */}
-            <div className="gear-ratio-header">
-              <span className="gear-ratio-icon">⚙</span>
-              <span className="gear-ratio-label">Gear Ratio</span>
-              <button
-                className={`gear-auto-toggle ${autoGear ? 'gear-auto-active' : ''}`}
-                onClick={() => {
-                  setAutoGear(prev => !prev);
-                  if (!autoGear) setGearRatio(1);
-                }}
-                title={autoGear ? 'Auto mode: per-motor ratio computed from filters' : 'Manual mode: fixed ratio for all motors'}
-              >
-                {autoGear ? 'Auto' : 'Manual'}
-              </button>
-            </div>
-            {!autoGear && (
-              <>
-                <div className="gear-ratio-input-row">
-                  <button
-                    className="gear-ratio-step"
-                    onClick={() => setGearRatio(r => Math.max(1, r - 5))}
-                    disabled={gearRatio <= 1}
-                  >
-                    −
-                  </button>
-                  <div className="gear-ratio-display">
-                    <input
-                      type="number"
-                      className="gear-ratio-input"
-                      min={1}
-                      max={100}
-                      step={1}
-                      value={gearRatio}
-                      onChange={(e) => {
-                        const v = Math.max(1, Math.min(100, Math.round(Number(e.target.value) || 1)));
-                        setGearRatio(v);
-                      }}
-                    />
-                    <span className="gear-ratio-suffix">: 1</span>
-                  </div>
-                  <button
-                    className="gear-ratio-step"
-                    onClick={() => setGearRatio(r => Math.min(100, r + 5))}
-                    disabled={gearRatio >= 100}
-                  >
-                    +
-                  </button>
-                </div>
-                {gearRatio > 1 && (
-                  <button
-                    className="gear-ratio-reset"
-                    onClick={() => setGearRatio(1)}
-                  >
-                    Reset to direct drive
-                  </button>
-                )}
-              </>
-            )}
-            {autoGear && autoGearActive && autoGearSummary && (
-              <div className="gear-auto-summary">
-                <div className="gear-auto-range">
-                  {autoGearSummary.min === autoGearSummary.max ? (
-                    <span className="gear-auto-value">{autoGearSummary.min <= 1.01 ? '1' : autoGearSummary.min.toFixed(1)}:1</span>
-                  ) : (
-                    <>
-                      <span className="gear-auto-value">{autoGearSummary.min <= 1.01 ? '1' : autoGearSummary.min.toFixed(1)}</span>
-                      <span className="gear-auto-sep"> - </span>
-                      <span className="gear-auto-value">{autoGearSummary.max.toFixed(1)}</span>
-                      <span className="gear-auto-unit">: 1</span>
-                    </>
-                  )}
-                </div>
-                <div className="gear-auto-detail">
-                  Median {autoGearSummary.median <= 1.01 ? '1' : autoGearSummary.median.toFixed(1)}:1 across {autoGearSummary.count} motors
-                </div>
-              </div>
-            )}
-            {autoGear && autoGearActive && !autoGearSummary && (
-              <div className="gear-auto-hint">No motors match these constraints</div>
-            )}
-            {autoGear && !autoGearActive && (
-              <div className="gear-auto-hint">
-                Add a torque or speed filter to auto-compute ratios
-              </div>
-            )}
 
             {/* Linear Travel / Rev — shown for linear and z-axis */}
             {(appType === 'linear' || appType === 'z-axis') && (
@@ -1246,13 +1049,6 @@ export default function ProductList() {
                 )}
               </div>
             )}
-
-            {/* Rotary inertia info */}
-            {appType === 'rotary' && (autoGearActive || gearRatio > 1) && (
-              <div className="transmission-param-hint" style={{ marginTop: '0.4rem' }}>
-                Reflected inertia at output = J_rotor × R²
-              </div>
-            )}
           </div>
         )}
         <FilterBar
@@ -1262,6 +1058,7 @@ export default function ProductList() {
           products={filteredProducts}
           onFiltersChange={setFilters}
           onSortChange={() => {}}
+          onSortByOperator={handleSortByOperator}
           onProductTypeChange={handleProductTypeChange}
           allProducts={products}
         />
@@ -1282,9 +1079,11 @@ export default function ProductList() {
         onSelect={handleAddColumn}
         onClose={() => {
           setShowSortSelector(false);
+          setColumnSelectorCursor(null);
         }}
         isOpen={showSortSelector}
         anchorElement={addColumnBtnRef}
+        cursorPosition={columnSelectorCursor}
       />
     </div>
   );

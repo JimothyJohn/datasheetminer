@@ -35,10 +35,15 @@ export const COLUMN_ORDER: Partial<
   Record<Exclude<ProductType, null | 'all'>, string[]>
 > = {
   motor: [
-    // e.g. 'manufacturer', 'rated_power', 'rated_torque', 'rated_speed', 'rated_voltage', 'rated_current',
+    'rated_power',
+    'rated_torque',
+    'rated_speed',
+    'rated_voltage',
+    'rated_current',
   ],
   drive: [
-    // e.g. 'manufacturer', 'rated_power', 'input_voltage', 'rated_current', 'peak_current', 'ip_rating',
+    'rated_power',
+    // e.g. 'manufacturer', 'input_voltage', 'rated_current', 'peak_current', 'ip_rating',
   ],
   robot_arm: [
     // e.g. 'manufacturer', 'payload', 'reach', 'degrees_of_freedom', 'pose_repeatability', 'max_tcp_speed',
