@@ -156,7 +156,7 @@ Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI 
 - [ ] **Run `tests/integration/` on PR.** Needs a job with mocked AWS (moto is already a dev dep). Skip the ones that need real LLM credentials, or gate them behind a `live` marker that runs nightly only.
 - [ ] **Include `tests/test_cli.py`** in the unit pass — change CI to `pytest tests/unit/ tests/test_cli.py` or move the file under `tests/unit/`.
 - [ ] **Nightly `./Quickstart bench` workflow** with `--update-cache` disabled, comparing against `outputs/benchmarks/latest.json`. Post a comment to a tracking issue if precision/recall drops > 5pp on any fixture. Costs real money — make it weekly first, see what it catches.
-- [ ] **Stack-status smoke check.** Add a step after `deploy-staging` / `deploy-prod` that calls `aws cloudformation describe-stacks` and asserts `StackStatus` ends in `_COMPLETE` (not `_ROLLBACK_*` or `_IN_PROGRESS`).
+- [x] **Stack-status smoke check** (2026-04-26). Each deploy job now has a "Verify {stage} stack status" step that walks the 3 stacks for that stage and fails CI unless `StackStatus ∈ {CREATE_COMPLETE, UPDATE_COMPLETE}` — `cdk deploy` exits 0 on `UPDATE_ROLLBACK_COMPLETE` (the rollback succeeded, the deploy didn't), and the original `/health` poll catches a Lambda that's serving traffic but is silently the previous version. Permission already granted via `CdkDeploy.ReadCloudFormationStateForCdkCli`.
 
 ### P4 — secret hygiene & supply chain
 

@@ -147,6 +147,20 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: ./Quickstart deploy --stage staging
 
+      - name: Verify staging stack status
+        # `cdk deploy` returns success even when a stack is in
+        # UPDATE_ROLLBACK_COMPLETE — the rollback succeeded, the deploy
+        # didn't. Assert every stack converged to a *_COMPLETE state
+        # that isn't a rollback before we run smoke against it.
+        run: |
+          for stack in DatasheetMiner-Staging-Database DatasheetMiner-Staging-Api DatasheetMiner-Staging-Frontend; do
+            STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text)
+            case "$STATUS" in
+              CREATE_COMPLETE|UPDATE_COMPLETE) echo "$stack: $STATUS" ;;
+              *) echo "::error::$stack: $STATUS (expected CREATE_COMPLETE or UPDATE_COMPLETE)"; exit 1 ;;
+            esac
+          done
+
       - name: Extract stack outputs
         id: extract
         run: |
@@ -285,6 +299,16 @@ jobs:
           HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
           HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
         run: ./Quickstart deploy --stage prod
+
+      - name: Verify prod stack status
+        run: |
+          for stack in DatasheetMiner-Prod-Database DatasheetMiner-Prod-Api DatasheetMiner-Prod-Frontend; do
+            STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text)
+            case "$STATUS" in
+              CREATE_COMPLETE|UPDATE_COMPLETE) echo "$stack: $STATUS" ;;
+              *) echo "::error::$stack: $STATUS (expected CREATE_COMPLETE or UPDATE_COMPLETE)"; exit 1 ;;
+            esac
+          done
 
       - name: Extract stack outputs
         id: extract
