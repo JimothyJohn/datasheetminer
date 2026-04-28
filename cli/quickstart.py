@@ -519,16 +519,35 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # asset CDK zips is self-contained. Without this the Lambda boots with
     # `Cannot find module 'express'`. Clean dist/ first so stale compiled
     # files from removed sources don't leak into the zip.
+    #
+    # Use `npm ci` (with the workspace lockfile copied alongside package.json)
+    # so the bundle is deterministic. `npm install` without a lockfile re-
+    # resolves every `^x.y.z` range against latest, which silently drifts the
+    # bundle whenever a transitive publishes a new patch — and recently bit
+    # us when @aws-sdk/xml-builder@3.972.20 added a hard pin on the ESM-only
+    # @nodable/entities@2.1.0. Node 18 `require()` doesn't load ESM, so the
+    # Lambda init crashes with ERR_REQUIRE_ESM. The lockfile pins xml-builder
+    # to 3.910.0 (no @nodable/entities dep), which loads cleanly.
     info("Building backend Lambda bundle")
     backend_dist = APP / "backend" / "dist"
     if backend_dist.exists():
         shutil.rmtree(backend_dist)
     run(["npm", "run", "build"], cwd=APP / "backend")
     shutil.copy(APP / "backend" / "package.json", backend_dist / "package.json")
+    # The workspace's lockfile sits at app/package-lock.json (npm workspaces),
+    # not app/backend/package-lock.json. Copy that into dist so npm ci resolves
+    # against the same pins the rest of the workspace uses.
+    workspace_lock = APP / "package-lock.json"
+    if not workspace_lock.exists():
+        fail(
+            "app/package-lock.json missing — Lambda bundle would be "
+            "non-deterministic. Run `npm install` from app/ to regenerate."
+        )
+    shutil.copy(workspace_lock, backend_dist / "package-lock.json")
     run(
         [
             "npm",
-            "install",
+            "ci",
             "--omit=dev",
             "--ignore-scripts",
             "--no-audit",
