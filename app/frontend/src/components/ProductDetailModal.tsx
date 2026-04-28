@@ -150,13 +150,13 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
     // Define category groups for better organization
     const categories: Record<string, Array<{ key: string; label: string; value: any }>> = {
       'General': [],
-      'Electrical': [],
       'Mechanical': [],
       'Performance': [],
+      'Electrical': [],
+      'Environmental': [],
       'Physical': [],
       'I/O & Connectivity': [],
       'Safety & Ratings': [],
-      'Environmental': [],
       'Other': []
     };
 

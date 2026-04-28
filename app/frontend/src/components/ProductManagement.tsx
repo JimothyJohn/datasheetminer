@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Dropdown from './Dropdown';
 import './ProductManagement.css';
 
 interface DeleteResult {
@@ -163,17 +164,19 @@ export default function ProductManagement() {
           
           <div className="criteria-selector">
             <label htmlFor="criteriaSelect">Deletion Criteria:</label>
-            <select 
+            <Dropdown<'partNumber' | 'manufacturer' | 'name' | 'deduplicate'>
               id="criteriaSelect"
               value={activeTab}
-              onChange={(e) => handleTabChange(e.target.value as any)}
+              onChange={handleTabChange}
+              ariaLabel="Deletion criteria"
               className="dropdown-select"
-            >
-              <option value="partNumber">By Part Number</option>
-              <option value="manufacturer">By Manufacturer</option>
-              <option value="name">By Product Name</option>
-              <option value="deduplicate">Find & Delete Duplicates</option>
-            </select>
+              options={[
+                { value: 'partNumber', label: 'By Part Number' },
+                { value: 'manufacturer', label: 'By Manufacturer' },
+                { value: 'name', label: 'By Product Name' },
+                { value: 'deduplicate', label: 'Find & Delete Duplicates' },
+              ]}
+            />
           </div>
 
           {activeTab === 'deduplicate' ? (
@@ -253,18 +256,23 @@ export default function ProductManagement() {
                       disabled={isLoading}
                     />
                   ) : (
-                      <select
+                      <Dropdown<string>
                         id="inputValue"
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        onChange={setInputValue}
                         disabled={isLoading || isFetchingOptions}
-                        className="dropdown-select full-width"
-                      >
-                        <option value="">{isFetchingOptions ? 'Loading...' : getPlaceholder()}</option>
-                        {(activeTab === 'manufacturer' ? manufacturers : names).map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                        className="dropdown-select"
+                        fullWidth
+                        ariaLabel={getLabel()}
+                        placeholder={isFetchingOptions ? 'Loading...' : getPlaceholder()}
+                        options={[
+                          { value: '', label: isFetchingOptions ? 'Loading...' : getPlaceholder() },
+                          ...(activeTab === 'manufacturer' ? manufacturers : names).map((opt) => ({
+                            value: opt,
+                            label: opt,
+                          })),
+                        ]}
+                      />
                   )}
                 </div>
 

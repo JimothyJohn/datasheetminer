@@ -5,6 +5,7 @@ import { FilterCriterion } from '../types/filters';
 import { useColumnResize } from '../utils/hooks';
 import DatasheetFilterBar from './DatasheetFilterBar';
 import DatasheetEditModal from './DatasheetEditModal';
+import Dropdown from './Dropdown';
 import { sanitizeUrl } from '../utils/sanitize';
 
 export default function DatasheetList() {
@@ -152,21 +153,19 @@ export default function DatasheetList() {
               {sortedProducts.length} Datasheets
             </span>
             {loading && (
-              <span style={{ marginLeft: '0.8rem', opacity: 0.6, fontSize: '0.8rem' }}>Loading...</span>
+              <span style={{ marginLeft: '0.8rem', opacity: 0.6, fontSize: '0.85rem' }}>Loading...</span>
             )}
           </div>
           <div className="results-header-right">
              <div className="pagination-controls">
               <label className="pagination-label">Show:</label>
-              <select
-                className="pagination-select"
+              <Dropdown<number>
                 value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
+                onChange={setItemsPerPage}
+                ariaLabel="Items per page"
+                className="pagination-select"
+                options={[10, 25, 50].map((n) => ({ value: n, label: String(n) }))}
+              />
             </div>
           </div>
         </div>

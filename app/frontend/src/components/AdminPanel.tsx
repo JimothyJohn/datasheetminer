@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import Dropdown from './Dropdown';
 import './AdminPanel.css';
 
 type Stage = 'dev' | 'staging' | 'prod';
@@ -36,21 +37,26 @@ function ManufacturerSelect({
   id,
 }: ManufacturerSelectProps) {
   const { manufacturers, loading } = useContext(ManufacturerContext);
+  const options: { value: string; label: string; disabled?: boolean }[] = [];
+  if (allowAny) {
+    options.push({ value: '', label: '(any)' });
+  } else if (!value) {
+    options.push({ value: '', label: 'Select manufacturer…', disabled: true });
+  }
+  for (const m of manufacturers) {
+    options.push({ value: m, label: m });
+  }
   return (
-    <select
+    <Dropdown<string>
       id={id}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
       disabled={loading && manufacturers.length === 0}
-    >
-      {allowAny && <option value="">(any)</option>}
-      {!allowAny && !value && <option value="" disabled>Select manufacturer…</option>}
-      {manufacturers.map((m) => (
-        <option key={m} value={m}>
-          {m}
-        </option>
-      ))}
-    </select>
+      ariaLabel="Manufacturer"
+      placeholder={allowAny ? '(any)' : 'Select manufacturer…'}
+      fullWidth
+      options={options}
+    />
   );
 }
 
@@ -258,27 +264,33 @@ function DiffSection() {
       <div className="admin-form">
         <div className="form-group">
           <label>Source</label>
-          <select value={source} onChange={(e) => setSource(e.target.value as Stage)}>
-            {STAGES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+          <Dropdown<Stage>
+            value={source}
+            onChange={setSource}
+            ariaLabel="Source stage"
+            fullWidth
+            options={STAGES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
         <div className="form-group">
           <label>Target</label>
-          <select value={target} onChange={(e) => setTarget(e.target.value as Stage)}>
-            {STAGES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+          <Dropdown<Stage>
+            value={target}
+            onChange={setTarget}
+            ariaLabel="Target stage"
+            fullWidth
+            options={STAGES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
         <div className="form-group">
           <label>Product type</label>
-          <select value={type} onChange={(e) => setType(e.target.value as ProductType)}>
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
+          <Dropdown<ProductType>
+            value={type}
+            onChange={setType}
+            ariaLabel="Product type"
+            fullWidth
+            options={PRODUCT_TYPES.map((t) => ({ value: t, label: t }))}
+          />
         </div>
         <div className="form-group">
           <label>Manufacturer (optional)</label>
@@ -395,45 +407,42 @@ function PromoteForm({
       <div className="admin-form">
         <div className="form-group">
           <label>Source</label>
-          <select
+          <Dropdown<Stage>
             value={source}
-            onChange={(e) => {
-              setSource(e.target.value as Stage);
+            onChange={(v) => {
+              setSource(v);
               invalidate();
             }}
-          >
-            {STAGES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+            ariaLabel="Source stage"
+            fullWidth
+            options={STAGES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
         <div className="form-group">
           <label>Target</label>
-          <select
+          <Dropdown<Stage>
             value={target}
-            onChange={(e) => {
-              setTarget(e.target.value as Stage);
+            onChange={(v) => {
+              setTarget(v);
               invalidate();
             }}
-          >
-            {STAGES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+            ariaLabel="Target stage"
+            fullWidth
+            options={STAGES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
         <div className="form-group">
           <label>Product type</label>
-          <select
+          <Dropdown<ProductType>
             value={type}
-            onChange={(e) => {
-              setType(e.target.value as ProductType);
+            onChange={(v) => {
+              setType(v);
               invalidate();
             }}
-          >
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
+            ariaLabel="Product type"
+            fullWidth
+            options={PRODUCT_TYPES.map((t) => ({ value: t, label: t }))}
+          />
         </div>
         <div className="form-group">
           <label>Manufacturer (optional)</label>
@@ -568,32 +577,32 @@ function PurgeSection() {
       <div className="admin-form">
         <div className="form-group">
           <label>Stage</label>
-          <select
+          <Dropdown<Stage>
             value={stage}
-            onChange={(e) => {
-              setStage(e.target.value as Stage);
+            onChange={(v) => {
+              setStage(v);
               invalidate();
             }}
-          >
-            {STAGES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+            ariaLabel="Stage"
+            fullWidth
+            options={STAGES.map((s) => ({ value: s, label: s }))}
+          />
         </div>
         <div className="form-group">
           <label>Product type</label>
-          <select
+          <Dropdown<ProductType | ''>
             value={type}
-            onChange={(e) => {
-              setType(e.target.value as ProductType | '');
+            onChange={(v) => {
+              setType(v);
               invalidate();
             }}
-          >
-            <option value="">(any)</option>
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
+            ariaLabel="Product type"
+            fullWidth
+            options={[
+              { value: '', label: '(any)' },
+              ...PRODUCT_TYPES.map((t) => ({ value: t, label: t })),
+            ]}
+          />
         </div>
         <div className="form-group">
           <label>Manufacturer</label>

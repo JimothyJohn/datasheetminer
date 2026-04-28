@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import DatasheetList from './DatasheetList';
+import Dropdown from './Dropdown';
 
 export default function DatasheetsPage() {
   const { createDatasheet, categories } = useApp();
@@ -149,9 +150,10 @@ export default function DatasheetsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ margin: 0 }}>Add New Datasheet</h3>
-              <button 
+              <button
                 onClick={() => setShowAddModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)', padding: 0, lineHeight: 1 }}
+                aria-label="Close"
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--danger)', opacity: 0.75, padding: '0 0.25rem', lineHeight: 1, borderRadius: 3 }}
               >
                 ×
               </button>
@@ -201,21 +203,22 @@ export default function DatasheetsPage() {
 
               <div className="form-group">
                 <label htmlFor="product_type" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.9rem', fontWeight: 500 }}>Type *</label>
-                <select
-                  id="product_type"
-                  name="product_type"
-                  value={formData.product_type}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  style={{ width: '100%', padding: '0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)', marginBottom: formData.product_type === 'new' ? '0.5rem' : 0 }}
-                >
-                  <option value="">Select Type</option>
-                  {categories.map(cat => (
-                    <option key={cat.type} value={cat.type}>{cat.display_name}</option>
-                  ))}
-                  <option value="new">+ Create New Type</option>
-                </select>
+                <div style={{ marginBottom: formData.product_type === 'new' ? '0.5rem' : 0 }}>
+                  <Dropdown<string>
+                    id="product_type"
+                    name="product_type"
+                    ariaLabel="Product type"
+                    fullWidth
+                    value={formData.product_type}
+                    onChange={(v) => setFormData(prev => ({ ...prev, product_type: v }))}
+                    placeholder="Select Type"
+                    options={[
+                      { value: '', label: 'Select Type' },
+                      ...categories.map((cat) => ({ value: cat.type, label: cat.display_name })),
+                      { value: 'new', label: '+ Create New Type' },
+                    ]}
+                  />
+                </div>
                 
                 {formData.product_type === 'new' && (
                   <input
