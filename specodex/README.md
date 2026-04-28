@@ -7,8 +7,8 @@ Core Python library for extracting product specs from PDFs and webpages using Ge
 ```
 Document (PDF bytes or HTML string)
   → Gemini AI emits structured JSON matching a Pydantic-derived schema
-  → utils.py parses response; validators convert {value, unit} dicts
-    into "value;unit" compact strings
+  → utils.py parses response; validators normalise units on the
+    structured ValueUnit / MinMaxUnit dicts
   → Pydantic model validates types, units, and magnitudes
   → quality.py rejects products with too many missing fields
   → db/dynamo.py pushes to DynamoDB with deterministic UUIDs

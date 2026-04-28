@@ -1,5 +1,17 @@
 # Drop the `"value;unit"` compact string — go full JSON
 
+**Status (2026-04-28):** Phases 1–4 ✅ shipped in `a8f6162`, Phase 5 ✅
+script + tests landed (running against dev/staging/prod is the
+operator's job — `./Quickstart` integration deferred until first run
+proves out the workflow), Phase 6 ✅ docs updated. One Phase 4
+deviation: the frontend `String(value)` fallback in
+`ProductDetailModal.tsx:84` was kept — it's not just a unit fallback
+but the catch-all for bare-string scalars (`product_name`, etc.); the
+doc's "migrated data never has strings" was unit-specific reasoning
+mistakenly generalised. Once Phase 5's data backfill runs cleanly on
+prod, no compact-unit string will ever flow through that branch
+anyway.
+
 ## Goal
 
 Stop encoding numeric specs as `"value;unit"` / `"min-max;unit"` strings

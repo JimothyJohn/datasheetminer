@@ -39,7 +39,7 @@ PDF → **page finder** (text heuristic, free) → **LLM extraction** (Gemini 2.
 - `specodex/page_finder.py` — text keyword heuristic (`find_spec_pages_by_text`) identifies spec-table pages without an API call. Falls back to Gemini Flash for image-based classification.
 - `specodex/llm.py` — Gemini extraction (sole LLM path for product extraction).
 - `specodex/models/llm_schema.py` — `to_gemini_schema` builds the uppercase OpenAPI-subset schema Gemini accepts via `response_schema`.
-- `specodex/utils.py` — `parse_gemini_response` maps raw LLM JSON through `common.py` BeforeValidators into canonical `"value;unit"` strings.
+- `specodex/utils.py` — `parse_gemini_response` maps raw LLM JSON through `common.py` BeforeValidators into structured `ValueUnit` / `MinMaxUnit` instances (`{value, unit}` / `{min, max, unit}` dicts on serialisation — same shape Gemini emits, DynamoDB stores, and the frontend consumes).
 - `specodex/schemagen/` — proposes new Pydantic models from a PDF (also Gemini, via `response_schema=ProposedModel`).
 - `specodex/pricing/extract.py` — price extraction cascade; LLM last-resort uses Gemini 2.5 Flash.
 - `specodex/quality.py` — scores completeness, rejects below threshold.
