@@ -123,6 +123,9 @@ def cmd_promote(args: argparse.Namespace) -> int:
     if err:
         _err(err)
         return 2
+    if not 0.0 <= args.min_quality <= 1.0:
+        _err(f"--min-quality must be in [0.0, 1.0], got {args.min_quality}")
+        return 2
     bl = Blacklist()
     source = make_client(args.source)
     target = make_client(args.target)
@@ -133,6 +136,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
         blacklist=bl,
         manufacturer=args.manufacturer,
         apply=args.apply,
+        min_quality=args.min_quality,
     )
     label = f"Promote {args.source} → {args.target}"
     print(format_promote_summary(label, result))
@@ -243,6 +247,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--target", default="prod", choices=STAGES)
     p.add_argument("--type", required=True, choices=product_types)
     p.add_argument("--manufacturer", default=None)
+    p.add_argument(
+        "--min-quality",
+        type=float,
+        default=0.0,
+        help="Drop products whose spec-field completeness score is below this "
+        "threshold (0.0–1.0). Default 0.0 (no quality filter — same behavior as before).",
+    )
     p.add_argument(
         "--apply",
         action="store_true",

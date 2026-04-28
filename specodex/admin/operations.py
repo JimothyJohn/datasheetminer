@@ -21,6 +21,7 @@ from specodex.config import SCHEMA_CHOICES
 from specodex.db.dynamo import DynamoDBClient
 from specodex.models.manufacturer import Manufacturer
 from specodex.models.product import ProductBase
+from specodex.quality import score_product
 
 # Sourced from auto-discovery in specodex.config so new product types
 # registered via models/<type>.py are promoted/demoted/purged without a manual
@@ -117,6 +118,8 @@ class PromoteResult:
     product_type: str
     considered: int = 0
     blocked_by_blacklist: List[str] = field(default_factory=list)  # product_ids
+    blocked_by_quality: int = 0
+    min_quality: float = 0.0
     promoted_products: int = 0
     promoted_manufacturers: int = 0
     applied: bool = False
@@ -127,6 +130,8 @@ class PromoteResult:
             "considered": self.considered,
             "blocked_by_blacklist": len(self.blocked_by_blacklist),
             "blocked_manufacturers": sorted(set(self.blocked_by_blacklist)),
+            "blocked_by_quality": self.blocked_by_quality,
+            "min_quality": self.min_quality,
             "promoted_products": self.promoted_products,
             "promoted_manufacturers": self.promoted_manufacturers,
             "applied": self.applied,
@@ -190,19 +195,36 @@ def promote(
     blacklist: Blacklist,
     manufacturer: Optional[str] = None,
     apply: bool = False,
+    min_quality: float = 0.0,
 ) -> PromoteResult:
-    """Copy products of ``product_type`` from source → target, skipping any
-    whose manufacturer is on the blacklist. Also copies matching Manufacturer
+    """Copy products of ``product_type`` from source → target.
+
+    Skips any whose manufacturer is on the blacklist. With ``min_quality > 0``,
+    additionally drops any product whose ``score_product`` (fraction of spec
+    fields populated) is below the threshold — useful to push only the
+    higher-quality cohort of dev into prod. Also copies matching Manufacturer
     records (filtered by blacklist by name).
     """
+    if not 0.0 <= min_quality <= 1.0:
+        raise ValueError(f"min_quality must be in [0.0, 1.0], got {min_quality}")
+
     products = _list_products(source, product_type, manufacturer)
 
-    result = PromoteResult(product_type=product_type, considered=len(products))
+    result = PromoteResult(
+        product_type=product_type,
+        considered=len(products),
+        min_quality=min_quality,
+    )
     to_write: List[ProductBase] = []
     for p in products:
         if blacklist.contains(p.manufacturer):
             result.blocked_by_blacklist.append(p.manufacturer)
             continue
+        if min_quality > 0.0:
+            score, _filled, _total, _missing = score_product(p)
+            if score < min_quality:
+                result.blocked_by_quality += 1
+                continue
         to_write.append(p)
 
     # Manufacturer records: pull all from source, filter by blacklist, and only
@@ -332,9 +354,18 @@ def format_promote_summary(label: str, result: PromoteResult) -> str:
         f"{label} [{mode}] product_type={result.product_type}",
         f"  considered:              {result.considered}",
         f"  blocked by blacklist:    {len(result.blocked_by_blacklist)}",
-        f"  products written:        {result.promoted_products}",
-        f"  manufacturers written:   {result.promoted_manufacturers}",
     ]
+    if result.min_quality > 0.0:
+        lines.append(
+            f"  blocked by quality:      {result.blocked_by_quality}  "
+            f"(min_quality={result.min_quality:.2f})"
+        )
+    lines.extend(
+        [
+            f"  products written:        {result.promoted_products}",
+            f"  manufacturers written:   {result.promoted_manufacturers}",
+        ]
+    )
     if result.blocked_by_blacklist:
         unique_blocked = sorted(set(result.blocked_by_blacklist))
         lines.append(f"  blocked manufacturers:   {', '.join(unique_blocked)}")

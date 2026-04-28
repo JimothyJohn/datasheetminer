@@ -290,6 +290,50 @@ class TestPromote:
         assert result.blocked_by_blacklist == ["BadCo"]
         assert result.promoted_products == 0
 
+    def test_min_quality_drops_low_score_products(self, tmp_path: Path) -> None:
+        # `_make_drive` only sets part_number among spec fields → score is
+        # ~1/N (very low). Populating more fields on `better` lifts it above
+        # a 0.20 threshold, so it survives while `bare` is dropped.
+        bare = _make_drive("ABB", "00000000-0000-0000-0000-000000000001")
+        better = _make_drive("ABB", "00000000-0000-0000-0000-000000000002")
+        better.rated_power = "5;kW"
+        better.rated_current = "10;A"
+        better.input_voltage = "400;V"
+        better.peak_current = "20;A"
+        better.switching_frequency = "8;kHz"
+        better.ip_rating = "IP20"
+        better.weight = "5;kg"
+
+        src = _make_mock_client({"drive": [bare, better]})
+        tgt = _make_mock_client()
+        bl = Blacklist(path=tmp_path / "bl.json")
+
+        result = promote(src, tgt, "drive", bl, apply=False, min_quality=0.20)
+
+        assert result.considered == 2
+        assert result.blocked_by_quality == 1
+        assert result.promoted_products == 1
+        assert result.min_quality == 0.20
+
+    def test_min_quality_zero_is_no_op(self, tmp_path: Path) -> None:
+        bare = _make_drive("ABB", "00000000-0000-0000-0000-000000000001")
+        src = _make_mock_client({"drive": [bare]})
+        tgt = _make_mock_client()
+        bl = Blacklist(path=tmp_path / "bl.json")
+
+        result = promote(src, tgt, "drive", bl, apply=False, min_quality=0.0)
+
+        assert result.blocked_by_quality == 0
+        assert result.promoted_products == 1
+
+    def test_min_quality_out_of_range_raises(self, tmp_path: Path) -> None:
+        src = _make_mock_client({"drive": []})
+        tgt = _make_mock_client()
+        bl = Blacklist(path=tmp_path / "bl.json")
+
+        with pytest.raises(ValueError):
+            promote(src, tgt, "drive", bl, apply=False, min_quality=1.5)
+
     def test_manufacturer_records_tied_to_promoted_products(
         self, tmp_path: Path
     ) -> None:

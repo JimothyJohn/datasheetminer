@@ -28,6 +28,15 @@ logging.basicConfig(
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+# Some publisher CDNs (Delta, isecontrols, certain Siemens mirrors) 403 anything
+# that doesn't look like a current browser. Match a recent stable Chrome.
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
+
+
 def get_product_info_from_json(
     file_path: str, product_type: str, index: int
 ) -> Dict[str, Any]:
@@ -238,7 +247,7 @@ def get_web_content(url: str) -> str | None:
 
     try:
         headers: dict[str, str] = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+            "User-Agent": BROWSER_USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
             "Accept-Encoding": "gzip, deflate, br",
@@ -293,9 +302,7 @@ def is_pdf_url(url: str) -> bool:
     # Try to check Content-Type header for remote URLs
     if url.startswith(("http://", "https://")):
         try:
-            headers: dict[str, str] = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0"
-            }
+            headers: dict[str, str] = {"User-Agent": BROWSER_USER_AGENT}
             req: Request = Request(url, headers=headers, method="HEAD")
             with urlopen(req, timeout=10.0) as response:
                 content_type = response.info().get("Content-Type", "")
@@ -342,7 +349,7 @@ def get_document(
             # web browser, which helps prevent 403 Forbidden errors from servers
             # that block simple scripts.
             headers: dict[str, str] = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+                "User-Agent": BROWSER_USER_AGENT,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
                 # Skip brotli — urllib doesn't ship a brotli decoder, and the

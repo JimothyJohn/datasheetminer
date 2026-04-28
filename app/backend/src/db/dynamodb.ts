@@ -12,6 +12,7 @@ import {
   DeleteItemCommand,
   BatchWriteItemCommand,
   ScanCommand,
+  ScanCommandOutput,
   AttributeValue,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
@@ -567,23 +568,30 @@ export class DynamoDBService {
 
   /**
    * Check if any PRODUCTS exist for a given datasheet URL
+   *
+   * Scan's `Limit` caps items examined per page, not items returned post-
+   * filter; with a non-indexed `datasheet_url` filter the matching row
+   * may sit on page 2+ and a single Scan call returns false even when the
+   * URL is in use. Paginate until a match is found or LastEvaluatedKey
+   * is exhausted; exit early on the first hit.
    */
   async hasProductsForDatasheetUrl(url: string): Promise<boolean> {
     try {
-      // We need to scan PRODUCT# items
-      // Filter by datasheet_url = :url
-      
-      const scanResult = await this.client.send(
-        new ScanCommand({
-          TableName: this.tableName,
-          FilterExpression: 'datasheet_url = :url',
-          ExpressionAttributeValues: marshall({ ':url': url }),
-          Limit: 1,
-          ProjectionExpression: 'PK',
-        })
-      );
-
-      return (scanResult.Items?.length || 0) > 0;
+      let lastEvaluatedKey: Record<string, AttributeValue> | undefined = undefined;
+      do {
+        const result: ScanCommandOutput = await this.client.send(
+          new ScanCommand({
+            TableName: this.tableName,
+            FilterExpression: 'datasheet_url = :url',
+            ExpressionAttributeValues: marshall({ ':url': url }),
+            ProjectionExpression: 'PK',
+            ExclusiveStartKey: lastEvaluatedKey,
+          })
+        );
+        if (result.Items?.length) return true;
+        lastEvaluatedKey = result.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+      return false;
     } catch (error) {
       console.error('Error checking products for datasheet URL:', error);
       return false;
@@ -592,22 +600,37 @@ export class DynamoDBService {
 
   /**
    * List all datasheets
+   *
+   * Datasheets sit across multiple PK partitions (DATASHEET#GEARHEAD,
+   * DATASHEET#MOTOR, ...), so we Scan with a begins_with filter and
+   * paginate until LastEvaluatedKey is empty. Without the loop, a single
+   * Scan caps at 1MB of pre-filter scanned data — on a table with ~2K
+   * product rows that returned only the first ~6 datasheet hits.
    */
   async listDatasheets(): Promise<Datasheet[]> {
     try {
-      // Scan for items where PK starts with DATASHEET#
-      // Note: Scan is inefficient but acceptable for now given the volume
-      const scanResult = await this.client.send(
-        new ScanCommand({
-          TableName: this.tableName,
-          FilterExpression: 'begins_with(PK, :pk)',
-          ExpressionAttributeValues: marshall({ ':pk': 'DATASHEET#' }),
-        })
-      );
+      const items: Datasheet[] = [];
+      let lastEvaluatedKey: Record<string, AttributeValue> | undefined = undefined;
+      let pageCount = 0;
 
-      return (scanResult.Items || []).map(item => 
-        unmarshall(item) as Datasheet
-      );
+      do {
+        pageCount++;
+        const result: ScanCommandOutput = await this.client.send(
+          new ScanCommand({
+            TableName: this.tableName,
+            FilterExpression: 'begins_with(PK, :pk)',
+            ExpressionAttributeValues: marshall({ ':pk': 'DATASHEET#' }),
+            ExclusiveStartKey: lastEvaluatedKey,
+          })
+        );
+        if (result.Items?.length) {
+          items.push(...result.Items.map(item => unmarshall(item) as Datasheet));
+        }
+        lastEvaluatedKey = result.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+
+      console.log(`[DynamoDB] listDatasheets: ${items.length} datasheets across ${pageCount} scan page(s)`);
+      return items;
     } catch (error) {
       console.error('Error listing datasheets:', error);
       return [];
