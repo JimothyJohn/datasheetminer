@@ -2618,12 +2618,35 @@ button.secondary:hover {
 }
 
 .product-grid-header-item.clickable {
-  cursor: pointer;
+  cursor: grab;
   transition: background-color 0.12s linear;
 }
 
 .product-grid-header-item.clickable:hover {
   background: var(--bg-tertiary);
+}
+
+.product-grid-header-item.clickable:active {
+  cursor: grabbing;
+}
+
+/* Source column being dragged: faint to signal "this is what's moving",
+ * but still visible so the user remembers what they grabbed. */
+.product-grid-header-item.dragging {
+  opacity: 0.35;
+}
+
+/* Drop-target divider highlight. The accent stripe appears on the boundary
+ * between the two columns where the drag would land if released — left
+ * edge for a "drop before this column" hover, right edge for "drop past
+ * the last column". Uses inset box-shadow so it stacks visually above
+ * the existing top/bottom border without resizing the cell. */
+.product-grid-header-item.drop-before {
+  box-shadow: inset 3px 0 0 0 var(--accent-primary);
+}
+
+.product-grid-header-item.drop-after {
+  box-shadow: inset -3px 0 0 0 var(--accent-primary);
 }
 
 /* Beats the global `button` rule (App.css ~3732) that uses !important

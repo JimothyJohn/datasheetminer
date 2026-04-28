@@ -23,7 +23,6 @@ import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
 import Dropdown from './Dropdown';
 import { ADJACENT_TYPES, BuildSlot, check as compatCheck } from '../utils/compat';
-import { getAttributeIcon } from '../utils/attributeIcons';
 
 export default function ProductList() {
   const { products, categories, loading, error, loadProducts, loadCategories, unitSystem, build, compatibleOnly, setCompatibleOnly, rowDensity } = useApp();
@@ -62,6 +61,16 @@ export default function ProductList() {
   useEffect(() => {
     safeSave('productListRestoredColumns', userRestoredKeys);
   }, [userRestoredKeys]);
+
+  // Drag-to-reorder column session state. Intentionally NOT persisted —
+  // every visit starts in the canonical order from columnOrder.ts; users
+  // can rearrange during their session and a refresh resets the view.
+  // `sessionColumnOrder` is null until the first successful drop, then
+  // becomes the user's preferred key sequence (only keys currently visible
+  // are honored; new/restored columns append at the end).
+  const [sessionColumnOrder, setSessionColumnOrder] = useState<string[] | null>(null);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   // Hard cap on simultaneously visible spec columns. Compact rows fit ten
   // before the table feels crowded; comfy is six so the row breathes
@@ -135,8 +144,94 @@ export default function ProductList() {
       if (a.defaultVisible === false) return false;
       return a.nested === true;
     });
-    return shown.slice(0, MAX_VISIBLE_COLUMNS);
-  }, [columnAttributes, userHiddenKeys, userRestoredKeys, MAX_VISIBLE_COLUMNS]);
+    const capped = shown.slice(0, MAX_VISIBLE_COLUMNS);
+    // No drag-reorder yet → canonical order from columnOrder.ts.
+    if (!sessionColumnOrder) return capped;
+    // Apply user's drag order on top: keys named in sessionColumnOrder
+    // appear in that sequence; anything new (a column the user later
+    // restored / a derived field that just appeared in records) is
+    // appended in canonical order so it doesn't silently disappear.
+    const byKey = new Map(capped.map(a => [a.key, a]));
+    const used = new Set<string>();
+    const reordered: AttributeMetadata[] = [];
+    for (const key of sessionColumnOrder) {
+      const attr = byKey.get(key);
+      if (attr) {
+        reordered.push(attr);
+        used.add(key);
+      }
+    }
+    for (const attr of capped) {
+      if (!used.has(attr.key)) reordered.push(attr);
+    }
+    return reordered;
+  }, [columnAttributes, userHiddenKeys, userRestoredKeys, MAX_VISIBLE_COLUMNS, sessionColumnOrder]);
+
+  // Reset session order when product type changes — a drag-reorder for
+  // motors shouldn't carry over to drives.
+  useEffect(() => {
+    setSessionColumnOrder(null);
+    setDragKey(null);
+    setDropIndex(null);
+  }, [productType]);
+
+  // ---- Column drag-and-drop handlers ----
+  // Order doesn't change until drop, so the table body doesn't reflow
+  // during the drag. Dropping outside any header (or pressing Escape)
+  // fires `dragend` without a prior `drop`, which clears state and
+  // leaves the original order intact.
+  const handleColumnDragStart = (e: React.DragEvent<HTMLDivElement>, key: string) => {
+    setDragKey(key);
+    setDropIndex(null);
+    e.dataTransfer.effectAllowed = 'move';
+    // Some browsers refuse to start a drag without dataTransfer payload.
+    e.dataTransfer.setData('text/plain', key);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent<HTMLDivElement>, hoveredIndex: number) => {
+    if (dragKey === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const onLeftHalf = e.clientX < rect.left + rect.width / 2;
+    const next = onLeftHalf ? hoveredIndex : hoveredIndex + 1;
+    setDropIndex(prev => (prev === next ? prev : next));
+  };
+
+  const handleColumnDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (dragKey === null || dropIndex === null) {
+      setDragKey(null);
+      setDropIndex(null);
+      return;
+    }
+    const currentOrder = visibleColumnAttributes.map(a => a.key);
+    const fromIndex = currentOrder.indexOf(dragKey);
+    if (fromIndex === -1) {
+      setDragKey(null);
+      setDropIndex(null);
+      return;
+    }
+    // Insertion semantics: dropIndex is the insertion slot in the original
+    // array. After removing the dragged key, every slot at or after
+    // fromIndex shifts left by one.
+    const without = currentOrder.filter((_, i) => i !== fromIndex);
+    const insertAt = dropIndex > fromIndex ? dropIndex - 1 : dropIndex;
+    if (insertAt === fromIndex) {
+      setDragKey(null);
+      setDropIndex(null);
+      return;
+    }
+    without.splice(insertAt, 0, dragKey);
+    setSessionColumnOrder(without);
+    setDragKey(null);
+    setDropIndex(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDragKey(null);
+    setDropIndex(null);
+  };
 
   // Restore-dropdown candidates: everything the user could bring back —
   // explicit hides, cap overflow, and the hidden-by-default non-unit
@@ -757,51 +852,81 @@ export default function ProductList() {
               </div>
               {/* Spec columns — all visible columns get an × to hide
                   them; restore from the "+ Add Spec" dropdown. */}
-              {getColumnHeaders().map((header) => {
-                const sortIndex = sorts.findIndex(s => s.attribute === header.key);
-                const isSorted = sortIndex !== -1;
-                const sortConfig = isSorted ? sorts[sortIndex] : null;
-                const Icon = getAttributeIcon(header.key);
+              {(() => {
+                const headers = getColumnHeaders();
+                return headers.map((header, headerIndex) => {
+                  const sortIndex = sorts.findIndex(s => s.attribute === header.key);
+                  const isSorted = sortIndex !== -1;
+                  const sortConfig = isSorted ? sorts[sortIndex] : null;
+                  const isDragging = dragKey === header.key;
+                  const showDropBefore = dragKey !== null && dropIndex === headerIndex;
+                  const showDropAfter =
+                    dragKey !== null &&
+                    dropIndex === headers.length &&
+                    headerIndex === headers.length - 1;
 
-                return (
-                  <div
-                    key={header.key}
-                    className="product-grid-header-item clickable removable"
-                    style={{ width: columnWidths[header.key] ?? defaultColWidth }}
-                    title="Click anywhere to sort • click again to reverse, again to clear"
-                    onClick={() => handleColumnSort(header.key)}
-                  >
-                    <button
-                      className="column-remove-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveColumn(header.key);
-                      }}
-                      title="Hide column"
-                    >
-                      ×
-                    </button>
-                    {Icon && <Icon className="header-attr-icon" aria-hidden="true" />}
-                    <div className="product-grid-header-label">
-                      {header.label}
-                      <span className="sort-indicator">
-                        {isSorted && sortConfig?.direction === 'asc' && '↑'}
-                        {isSorted && sortConfig?.direction === 'desc' && '↓'}
-                        {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
-                      </span>
-                    </div>
-                    {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
+                  return (
                     <div
-                      className="col-resize-handle"
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        startResize(header.key, e);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                );
-              })}
+                      key={header.key}
+                      className={
+                        'product-grid-header-item clickable' +
+                        (isDragging ? ' dragging' : '') +
+                        (showDropBefore ? ' drop-before' : '') +
+                        (showDropAfter ? ' drop-after' : '')
+                      }
+                      style={{ width: columnWidths[header.key] ?? defaultColWidth }}
+                      title="Drag to reorder • click anywhere to sort • click again to reverse, again to clear"
+                      onClick={() => handleColumnSort(header.key)}
+                      draggable
+                      onDragStart={(e) => handleColumnDragStart(e, header.key)}
+                      onDragOver={(e) => handleColumnDragOver(e, headerIndex)}
+                      onDrop={handleColumnDrop}
+                      onDragEnd={handleColumnDragEnd}
+                    >
+                      <button
+                        className="column-remove-btn"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveColumn(header.key);
+                        }}
+                        title="Hide column"
+                      >
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 10 10"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M2 2 L8 8 M8 2 L2 8" />
+                        </svg>
+                      </button>
+                      <div className="product-grid-header-label">
+                        {header.label}
+                        <span className="sort-indicator">
+                          {isSorted && sortConfig?.direction === 'asc' && '↑'}
+                          {isSorted && sortConfig?.direction === 'desc' && '↓'}
+                          {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
+                        </span>
+                      </div>
+                      {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
+                      <div
+                        className="col-resize-handle"
+                        draggable={false}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResize(header.key, e);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  );
+                });
+              })()}
               {/* Computed columns for Z-axis */}
               {appType === 'z-axis' && isLinearMode && loadMass > 0 && (
                 <>
