@@ -33,10 +33,12 @@ export function getConfig(): AppConfig {
   let domain: DomainConfig | undefined;
   if (domainName && certificateArn && hostedZoneId) {
     // HOSTED_ZONE_NAME is optional — default to the parent of DOMAIN_NAME
-    // (e.g. datasheets.advin.io → advin.io). Only set it explicitly when
-    // the record lives in a delegated subdomain zone.
+    // (e.g. datasheets.advin.io → advin.io). `||` (not `??`) so that an
+    // empty string from an unset GitHub Actions secret falls back too —
+    // empty here renders the record name as `datasheets.advin.io..` and
+    // Route53 rejects it with DomainLabelEmpty.
     const hostedZoneName =
-      process.env.HOSTED_ZONE_NAME ?? domainName.split('.').slice(1).join('.');
+      process.env.HOSTED_ZONE_NAME || domainName.split('.').slice(1).join('.');
     domain = { domainName, certificateArn, hostedZoneId, hostedZoneName };
   }
 

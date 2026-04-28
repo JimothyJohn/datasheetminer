@@ -1,5 +1,17 @@
 # CI/CD: tighten the dev loop, make it agent-friendly
 
+## 2026-04-27: Prod deploy red — `??` vs `||` in config.ts
+
+First prod CI deploy after the OIDC + verify shipfest failed in `Frontend` with `DomainLabelEmpty (Domain label is empty) encountered with 'datasheets.advin.io.'` from Route53. Stack rolled back cleanly (`UPDATE_ROLLBACK_COMPLETE`).
+
+Root cause: GitHub repo has no `HOSTED_ZONE_NAME` secret (`gh secret list` shows only `AWS_*`, `DOMAIN_NAME`, `CERTIFICATE_ARN`, `HOSTED_ZONE_ID`). The workflow references `${{ secrets.HOSTED_ZONE_NAME }}` which resolves to empty string when unset, and the deploy step exports it as `HOSTED_ZONE_NAME=`. In `app/infrastructure/lib/config.ts`, the fallback used `??` — which only triggers on `null`/`undefined`, not empty string — so `hostedZoneName = ""`. CDK then renders `recordName = "datasheets.advin.io"` against a zone with `zoneName = ""` and produces `Name: datasheets.advin.io..` (double dot, empty label). Route53 rejects.
+
+Fixed in commit `<TBD>`: `??` → `||` so empty strings also fall back. Verified by re-running `cdk synth` with `HOSTED_ZONE_NAME=""` — now produces the correct single-dot FQDN.
+
+Why this hadn't surfaced: the previous prod deploys (2026-04-06, -18, -24) were manual from a shell where `HOSTED_ZONE_NAME` was either unset (so `process.env.HOSTED_ZONE_NAME` was `undefined` and `??` fell back) or set correctly. CI's empty-string-from-missing-secret semantics is the new failure mode unlocked by P4's OIDC migration making CI prod-deploys actually execute.
+
+Lesson worth lifting into the project doc: in any TS env-var read with a fallback, prefer `||` over `??` — Bash-set env vars are always strings, and missing/unset bash vars surface as `""`, not `undefined`. `??` is the wrong default for shell-fed config.
+
 ## Current state — full deploy chain green for the first time since 2026-03-30 (2026-04-26 PM)
 
 **Run [`24972771362`](https://github.com/JimothyJohn/specodex/actions/runs/24972771362) on commit `5274945` (after `bb5913d` + `5274945`):** all gates green through Smoke Staging.
