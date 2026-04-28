@@ -102,10 +102,12 @@ TARGETS: List[Target] = [
         slug="siemens-sinamics-s210",
         manufacturer="Siemens",
         product_name="SINAMICS S210",
-        product_family="SINAMICS S210 Servo Drive System",
+        product_family="SINAMICS S210 Servo Drive System (with S-1FK2 / S-1FT2)",
+        # 2023 operating instructions (~34MB) — has full per-frame spec tables.
+        # Earlier brochure mirror returned 0 products (summary content only).
         url=(
-            "https://cache.industry.siemens.com/dl/files/800/109753800/"
-            "att_937523/v1/S210_1FK2_op_instr_011217_eng.pdf"
+            "https://cache.industry.siemens.com/dl/files/474/109827474/"
+            "att_1166075/v1/S210_S-1FK2_S-1FT2_op_instr_1223_en-US.pdf"
         ),
     ),
     Target(
@@ -168,7 +170,8 @@ TARGETS: List[Target] = [
         manufacturer="Panasonic",
         product_name="MINAS A6",
         product_family="MINAS A6 AC Servo Drives",
-        url="https://isecontrols.com/wp-content/uploads/2017/03/panasonic-minas-a6_ctlg_e.pdf",
+        # isecontrols.com 403s urllib due to TLS fingerprinting; audin.fr mirror works.
+        url="https://www.audin.fr/pdf/documentations/panasonic/servosystemes/MINAS_A6_SERVODRIVES_en.pdf",
     ),
     Target(
         slug="lenze-i950",
