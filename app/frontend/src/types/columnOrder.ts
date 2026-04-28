@@ -16,7 +16,7 @@
 //
 //   What the keys are:
 //     They're the snake_case attribute keys from the product schemas in
-//     datasheetminer/models/<type>.py — same keys the API returns.
+//     specodex/models/<type>.py — same keys the API returns.
 //     E.g. for motors: 'rated_power', 'rated_torque', 'rated_speed', ...
 //     Look at app/frontend/src/types/filters.ts (getMotorAttributes etc.)
 //     for the full list per type.

@@ -133,7 +133,7 @@ worth automating further.
 | `outputs/dedupe_audit_*.json` | generated artifact |
 | `outputs/dedupe_review_*.md` | generated artifact |
 
-No changes to `datasheetminer/`, no schema changes.
+No changes to `specodex/`, no schema changes.
 
 ## Estimated effort
 
@@ -159,6 +159,6 @@ Surface this doc when the current task touches any of:
   twice", "two part numbers for one motor"
 - Promotion to staging/prod (`./Quickstart admin promote`) — flag this
   as a pre-flight to surface lurking duplicates before they propagate
-- `datasheetminer/ids.py:compute_product_id` or
+- `specodex/ids.py:compute_product_id` or
   `_strip_family_prefix` modifications that might invalidate prior
   IDs and create a fresh wave of duplicates

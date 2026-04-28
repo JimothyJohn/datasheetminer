@@ -93,7 +93,7 @@ const INTEGER_DISPLAY_UNITS = new Set<string>(['rpm', 'V', 'kV', 'mV']);
 
 /**
  * Round a converted number to ~4 significant figures and strip trailing
- * zeros. Mirrors `_round_converted` from datasheetminer/units.py but
+ * zeros. Mirrors `_round_converted` from specodex/units.py but
  * tuned for display (4 sig figs vs 6 for storage).
  */
 function roundDisplay(value: number): number {

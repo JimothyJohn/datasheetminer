@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Ethernet-based industrial fieldbus protocols supported on drives.
  * Keep in sync with CommunicationProtocol (models.ts) and
- * datasheetminer/models/communication_protocol.py.
+ * specodex/models/communication_protocol.py.
  */
 export const COMMUNICATION_PROTOCOLS = [
   'EtherCAT',

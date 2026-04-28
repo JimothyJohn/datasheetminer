@@ -1,4 +1,4 @@
-# datasheetminer
+# specodex
 
 Core Python library for extracting product specs from PDFs and webpages using Gemini AI.
 

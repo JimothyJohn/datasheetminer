@@ -1,7 +1,7 @@
 /**
  * Pairwise compatibility between two products in the rotary motion chain.
  *
- * TS port of `datasheetminer/integration/compat.py` (drive↔motor and
+ * TS port of `specodex/integration/compat.py` (drive↔motor and
  * motor↔gearhead junctions only).
  *
  * Two modes:

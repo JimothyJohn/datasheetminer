@@ -18,7 +18,7 @@ Test suite organized by execution environment. Only unit tests run offline with 
 uv run pytest tests/unit/ -v
 
 # With coverage
-uv run pytest tests/unit/ --cov=datasheetminer --cov-report=term
+uv run pytest tests/unit/ --cov=specodex --cov-report=term
 
 # Staging tests (requires live server)
 API_BASE_URL=https://staging.example.com uv run pytest tests/staging/ -v

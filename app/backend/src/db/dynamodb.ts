@@ -1,6 +1,6 @@
 /**
  * DynamoDB client for CRUD operations on products.
- * This module mirrors the functionality of datasheetminer/db/dynamo.py
+ * This module mirrors the functionality of specodex/db/dynamo.py
  */
 
 import {
@@ -785,7 +785,7 @@ export class DynamoDBService {
   /**
    * Parse Python compact "value;unit" and "min-max;unit" strings into
    * structured {value, unit} / {min, max, unit} objects.
-   * Mirrors datasheetminer/db/dynamo.py _parse_compact_units().
+   * Mirrors specodex/db/dynamo.py _parse_compact_units().
    */
   private parseCompactUnits(obj: any): any {
     if (obj === null || obj === undefined) return obj;

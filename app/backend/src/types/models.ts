@@ -67,7 +67,7 @@ export type MotorType =
   | 'hybrid';
 
 /**
- * Motor model matching datasheetminer/models/motor.py
+ * Motor model matching specodex/models/motor.py
  */
 export interface Motor extends ProductBase {
   product_type: 'motor';
@@ -110,7 +110,7 @@ export type CommunicationProtocol =
   | 'CC-Link IE';
 
 /**
- * Drive model matching datasheetminer/models/drive.py
+ * Drive model matching specodex/models/drive.py
  */
 export interface Drive extends ProductBase {
   product_type: 'drive';
@@ -140,7 +140,7 @@ export interface Drive extends ProductBase {
 }
 
 /**
- * Gearhead model matching datasheetminer/models/gearhead.py
+ * Gearhead model matching specodex/models/gearhead.py
  */
 export interface Gearhead extends ProductBase {
   product_type: 'gearhead';
@@ -168,7 +168,7 @@ export interface Gearhead extends ProductBase {
 }
 
 /**
- * Robot Arm model matching datasheetminer/models/robot_arm.py
+ * Robot Arm model matching specodex/models/robot_arm.py
  */
 export interface RobotArm extends ProductBase {
   product_type: 'robot_arm';
@@ -214,7 +214,7 @@ export interface ContactorIcwRating {
 }
 
 /**
- * Contactor model matching datasheetminer/models/contactor.py
+ * Contactor model matching specodex/models/contactor.py
  */
 export interface Contactor extends ProductBase {
   product_type: 'contactor';
@@ -273,7 +273,7 @@ export interface Contactor extends ProductBase {
 }
 
 /**
- * ElectricCylinder model matching datasheetminer/models/electric_cylinder.py
+ * ElectricCylinder model matching specodex/models/electric_cylinder.py
  */
 export interface ElectricCylinder extends ProductBase {
   product_type: 'electric_cylinder';
@@ -305,7 +305,7 @@ export interface ElectricCylinder extends ProductBase {
 }
 
 /**
- * LinearActuator model matching datasheetminer/models/linear_actuator.py
+ * LinearActuator model matching specodex/models/linear_actuator.py
  *
  * Rodless linear-motion modules — carriage rides on a guided rail.
  * Distinct from ElectricCylinder (which pushes/pulls from a rod).
@@ -352,7 +352,7 @@ export type ProductType = 'motor' | 'drive' | 'gearhead' | 'robot_arm' | 'contac
 /**
  * Manufacturer record — first-class entity in the single-table design.
  * PK = "MANUFACTURER", SK = `MANUFACTURER#{id}`. Mirrors
- * datasheetminer/models/manufacturer.py.
+ * specodex/models/manufacturer.py.
  */
 export interface Manufacturer {
   id: string;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DatasheetMiner CLI — single entry point for all stages.
+Specodex CLI — single entry point for all stages.
 
 Usage:
     ./Quickstart dev              Start local dev servers (default)
@@ -271,7 +271,7 @@ def cmd_dev(args: argparse.Namespace) -> None:
 
     host = _local_ip()
     print()
-    info("DatasheetMiner is running")
+    info("Specodex is running")
     print(f"  Frontend:  http://{host}:3000")
     print(f"  Backend:   http://{host}:{port}")
     print("  Mode:      admin (full access)")
@@ -576,7 +576,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                     api_url = val
 
         print()
-        info("DatasheetMiner deployed successfully")
+        info("Specodex deployed successfully")
         print(f"  Stage:      {stage}")
         print(f"  Table:      {deploy_env['DYNAMODB_TABLE_NAME']}")
         if site_url:
@@ -677,7 +677,7 @@ def cmd_process(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="Quickstart",
-        description="DatasheetMiner — dev, test, deploy, and verify.",
+        description="Specodex — dev, test, deploy, and verify.",
     )
     sub = parser.add_subparsers(dest="command")
 

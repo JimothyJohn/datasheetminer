@@ -1,4 +1,4 @@
-# DatasheetMiner production image
+# Specodex production image
 # Multi-stage build: frontend static assets + backend API in one container
 
 # ── Stage 1: Install all dependencies ────────────────────────────

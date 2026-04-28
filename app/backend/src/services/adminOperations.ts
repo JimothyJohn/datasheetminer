@@ -1,7 +1,7 @@
 /**
  * Admin operations — diff, promote, demote, purge — across dev/prod tables.
  *
- * This is the TypeScript counterpart to datasheetminer/admin/operations.py.
+ * This is the TypeScript counterpart to specodex/admin/operations.py.
  * The semantics match: blacklist is enforced on promote only; demote has no
  * check; purge requires at least one filter (type and/or manufacturer).
  */

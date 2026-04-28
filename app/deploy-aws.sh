@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploy DatasheetMiner to AWS
+# Deploy Specodex to AWS
 # Stacks: DynamoDB + API Gateway/Lambda + S3/CloudFront
 #
 # Prerequisites:
@@ -167,7 +167,7 @@ print_info() {
   if [ -f "$outputs_file" ]; then
     echo ""
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  DatasheetMiner deployed successfully  ${NC}"
+    echo -e "${GREEN}  Specodex deployed successfully        ${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
 
@@ -229,7 +229,7 @@ for stack in data.values():
 # Main
 main() {
   echo ""
-  log "Starting DatasheetMiner AWS deployment"
+  log "Starting Specodex AWS deployment"
   echo ""
 
   check_prereqs

@@ -1,6 +1,6 @@
-# DatasheetMiner Web Application
+# Specodex Web Application
 
-A TypeScript web application for viewing and managing product specifications extracted by the DatasheetMiner CLI tools. Provides a REST API and React UI for searching, filtering, and comparing industrial products across manufacturers.
+A TypeScript web application for viewing and managing product specifications extracted by the Specodex CLI tools. Provides a REST API and React UI for searching, filtering, and comparing industrial products across manufacturers.
 
 ## Features
 
@@ -242,12 +242,12 @@ npm run deploy   # Deploy all stacks
 
 ```bash
 cd app
-docker build -t datasheetminer .
+docker build -t specodex .
 docker run -p 3001:3001 \
   -e AWS_REGION=us-east-1 \
   -e DYNAMODB_TABLE_NAME=products \
   -e APP_MODE=public \
-  datasheetminer
+  specodex
 ```
 
 The multi-stage Dockerfile builds frontend (Vite) and backend (TypeScript) separately, producing a minimal Node 18-alpine image that serves both the API and static frontend.

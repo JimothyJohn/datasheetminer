@@ -6,7 +6,7 @@ Generated: 2026-04-05
 
 | Suite | Runner | Tests | Passing | Coverage |
 |---|---|---:|---:|---:|
-| Python (datasheetminer/) | pytest + pytest-cov | 671 | 638 | **60%** lines |
+| Python (specodex/) | pytest + pytest-cov | 671 | 638 | **60%** lines |
 | Python Integration | pytest | 52 | 51 | -- |
 | Python Staging (live API) | pytest | 39 | -- | -- |
 | Python Post-Deploy (live API) | pytest | 17 | -- | -- |
@@ -18,9 +18,9 @@ Staging and post-deploy tests require `API_BASE_URL` and are run in CI against l
 
 ---
 
-## Python Coverage (datasheetminer/)
+## Python Coverage (specodex/)
 
-Source: `uv run pytest tests/unit/ --cov=datasheetminer --cov-report=term`
+Source: `uv run pytest tests/unit/ --cov=specodex --cov-report=term`
 
 | Module | Stmts | Miss | Cover |
 |---|---:|---:|---:|

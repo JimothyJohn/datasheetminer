@@ -345,7 +345,7 @@ export const getCategoryForKey = (key: string): AttributeCategory =>
 // voltage. Motor-designer-facing specs (voltage_constant, torque_constant,
 // resistance, inductance) are pushed behind opt-in restore — they're
 // unit-bearing but not comparison-useful for product selection. See
-// datasheetminer/models/motor.md.
+// specodex/models/motor.md.
 export const getMotorAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['motor'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['motor'] },
@@ -390,7 +390,7 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
 // and max TCP speed are the core capability metrics every manufacturer
 // leads with and every integrator cross-compares. Environmental details
 // (noise, operating_temp) and safety metadata are hidden by default —
-// reachable via restore. See datasheetminer/models/robot_arm.md.
+// reachable via restore. See specodex/models/robot_arm.md.
 export const getRobotArmAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['robot_arm'] },
@@ -432,7 +432,7 @@ export const getRobotArmAttributes = (): AttributeMetadata[] => [
 // is the four-field summary every servo-system designer uses for
 // selection. Installation-specific loads (radial/axial), shaft diameters,
 // and lubrication/service-life marketing numbers are hidden by default.
-// See datasheetminer/models/gearhead.md.
+// See specodex/models/gearhead.md.
 export const getGearheadAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['gearhead'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['gearhead'] },
@@ -479,14 +479,14 @@ export const getDatasheetAttributes = (): AttributeMetadata[] => [
   { key: 'component_type', displayName: 'Product Type', type: 'string', applicableTypes: ['datasheet'] },
 ];
 
-// Contactor attributes — mirrors the generalized datasheetminer/models/
+// Contactor attributes — mirrors the generalized specodex/models/
 // contactor.py schema (IEC 60947-4-1 vocabulary, not Mitsubishi-specific
 // columns). Default-visible set surfaces the IEC headline scalars
 // (ie_ac3_400v, motor_power_ac3_400v_kw, motor_power_ac3_480v_hp) plus
 // thermal/insulation ratings every vendor publishes. List-of-ratings
 // fields (ratings_ac3 etc.) aren't in the filter UI at all — they're
 // the detail view you drill into per-product. See
-// datasheetminer/models/contactor.md.
+// specodex/models/contactor.md.
 export const getContactorAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['contactor'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['contactor'] },
@@ -559,7 +559,7 @@ export const getContactorAttributes = (): AttributeMetadata[] => [
 // ethernet_ports) are buried detail that nobody sorts the table by —
 // they matter for a specific integration, not product discovery. Same
 // logic for the safety/approvals arrays. See
-// datasheetminer/models/drive.md.
+// specodex/models/drive.md.
 export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['drive'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['drive'] },
@@ -590,7 +590,7 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
 // Electric cylinder default-visible set: stroke + force + speed +
 // voltage is the four-field comparison profile integrators start with.
 // Secondary mechanical specs (lead screw, backlash, gear ratio) are
-// hidden by default. See datasheetminer/models/electric_cylinder.md.
+// hidden by default. See specodex/models/electric_cylinder.md.
 export const getElectricCylinderAttributes = (): AttributeMetadata[] => [
   { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['electric_cylinder'] },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['electric_cylinder'] },

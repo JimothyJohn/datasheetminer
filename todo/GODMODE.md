@@ -93,7 +93,7 @@ optionally embeds via file upload (later — not MVP).
 |---|---|---|
 | Gemini tokens / cost | `INGEST#*` records — `gemini_input_tokens`, `gemini_output_tokens` fields | ✅ since ENRICH.md |
 | Gemini RPM / error rate | Same records, group by minute, count `extract_fail` | ✅ |
-| Gemini-non-ingest calls (schemagen, price LLM) | **gap** — not currently logged with tokens | ❌ requires a small change to `datasheetminer/llm.py` to emit a structured log line with `{call_kind, input_tokens, output_tokens}` per call |
+| Gemini-non-ingest calls (schemagen, price LLM) | **gap** — not currently logged with tokens | ❌ requires a small change to `specodex/llm.py` to emit a structured log line with `{call_kind, input_tokens, output_tokens}` per call |
 | Claude usage | `~/.claude/projects/*/conversations/*.jsonl` — each turn's `usage` field | ✅ files exist; need a parser |
 | Ingest success rate | `INGEST#*` `status` field, last N days | ✅ |
 | Top failing manufacturers | `cli/ingest_report.py` already does this — call its function | ✅ |
@@ -144,7 +144,7 @@ reuses data we already capture.
    - **One CLI:** `./Quickstart godmode` writes `outputs/godmode/latest.html`.
 
 5. **Claude usage panel (local, Option B)**:
-   - Parse `~/.claude/projects/-Users-nick-github-datasheetminer/conversations/*.jsonl`.
+   - Parse `~/.claude/projects/-Users-nick-github-specodex/conversations/*.jsonl`.
    - Sum `usage.input_tokens`, `usage.output_tokens`,
      `usage.cache_read_input_tokens`, `usage.cache_creation_input_tokens`
      per day for the last 30 days.
@@ -159,14 +159,14 @@ goes in a follow-up. Each adds one endpoint + one widget.
 ### Gemini usage
 
 The ingest_log already captures `gemini_input_tokens` / `gemini_output_tokens`
-per call (see `datasheetminer/ingest_log.py:build_record`). The deployed panel
+per call (see `specodex/ingest_log.py:build_record`). The deployed panel
 queries `INGEST#*` records by SK timestamp range and aggregates client-side
 (<1000 records per window in practice).
 
 **Gap to close before this works:** schemagen and the price-LLM cascade also
 call Gemini but don't emit ingest_log records. Two options:
 
-- **(easier)** Have `datasheetminer/llm.py` emit a CloudWatch log line per
+- **(easier)** Have `specodex/llm.py` emit a CloudWatch log line per
   call — `{"event": "gemini_call", "kind": "schemagen|price|extract", "input_tokens": N, "output_tokens": N}` — and `metric filter` it into a count. Heavy.
 - **(simpler)** Write a sibling row to ingest_log keyed under a different PK
   prefix — `LLM#<kind>#<sha256(prompt)[:16]>` — same shape, same query
@@ -273,8 +273,8 @@ Per stage. Render the message + timestamp; click expands to full event.
 | `app/frontend/src/App.tsx` | add `/godmode` route gated by admin auth |
 | `cli/godmode.py` | **new** — local snapshot generator (Option B) |
 | `cli/quickstart.py` | add `godmode` command dispatching to `cli/godmode.py` |
-| `datasheetminer/llm.py` | log non-ingest Gemini calls under `LLM#*` PK so they count |
-| `datasheetminer/ingest_log.py` | tiny extension — accept the new PK prefix |
+| `specodex/llm.py` | log non-ingest Gemini calls under `LLM#*` PK so they count |
+| `specodex/ingest_log.py` | tiny extension — accept the new PK prefix |
 | `Quickstart` | one-line passthrough (already a shim) |
 | `CLAUDE.md` | add `./Quickstart godmode` to the entry-point list |
 
@@ -320,9 +320,9 @@ Surface this doc when the current task touches any of:
 - "GOD mode", "godmode", "dashboard", "observability", "what's going on"
 - `app/backend/src/routes/admin.ts`, `app/backend/src/middleware/adminOnly.ts`,
   `app/frontend/src/components/AdminPanel.tsx`
-- `datasheetminer/ingest_log.py` schema changes (the dashboard reads
+- `specodex/ingest_log.py` schema changes (the dashboard reads
   these fields — adding/renaming will break panels)
-- `datasheetminer/llm.py` (the place to add non-ingest call logging)
+- `specodex/llm.py` (the place to add non-ingest call logging)
 - `cli/ingest_report.py` (godmode's ingest panel reuses its grouping)
 - "Gemini cost", "token usage", "Claude usage", "how much am I spending"
 - `outputs/godmode/`

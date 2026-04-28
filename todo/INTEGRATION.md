@@ -30,9 +30,9 @@ exists in Python — it just isn't exposed.
 
 | Layer | Where | What it does |
 |---|---|---|
-| Port schemas | `datasheetminer/integration/ports.py` | `ElectricalPowerPort`, `MechanicalShaftPort`, `FeedbackPort`, `FieldbusPort`, `CoilPort`. Pure data with `direction: input\|output` and unit-aware `ValueUnit`/`MinMaxUnit` fields. |
-| Per-product adapters | `datasheetminer/integration/adapters.py` | `ports_for(product)` returns `{port_name: Port}` for Motor, Drive, Gearhead, Contactor, ElectricCylinder, RobotArm. **Gap:** no adapter for `LinearActuator`. |
-| Compat engine | `datasheetminer/integration/compat.py:check(a, b)` | Pairs every output port on A with every input port on B of the same `kind`, runs unit-aware comparators, returns `CompatibilityReport(status: ok\|partial\|fail, results: [CompatResult])` with per-field `CheckResult` detail. |
+| Port schemas | `specodex/integration/ports.py` | `ElectricalPowerPort`, `MechanicalShaftPort`, `FeedbackPort`, `FieldbusPort`, `CoilPort`. Pure data with `direction: input\|output` and unit-aware `ValueUnit`/`MinMaxUnit` fields. |
+| Per-product adapters | `specodex/integration/adapters.py` | `ports_for(product)` returns `{port_name: Port}` for Motor, Drive, Gearhead, Contactor, ElectricCylinder, RobotArm. **Gap:** no adapter for `LinearActuator`. |
+| Compat engine | `specodex/integration/compat.py:check(a, b)` | Pairs every output port on A with every input port on B of the same `kind`, runs unit-aware comparators, returns `CompatibilityReport(status: ok\|partial\|fail, results: [CompatResult])` with per-field `CheckResult` detail. |
 | Tests | `tests/unit/test_integration.py` | Happy paths + failure modes for all comparators. |
 
 The comparators already cover what matters:
@@ -149,7 +149,7 @@ deployment artefact. Options surveyed:
   partial-only mode, a handful of string comparisons.
 - Subprocess — Node Lambda image has no Python, so non-starter.
 
-The Python engine in `datasheetminer/integration/` stays — it's the source
+The Python engine in `specodex/integration/` stays — it's the source
 of truth for stricter checks once shared enums land, and the CLI/bench paths
 keep using it. The TS port mirrors the same junction definitions and is
 contract-tested against a JSON fixture both implementations consume.
@@ -297,7 +297,7 @@ No backend touch. Estimate: half-day, mostly CSS + clipboard plumbing.
 
 Surface this doc when current work touches:
 
-- `datasheetminer/integration/{ports,adapters,compat}.py`
+- `specodex/integration/{ports,adapters,compat}.py`
 - `tests/unit/test_integration.py`
 - `app/backend/src/routes/` and you're adding a new route, or anyone says
   "compat", "compatibility", "pairing", "matching", "build", "BOM", "system",

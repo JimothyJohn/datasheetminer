@@ -15,7 +15,7 @@ export function sanitizeUrl(url: string | undefined | null): string {
   }
 }
 
-// Mirrors datasheetminer/placeholders.py::PLACEHOLDER_STRINGS. The backend
+// Mirrors specodex/placeholders.py::PLACEHOLDER_STRINGS. The backend
 // coerces these to null at ingest, but older rows in prod still carry literal
 // "N/A"s, so the frontend has to stay defensive until the backfill completes.
 const PLACEHOLDER_STRINGS = new Set([

@@ -2,7 +2,7 @@
  * Manufacturer blacklist — manufacturers banned from promotion to prod.
  *
  * Reads/writes the same JSON file the Python CLI uses
- * (datasheetminer/admin/blacklist.py), so edits from either tool stay in sync.
+ * (specodex/admin/blacklist.py), so edits from either tool stay in sync.
  * File lives at repo root: admin/blacklist.json
  *
  * Comparison is case-insensitive: "ABB", "abb", and "Abb" all refer to the

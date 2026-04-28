@@ -233,7 +233,7 @@ def render_email_template(grouped: Dict[str, List[Dict[str, Any]]]) -> str:
         )
         out.append("")
         out.append("Thanks,")
-        out.append("The DatasheetMiner team")
+        out.append("The Specodex team")
         out.append("")
         out.append("")
     return "\n".join(out)
