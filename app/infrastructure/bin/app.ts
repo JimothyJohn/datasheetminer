@@ -19,13 +19,13 @@ const prefix = `DatasheetMiner-${stage.charAt(0).toUpperCase() + stage.slice(1)}
 // DynamoDB table
 const databaseStack = new DatabaseStack(app, `${prefix}-Database`, config, {
   env: config.env,
-  description: `DynamoDB table for DatasheetMiner (${stage})`,
+  description: `DynamoDB table for Specodex (${stage})`,
 });
 
 // API Gateway + Lambda
 const apiStack = new ApiStack(app, `${prefix}-Api`, config, {
   env: config.env,
-  description: `API Gateway and Lambda for DatasheetMiner (${stage})`,
+  description: `API Gateway and Lambda for Specodex (${stage})`,
   table: databaseStack.table,
   uploadBucket: databaseStack.uploadBucket,
 });
@@ -34,12 +34,12 @@ apiStack.addDependency(databaseStack);
 // S3 + CloudFront (frontend)
 const frontendStack = new FrontendStack(app, `${prefix}-Frontend`, config, {
   env: config.env,
-  description: `S3 and CloudFront for DatasheetMiner frontend (${stage})`,
+  description: `S3 and CloudFront for Specodex frontend (${stage})`,
   api: apiStack.api,
 });
 frontendStack.addDependency(apiStack);
 
 // Tag all resources
-cdk.Tags.of(app).add('Project', 'DatasheetMiner');
+cdk.Tags.of(app).add('Project', 'Specodex');
 cdk.Tags.of(app).add('Stage', stage);
 cdk.Tags.of(app).add('ManagedBy', 'CDK');

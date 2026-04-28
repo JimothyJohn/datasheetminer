@@ -24,7 +24,7 @@ export class ApiStack extends cdk.Stack {
 
     // Lambda function (backend API)
     const handler = new lambda.Function(this, 'ApiHandler', {
-      functionName: `datasheetminer-api-${config.stage}`,
+      functionName: `specodex-api-${config.stage}`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'lambda.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../backend/dist')),
@@ -56,7 +56,7 @@ export class ApiStack extends cdk.Stack {
 
     // HTTP API
     this.api = new apigw.HttpApi(this, 'HttpApi', {
-      apiName: `datasheetminer-${config.stage}`,
+      apiName: `specodex-${config.stage}`,
       corsPreflight: {
         allowOrigins: ['*'],
         allowMethods: [apigw.CorsHttpMethod.ANY],

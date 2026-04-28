@@ -130,27 +130,27 @@ export class FrontendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CloudFrontUrl', {
       value: `https://${this.distribution.distributionDomainName}`,
       description: `CloudFront distribution URL (${config.stage})`,
-      exportName: `DatasheetMiner-${config.stage}-FrontendUrl`,
+      exportName: `Specodex-${config.stage}-FrontendUrl`,
     });
 
     if (config.domain) {
       new cdk.CfnOutput(this, 'SiteUrl', {
         value: `https://${config.domain.domainName}`,
         description: `Custom domain URL (${config.stage})`,
-        exportName: `DatasheetMiner-${config.stage}-SiteUrl`,
+        exportName: `Specodex-${config.stage}-SiteUrl`,
       });
     }
 
     new cdk.CfnOutput(this, 'DistributionId', {
       value: this.distribution.distributionId,
       description: `CloudFront distribution ID (${config.stage})`,
-      exportName: `DatasheetMiner-${config.stage}-DistributionId`,
+      exportName: `Specodex-${config.stage}-DistributionId`,
     });
 
     new cdk.CfnOutput(this, 'BucketName', {
       value: bucket.bucketName,
       description: `Frontend S3 bucket name (${config.stage})`,
-      exportName: `DatasheetMiner-${config.stage}-FrontendBucket`,
+      exportName: `Specodex-${config.stage}-FrontendBucket`,
     });
   }
 }
