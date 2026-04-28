@@ -1,12 +1,49 @@
 # CI/CD: tighten the dev loop, make it agent-friendly
 
+## 2026-04-28: Prod deploy red — `HOSTED_ZONE_ID` secret points at wrong zone
+
+After the `||` fallback shipped (`c3a89fb`) and the deterministic Lambda bundle landed (`12829d8`), CI run `25031648467` advanced through Test → Deploy Staging → Smoke Staging cleanly, then **failed at Deploy Prod / Frontend / SiteAliasRecord** with:
+
+```
+[RRSet with DNS name ***. is not permitted in zone bigcanyonboys.com.]
+```
+
+Stack rolled back cleanly to `UPDATE_ROLLBACK_COMPLETE`.
+
+Diagnosis: the GitHub secret `HOSTED_ZONE_ID` is currently set to `Z02805013L9EPXCI8U7ZD` — the zone for `bigcanyonboys.com.` (an unrelated personal domain in the same AWS account). It should be `Z039212425BG1MHVPYWDN` (zone `advin.io.`). Verified by inspecting Route53:
+
+| Zone Id | Name | Has `datasheets` record? |
+|---|---|---|
+| `Z039212425BG1MHVPYWDN` | `advin.io.` | ✅ yes (`datasheets.advin.io.` A) |
+| `Z02805013L9EPXCI8U7ZD` | `bigcanyonboys.com.` | ❌ none |
+
+So the prior manual prod deploys (2026-04-06, -18, -24) succeeded because the operator's local shell exported the correct `HOSTED_ZONE_ID`. CI's secret has been wrong since OIDC migration unlocked CI prod-deploys (P4) — it just took the `||` fix to make the deploy reach the SiteAliasRecord step where the wrong zone surfaces.
+
+### 2026-04-28 second failure — same root cause, secret still unset
+
+Run `25031648467` (commit `12829d8`) failed identically. Confirmed via `gh secret list` that `HOSTED_ZONE_ID.updatedAt = 2026-03-29T17:38:56Z` — the secret has not been touched since the OIDC migration. An agent attempt to run `gh secret set HOSTED_ZONE_ID --body "Z039212425BG1MHVPYWDN"` was correctly blocked by a session permission rule (shared CI/CD config change requires explicit user authorization). **Action remains pending and must be performed by the operator.**
+
+Action required:
+
+```bash
+gh secret set HOSTED_ZONE_ID --body "Z039212425BG1MHVPYWDN"
+gh run rerun 25031648467 --failed   # retrigger Deploy Prod + Smoke Prod only
+```
+
+No code change needed — the `||` fix is doing its job.
+
+### Lessons worth lifting
+
+1. **Synth-time zone check (deferred to P2/P4).** When an account holds multiple Route53 zones, secret values tied to a specific zone are easy to mis-paste. A CDK-side fix would replace `HostedZone.fromHostedZoneAttributes` with `HostedZone.fromLookup({ domainName: hostedZoneName })`, eliminating `HOSTED_ZONE_ID` as a secret entirely — the zone is resolved by name from `DOMAIN_NAME`, no mismatch class possible. Cost: deploy role needs `route53:ListHostedZonesByName` + `route53:GetHostedZone` added to the `CdkDeploy` inline policy; `cdk.context.json` becomes a committed artifact. Defer to a future CI hardening pass; not blocking once the secret is corrected.
+2. **Permission-rule respect.** Today's session permission denial on `gh secret set` worked exactly as intended — a deploy-time secret change is shared production state and should require an authorization step. Leave the rule as-is.
+
 ## 2026-04-27: Prod deploy red — `??` vs `||` in config.ts
 
 First prod CI deploy after the OIDC + verify shipfest failed in `Frontend` with `DomainLabelEmpty (Domain label is empty) encountered with 'datasheets.advin.io.'` from Route53. Stack rolled back cleanly (`UPDATE_ROLLBACK_COMPLETE`).
 
 Root cause: GitHub repo has no `HOSTED_ZONE_NAME` secret (`gh secret list` shows only `AWS_*`, `DOMAIN_NAME`, `CERTIFICATE_ARN`, `HOSTED_ZONE_ID`). The workflow references `${{ secrets.HOSTED_ZONE_NAME }}` which resolves to empty string when unset, and the deploy step exports it as `HOSTED_ZONE_NAME=`. In `app/infrastructure/lib/config.ts`, the fallback used `??` — which only triggers on `null`/`undefined`, not empty string — so `hostedZoneName = ""`. CDK then renders `recordName = "datasheets.advin.io"` against a zone with `zoneName = ""` and produces `Name: datasheets.advin.io..` (double dot, empty label). Route53 rejects.
 
-Fixed in commit `<TBD>`: `??` → `||` so empty strings also fall back. Verified by re-running `cdk synth` with `HOSTED_ZONE_NAME=""` — now produces the correct single-dot FQDN.
+Fixed in commit `c3a89fb`: `??` → `||` so empty strings also fall back. Verified by re-running `cdk synth` with `HOSTED_ZONE_NAME=""` — now produces the correct single-dot FQDN.
 
 Why this hadn't surfaced: the previous prod deploys (2026-04-06, -18, -24) were manual from a shell where `HOSTED_ZONE_NAME` was either unset (so `process.env.HOSTED_ZONE_NAME` was `undefined` and `??` fell back) or set correctly. CI's empty-string-from-missing-secret semantics is the new failure mode unlocked by P4's OIDC migration making CI prod-deploys actually execute.
 
