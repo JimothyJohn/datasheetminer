@@ -68,7 +68,28 @@ export const IMPERIAL_CONVERSIONS: Record<string, UnitConversion> = {
     forward: n => n * 14.50377,
     inverse: n => n / 14.50377,
   },
+  W: {
+    target: 'hp',
+    forward: n => n / 745.69987,
+    inverse: n => n * 745.69987,
+  },
+  kW: {
+    target: 'hp',
+    forward: n => (n * 1000) / 745.69987,
+    inverse: n => (n * 745.69987) / 1000,
+  },
 };
+
+/**
+ * Units whose value should always render as an integer regardless of
+ * source precision or unit system. RPM is the canonical case — datasheets
+ * always quote shaft speed in whole revolutions per minute, and a "3000.4
+ * rpm" readout reads as a data-entry artifact, not real precision.
+ * Voltages (V, kV, mV) are the same: catalogs list 24/48/230/480, and a
+ * "3.3 V" reading is extraction noise. Do not add coefficient units like
+ * V/krpm (those carry meaningful decimals).
+ */
+const INTEGER_DISPLAY_UNITS = new Set<string>(['rpm', 'V', 'kV', 'mV']);
 
 /**
  * Round a converted number to ~4 significant figures and strip trailing
@@ -82,6 +103,40 @@ function roundDisplay(value: number): number {
   const precision = Math.max(0, 3 - magnitude);
   const factor = Math.pow(10, precision);
   return Math.round(value * factor) / factor;
+}
+
+/**
+ * Apply unit-specific display precision (currently: integer for rpm,
+ * passthrough for everything else). Always called on the final display
+ * number so the rounding survives both metric passthrough and imperial
+ * conversion paths.
+ */
+function applyUnitPrecision(value: number, unit: string): number {
+  if (!Number.isFinite(value)) return value;
+  if (INTEGER_DISPLAY_UNITS.has(unit)) return Math.round(value);
+  return value;
+}
+
+/**
+ * True if the unit string carries unit-specific display precision (e.g.
+ * rpm rounds to integer). Lets render-layer callers — the FilterChip
+ * slider readout, histogram axis ticks — match the same precision rule
+ * without re-implementing it.
+ */
+export function isIntegerUnit(unit: string): boolean {
+  return INTEGER_DISPLAY_UNITS.has(unit);
+}
+
+/**
+ * Finalize a display number for a given canonical unit. Imperial
+ * conversions get 4-sig-fig roundDisplay first; integer-display units
+ * (rpm, V, kV, mV) snap to whole numbers afterward regardless of
+ * system. Metric values for non-integer units pass through unchanged.
+ */
+function finalizeForDisplay(value: number, canonicalUnit: string, didConvert: boolean): number {
+  if (!Number.isFinite(value)) return value;
+  const rounded = didConvert ? roundDisplay(value) : value;
+  return applyUnitPrecision(rounded, canonicalUnit);
 }
 
 /**
@@ -108,14 +163,18 @@ export function convertValueUnit<V extends number | string>(
   vu: { value: V; unit: string },
   system: UnitSystem,
 ): { value: V | number; unit: string } {
-  if (system === 'metric') return vu;
-  const conv = IMPERIAL_CONVERSIONS[vu.unit];
-  if (!conv) return vu;
+  const conv = system === 'imperial' ? IMPERIAL_CONVERSIONS[vu.unit] : undefined;
+  const isInteger = isIntegerUnit(vu.unit);
+  if (!conv && !isInteger) return vu;
   const parsed = tryParseNumber(vu.value);
   if (parsed === null) {
-    return { value: vu.value, unit: conv.target };
+    return { value: vu.value, unit: conv?.target ?? vu.unit };
   }
-  return { value: roundDisplay(conv.forward(parsed)), unit: conv.target };
+  const physical = conv ? conv.forward(parsed) : parsed;
+  return {
+    value: finalizeForDisplay(physical, vu.unit, !!conv),
+    unit: conv?.target ?? vu.unit,
+  };
 }
 
 /**
@@ -128,22 +187,23 @@ export function convertMinMaxUnit<V extends number | string>(
   mmu: { min: V; max: V; unit: string },
   system: UnitSystem,
 ): { min: V | number; max: V | number; unit: string } {
-  if (system === 'metric') return mmu;
-  const conv = IMPERIAL_CONVERSIONS[mmu.unit];
-  if (!conv) return mmu;
+  const conv = system === 'imperial' ? IMPERIAL_CONVERSIONS[mmu.unit] : undefined;
+  const isInteger = isIntegerUnit(mmu.unit);
+  if (!conv && !isInteger) return mmu;
   const minN = tryParseNumber(mmu.min);
   const maxN = tryParseNumber(mmu.max);
-  if (minN === null || maxN === null) {
-    return {
-      min: minN === null ? mmu.min : roundDisplay(conv.forward(minN)),
-      max: maxN === null ? mmu.max : roundDisplay(conv.forward(maxN)),
-      unit: conv.target,
-    };
+  const targetUnit = conv?.target ?? mmu.unit;
+  const transform = (parsed: number | null, raw: V): V | number => {
+    if (parsed === null) return raw;
+    const physical = conv ? conv.forward(parsed) : parsed;
+    return finalizeForDisplay(physical, mmu.unit, !!conv);
+  };
+  let lo = transform(minN, mmu.min);
+  let hi = transform(maxN, mmu.max);
+  if (typeof lo === 'number' && typeof hi === 'number' && lo > hi) {
+    [lo, hi] = [hi, lo];
   }
-  let lo = roundDisplay(conv.forward(minN));
-  let hi = roundDisplay(conv.forward(maxN));
-  if (lo > hi) [lo, hi] = [hi, lo];
-  return { min: lo, max: hi, unit: conv.target };
+  return { min: lo, max: hi, unit: targetUnit };
 }
 
 /**
@@ -176,10 +236,9 @@ export function toDisplay(
   canonicalUnit: string,
   system: UnitSystem,
 ): number {
-  if (system === 'metric') return value;
-  const conv = IMPERIAL_CONVERSIONS[canonicalUnit];
-  if (!conv) return value;
-  return roundDisplay(conv.forward(value));
+  const conv = system === 'imperial' ? IMPERIAL_CONVERSIONS[canonicalUnit] : undefined;
+  const physical = conv ? conv.forward(value) : value;
+  return finalizeForDisplay(physical, canonicalUnit, !!conv);
 }
 
 /**

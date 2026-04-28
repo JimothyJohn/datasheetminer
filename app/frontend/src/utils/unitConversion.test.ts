@@ -52,6 +52,18 @@ describe('convertValueUnit', () => {
     expect(out.value).toBeCloseTo(3.937, 2);
   });
 
+  it('converts W → hp', () => {
+    const out = convertValueUnit({ value: 745.69987, unit: 'W' }, 'imperial');
+    expect(out.unit).toBe('hp');
+    expect(out.value).toBeCloseTo(1, 3);
+  });
+
+  it('converts kW → hp', () => {
+    const out = convertValueUnit({ value: 1, unit: 'kW' }, 'imperial');
+    expect(out.unit).toBe('hp');
+    expect(out.value).toBeCloseTo(1.341, 2);
+  });
+
   it('converts °C → °F (offset, not multiplier)', () => {
     expect(convertValueUnit({ value: 0, unit: '°C' }, 'imperial').value).toBe(32);
     const minus40 = convertValueUnit({ value: -40, unit: '°C' }, 'imperial');
@@ -61,13 +73,55 @@ describe('convertValueUnit', () => {
     expect(hundred.value).toBe(212);
   });
 
-  it('passes through unknown units (V, A, rpm)', () => {
+  it('keeps unit unchanged for units with no imperial form (V, A, rpm)', () => {
+    // Integer-display units (V, rpm) round but keep the canonical unit
+    // string. Quantities like A, Ω, mH have no imperial form and aren't
+    // in INTEGER_DISPLAY_UNITS — they pass through fully unchanged.
     expect(convertValueUnit({ value: 24, unit: 'V' }, 'imperial')).toEqual({
       value: 24,
       unit: 'V',
     });
     expect(convertValueUnit({ value: 3000, unit: 'rpm' }, 'imperial')).toEqual({
       value: 3000,
+      unit: 'rpm',
+    });
+    expect(convertValueUnit({ value: 12.5, unit: 'A' }, 'imperial')).toEqual({
+      value: 12.5,
+      unit: 'A',
+    });
+  });
+
+  it('rounds voltages to integers in both systems', () => {
+    // Datasheets list voltages as 24/48/230/480 — fractional volts are
+    // extraction noise. Round at display time.
+    expect(convertValueUnit({ value: 3.3, unit: 'V' }, 'metric')).toEqual({
+      value: 3,
+      unit: 'V',
+    });
+    expect(convertValueUnit({ value: 230.4, unit: 'V' }, 'imperial')).toEqual({
+      value: 230,
+      unit: 'V',
+    });
+    expect(convertValueUnit({ value: 1.5, unit: 'kV' }, 'metric')).toEqual({
+      value: 2,
+      unit: 'kV',
+    });
+  });
+
+  it('rounds rpm to integer in both systems', () => {
+    // Shaft speeds are always whole revs/minute on every datasheet —
+    // a fractional rpm reading is an extraction artifact.
+    expect(convertValueUnit({ value: 3000.4, unit: 'rpm' }, 'metric')).toEqual({
+      value: 3000,
+      unit: 'rpm',
+    });
+    expect(convertValueUnit({ value: 1499.5, unit: 'rpm' }, 'metric')).toEqual({
+      value: 1500,
+      unit: 'rpm',
+    });
+    // rpm has no imperial conversion — must still round in imperial mode.
+    expect(convertValueUnit({ value: 3000.7, unit: 'rpm' }, 'imperial')).toEqual({
+      value: 3001,
       unit: 'rpm',
     });
   });
@@ -122,6 +176,18 @@ describe('convertMinMaxUnit', () => {
       convertMinMaxUnit({ min: 100, max: 240, unit: 'V' }, 'imperial'),
     ).toEqual({ min: 100, max: 240, unit: 'V' });
   });
+
+  it('rounds voltage ranges to integers', () => {
+    expect(
+      convertMinMaxUnit({ min: 3.3, max: 5.5, unit: 'V' }, 'metric'),
+    ).toEqual({ min: 3, max: 6, unit: 'V' });
+  });
+
+  it('rounds rpm ranges to integers', () => {
+    expect(
+      convertMinMaxUnit({ min: 0.4, max: 2999.7, unit: 'rpm' }, 'metric'),
+    ).toEqual({ min: 0, max: 3000, unit: 'rpm' });
+  });
 });
 
 describe('toCanonical', () => {
@@ -156,6 +222,17 @@ describe('toDisplay', () => {
 
   it('passes through unknown unit', () => {
     expect(toDisplay(24, 'V', 'imperial')).toBe(24);
+  });
+
+  it('rounds voltage to integer for histogram axes / slider readouts', () => {
+    expect(toDisplay(3.3, 'V', 'metric')).toBe(3);
+    expect(toDisplay(229.7, 'V', 'imperial')).toBe(230);
+    expect(toDisplay(1.5, 'kV', 'metric')).toBe(2);
+  });
+
+  it('rounds rpm to integer for histogram axes / slider readouts', () => {
+    expect(toDisplay(2999.4, 'rpm', 'metric')).toBe(2999);
+    expect(toDisplay(2999.6, 'rpm', 'imperial')).toBe(3000);
   });
 });
 

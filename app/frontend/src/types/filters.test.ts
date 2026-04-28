@@ -514,10 +514,10 @@ describe('orderColumnAttributes', () => {
   });
 
   it('falls back to alphabetical when COLUMN_ORDER for the type is empty', () => {
-    // motor list is empty by default in columnOrder.ts
-    expect(COLUMN_ORDER.motor).toEqual([]);
+    // gearhead list is empty by default in columnOrder.ts
+    expect(COLUMN_ORDER.gearhead).toEqual([]);
     const attrs = [make('z_field', 'Z Field'), make('a_field', 'A Field'), make('m_field', 'M Field')];
-    const ordered = orderColumnAttributes(attrs, 'motor');
+    const ordered = orderColumnAttributes(attrs, 'gearhead');
     expect(ordered.map(a => a.key)).toEqual(['a_field', 'm_field', 'z_field']);
   });
 
