@@ -1,4 +1,4 @@
-const REPO_URL = 'https://github.com/JimothyJohn/datasheetminer';
+const REPO_URL = 'https://github.com/JimothyJohn/specodex';
 
 export default function GitHubLink() {
   return (

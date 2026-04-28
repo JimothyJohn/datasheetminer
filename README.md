@@ -7,7 +7,7 @@
 
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-  [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue.svg)](https://jimothyjohn.github.io/datasheetminer/)
+  [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue.svg)](https://jimothyjohn.github.io/specodex/)
   [![Live app](https://img.shields.io/badge/live-datasheets.advin.io-A88A1C.svg)](https://datasheets.advin.io)
 </div>
 
@@ -89,8 +89,8 @@ docs/                    Public landing page (GitHub Pages) + logo proofs
 
 ```bash
 # Clone and install
-git clone https://github.com/JimothyJohn/datasheetminer.git
-cd datasheetminer
+git clone https://github.com/JimothyJohn/specodex.git
+cd specodex
 uv sync
 
 # Set API keys (copy .env.example to .env and fill in)
