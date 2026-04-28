@@ -223,22 +223,40 @@ Verified with `(cd app/backend && npx tsc --noEmit)` (11 errors — same count a
 - *npm install regenerates lockfile in surprising ways.* Commit the new `package-lock.json` deliberately; review the diff for unrelated version bumps and revert those before committing.
 - *Vite build cache holds stale module IDs.* `rm -rf app/frontend/dist app/frontend/node_modules/.vite` before rebuild.
 
-#### Phase 3c — AWS resource cosmetics (Lambda names, tags, exports)
+#### Phase 3c — AWS resource cosmetics (Lambda names, tags, exports) 🔧 code-ready 2026-04-27, deploy gated
 
-**Trigger after 3a + 3b ship and have run a full ingest cycle without issue** (a few days of soak). This phase causes brief CloudWatch log-group churn and a one-time CloudFront/API redeploy per stage; do it deliberately.
+Code changes landed; **deploys gated on user trigger** per the stage-by-stage soak sequence below. `cdk synth --all` produces the renamed resources cleanly: Lambda `FunctionName: specodex-api-${stage}`, API Gateway `Name: specodex-${stage}`, tag `Project: Specodex`, CFN exports `Specodex-${stage}-{FrontendUrl,SiteUrl,DistributionId,FrontendBucket}`. Stack names (`DatasheetMiner-${Stage}-{Database,Api,Frontend}`) intentionally untouched — the doc audit table calls them out as "leave alone" because rename = delete + recreate with no user benefit.
 
-**Sequence (per stage, dev → staging → prod):**
+**Files changed:** `app/infrastructure/lib/api-stack.ts:27,59` (functionName + apiName), `app/infrastructure/lib/frontend-stack.ts:133,140,147,153` (exportName ×4), `app/infrastructure/bin/app.ts:22,28,37,43` (descriptions ×3 + Tags Project). The `prefix` const at `app/infrastructure/bin/app.ts:17` stays `DatasheetMiner-${Stage}` because that's what builds the stack names.
 
-1. `app/infrastructure/lib/api-stack.ts:27` — change `functionName: \`datasheetminer-api-${config.stage}\`` to `\`specodex-api-${config.stage}\``.
-2. `app/infrastructure/bin/app.ts:43` — `cdk.Tags.of(app).add('Project', 'DatasheetMiner')` → `'Specodex'`.
-3. `app/infrastructure/bin/app.ts:22,28,37` — description strings ("for DatasheetMiner") → "for Specodex".
-4. `app/infrastructure/lib/frontend-stack.ts:133,140,147,153` — `exportName: \`DatasheetMiner-...\`` → `\`Specodex-...\`` for FrontendUrl, SiteUrl, DistributionId, FrontendBucket. **Important:** if any other stack imports these via `cdk.Fn.importValue('DatasheetMiner-...')`, rename the consumer first or in the same PR. Audit with `rg 'DatasheetMiner-' app/`.
-5. `cdk diff --all` — review every change before deploy. The rename will show as Lambda replace (delete + create) — that's expected.
-6. Deploy dev: `./Quickstart deploy --stage dev`.
-7. Smoke: `./Quickstart smoke "$(aws cloudformation describe-stacks --stack-name DatasheetMiner-Dev-Frontend --query 'Stacks[0].Outputs[?OutputKey==\`CloudFrontUrl\`].OutputValue' --output text)"`.
-8. Wait 24 hours, re-smoke. Check CloudWatch for `specodex-api-dev` log group activity (CloudWatch auto-creates a new group; the old `/aws/lambda/datasheetminer-api-dev` group is now orphaned but retains its history).
-9. Deploy staging, smoke, soak 24 h.
-10. Deploy prod, smoke. Don't soak — by this point we've burned in twice.
+**Pre-deploy verification (user runs):**
+
+```bash
+# Confirm no other stack imports the soon-to-be-renamed exports.
+for export in DatasheetMiner-prod-FrontendUrl DatasheetMiner-prod-SiteUrl \
+              DatasheetMiner-prod-DistributionId DatasheetMiner-prod-FrontendBucket; do
+  echo "=== $export ==="
+  aws cloudformation list-imports --export-name "$export" 2>&1 | tail -5
+done
+# All four must report "Export ... is not imported by any account/region".
+
+# Confirm no Lambda event sources hardcode the old function ARN.
+for stage in dev staging prod; do
+  aws lambda list-event-source-mappings \
+    --function-name datasheetminer-api-$stage \
+    --query 'EventSourceMappings' 2>&1
+done
+# Should return [] for all three stages.
+```
+
+**Deploy sequence** (per stage; dev → 24h soak → staging → 24h soak → prod):
+
+1. `cdk diff --all` — review every change before deploy. The rename will show as Lambda replace (delete + create) — that's expected.
+2. Deploy dev: `./Quickstart deploy --stage dev`.
+3. Smoke: `./Quickstart smoke "$(aws cloudformation describe-stacks --stack-name DatasheetMiner-Dev-Frontend --query 'Stacks[0].Outputs[?OutputKey==\`CloudFrontUrl\`].OutputValue' --output text)"`.
+4. Wait 24 hours, re-smoke. Check CloudWatch for `specodex-api-dev` log group activity (CloudWatch auto-creates a new group; the old `/aws/lambda/datasheetminer-api-dev` group is now orphaned but retains its history).
+5. Deploy staging, smoke, soak 24 h.
+6. Deploy prod, smoke. Don't soak — by this point we've burned in twice.
 
 **Verification gates (per stage):**
 
@@ -259,11 +277,13 @@ Verified with `(cd app/backend && npx tsc --noEmit)` (11 errors — same count a
 - *CFN export rename fails because something imports it.* CDK will refuse to delete an export with active importers. Run `aws cloudformation list-imports --export-name DatasheetMiner-Prod-DistributionId` before deploying — must return empty.
 - *Tag update doesn't propagate to existing resources.* CDK tags are propagated on next deploy; confirm with `aws resourcegroupstaggingapi get-resources --tag-filters Key=Project,Values=Specodex --resource-type-filters lambda` after deploy.
 
-#### Phase 3d — GitHub repo rename
+#### Phase 3d — GitHub repo rename ✅ shipped 2026-04-27
 
-**Trigger after 3a-c ship and at least one full ingest + deploy cycle has run on each stage post-rename.** GitHub redirects old URLs forever, so this is low-risk — but it does flush local clones of the old origin URL.
+Repo renamed `JimothyJohn/datasheetminer` → `JimothyJohn/specodex`. Local origin updated; in-repo URL flips landed in the same pass: `app/frontend/src/components/GitHubLink.tsx` (`REPO_URL`), `README.md` (clone URL + github-pages docs badge), `docs/index.html` (×4 — Source-on-GitHub CTA, clone command, footer GitHub link, footer Issues link). The old URLs would have redirected anyway per GitHub's repo-rename behavior, but the in-tree references point at the canonical name now.
 
-**Sequence:**
+CLAUDE.md was already audited — its only `datasheetminer` mentions are CFN stack names (`DatasheetMiner-<Stage>-Frontend`, `DatasheetMiner-Staging-Frontend`), which are intentionally preserved per the Phase 3 audit. `.github/workflows/ci.yml` still references the IAM role `gh-deploy-datasheetminer` — that's a label, not a `sub`-claim pattern, so it's harmless to leave (per the contingency note below). The trust-policy `sub` patterns themselves were already updated when CI started failing post-rename — see `todo/CICD.md` postmortem entry.
+
+**Original sequence (preserved for history):**
 
 1. GitHub UI → Settings → Repository name → `specodex`. (Or `gh api -X PATCH repos/JimothyJohn/datasheetminer -f name=specodex`.)
 2. Local: `git remote set-url origin git@github.com:JimothyJohn/specodex.git` (or HTTPS equivalent).
@@ -289,20 +309,20 @@ Verified with `(cd app/backend && npx tsc --noEmit)` (11 errors — same count a
 - *Local clones on other machines still pointing at old origin.* They keep working via redirect, but `git remote set-url` is cleaner. Document in MANUAL_UPDATES.md so any other clones (work laptop, etc.) can be updated.
 - ***IAM roles with OIDC trust policies hardcoding the old repo name silently break CI deploys.*** Hit on 2026-04-26 — `gh-deploy-datasheetminer` trust policy allowed `repo:JimothyJohn/datasheetminer:*` only; first post-rename CI run failed every deploy job with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The role *name* doesn't matter (only the `sub` claim does), but every `StringLike` `sub` pattern must list the new repo slug. **Pre-rename audit:** `aws iam list-roles | jq '.Roles[] | select(.AssumeRolePolicyDocument | tostring | contains("JimothyJohn/datasheetminer"))'`. **Safer pattern:** add the new pattern *before* renaming (so both work), then remove the old one after CI is green. **Fix:** `aws iam update-assume-role-policy --role-name <role> --policy-document file://<patched.json>`.
 
-#### Phase 3e — Documentation + copy sweep
+#### Phase 3e — Documentation + copy sweep ✅ shipped 2026-04-27
 
-**Trigger:** can run anytime after 3a, 3b, 3c, 3d. Pure prose.
+Comment-and-prose rename across the tree. Frontend TS comments (`unitConversion.ts`, `sanitize.ts`, `columnOrder.ts`, `filters.ts` ×6 model-doc paths). Backend TS comments (`compat.ts`, `adminOperations.ts`, `blacklist.ts`, `dynamodb.ts` ×2, `models.ts` ×8 model paths, `schemas.ts`). CLI Python prose (`cli/quickstart.py` ×4 — module docstring, "is running", "deployed successfully", argparse description; `cli/ingest_report.py` — email signoff). User-Agent in `specodex/pricing/fetch.py` switched to `Specodex/1.0` (URL still `datasheets.advin.io` — that flips with Stage 4d). `specodex/README.md` heading. `app/README.md` title + intro + Docker tags. `tests/README.md`, `tests/COVERAGE.md`, `pytest.ini` config-comment header. `app/Dockerfile` header comment, `app/deploy-aws.sh` header + 2 log-line strings. `todo/{DEDUPE,GODMODE,INTEGRATION,README}.md` `datasheetminer/` → `specodex/` path refs.
 
-**Files to sweep:**
+**Intentionally preserved** (per the audit table at the top of Stage 3):
 
-- `CLAUDE.md` — mentions `datasheetminer/...` paths throughout. Update.
-- `app/CLAUDE.md` if exists.
-- `cli/CLAUDE.md` if exists.
-- `tests/**/CLAUDE.md` if any.
-- `app/backend/src/openapi.json` `info.title` and `info.description`.
-- Welcome page footer — currently reads "Specodex is built on the Datasheetminer engine." Decide: keep as historical bridge note, soften to "Built on the Datasheetminer engine", or drop entirely once Stage 3 ships. Default: drop, since the engine and product names are now unified.
+- `datasheetminer-uploads-${stage}-${account}` S3 bucket names (`cli/quickstart.py:646`, `cli/agent.py:85,86`, `cli/triage.py:30,31`, `app/infrastructure/lib/database-stack.ts:30`, `app/backend/src/routes/upload.ts:25`, `app/backend/src/config/index.ts:33`, fixture URLs in `tests/benchmark/expected/*.json`, `tests/unit/test_agent_cli.py:165,171`).
+- `/datasheetminer/${stage}` SSM prefix (`app/infrastructure/lib/config.ts:50`, `app/backend/src/config/index.ts:18`, `.github/workflows/ci.yml:96,131,282`).
+- `DatasheetMiner-${Stage}-{Database,Api,Frontend}` CloudFormation stack names (`app/infrastructure/bin/app.ts:17`, `CLAUDE.md:147,167`, `todo/GODMODE.md:248,257`, `scripts/resurrect-orphan-table.sh:24,65`, `.github/workflows/ci.yml:156,305`).
+- `gh-deploy-datasheetminer` IAM role name (`.github/workflows/ci.yml:14,126,258`) — label-only, doesn't affect OIDC `sub`-claim matching.
+- `app/deploy.sh` `ECR_REPO="datasheetminer"` and `--service-name datasheetminer` — hand-rolled script that the current `./Quickstart deploy → CDK` path doesn't use. Renaming would force ECR repo recreate; not worth it for dead code.
+- `todo/CICD.md` and `todo/REBRAND.md` historical mentions — postmortem and design-doc context, must read accurately.
 
-**No verification needed beyond `tsc --noEmit`** — these are docs.
+Verified clean via `rg 'datasheetminer|DatasheetMiner|Datasheet Miner'` — every remaining match falls into one of the bullets above.
 
 ### Stage 4 — DNS + cert (after Stage 3 has soaked)
 
