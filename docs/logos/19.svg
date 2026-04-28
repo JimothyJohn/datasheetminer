@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <rect x="20" y="44" width="80" height="32" fill="none" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="60" y1="44" x2="60" y2="76" stroke="#1A1A14" stroke-width="2"/>
+  <text x="40" y="66" text-anchor="middle"
+        font-family="'IBM Plex Mono', monospace" font-size="16" font-weight="700" fill="#1A1A14">100</text>
+  <text x="80" y="66" text-anchor="middle"
+        font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="600" fill="#3B4A2A">±.05</text>
+</svg>

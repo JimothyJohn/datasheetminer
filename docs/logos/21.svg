@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <rect x="14" y="40" width="92" height="40" fill="none" stroke="#1A1A14" stroke-width="3"/>
+  <polyline points="14,60 28,60 32,46 40,74 48,46 56,74 64,46 72,74 80,46 88,60 106,60"
+            fill="none" stroke="#3B4A2A" stroke-width="3"/>
+</svg>

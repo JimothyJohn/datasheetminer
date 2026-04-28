@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Specodex — Logo options</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #E8E2C9;
+            --paper-shade: #DDD5B6;
+            --od: #3B4A2A;
+            --ink: #1A1A14;
+            --ink-soft: #3A3A2E;
+            --stencil: #A88A1C;
+            --stamp: #7A1F1F;
+            --font-headline: 'Oswald', 'Roboto Condensed', 'Arial Narrow', sans-serif;
+            --font-body: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background-color: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 14px;
+            line-height: 1.55;
+            min-height: 100vh;
+        }
+        header.band {
+            background-color: var(--od);
+            color: var(--paper);
+            border-bottom: 2px solid var(--ink);
+            padding: 0.55rem 1.5rem;
+        }
+        .band-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .wordmark {
+            font-family: var(--font-headline);
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        .band-meta {
+            font-family: var(--font-headline);
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            opacity: 0.85;
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem 4rem;
+        }
+        h1 {
+            font-family: var(--font-headline);
+            font-weight: 700;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.4rem;
+        }
+        p.lede {
+            color: var(--ink-soft);
+            max-width: 64ch;
+            margin-bottom: 2rem;
+        }
+        .divider {
+            margin: 2.5rem 0 1.2rem;
+            font-family: var(--font-headline);
+            font-size: 0.8rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: var(--od);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: var(--ink);
+            opacity: 0.6;
+        }
+        .primary-row {
+            display: grid;
+            grid-template-columns: minmax(180px, 220px) 1fr;
+            gap: 1.6rem;
+            border: 2px solid var(--ink);
+            background-color: rgba(232, 226, 201, 0.6);
+            padding: 1.4rem;
+        }
+        .primary-row .logo-frame {
+            background-color: var(--paper);
+            border: 1px solid var(--ink);
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .primary-row h2 {
+            font-family: var(--font-headline);
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .primary-row p { color: var(--ink-soft); margin-bottom: 0.6rem; }
+        .primary-row code {
+            font-family: var(--font-body);
+            background-color: rgba(168, 138, 28, 0.18);
+            padding: 0.1em 0.4em;
+            border: 1px solid rgba(26, 26, 20, 0.18);
+            font-size: 0.88em;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+        }
+        .logo-cell {
+            border-right: 1px solid var(--ink);
+            border-bottom: 1px solid var(--ink);
+            padding: 1.2rem;
+            background-color: rgba(232, 226, 201, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .logo-frame {
+            background-color: var(--paper);
+            border: 1px solid var(--ink);
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem;
+        }
+        .logo-svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+        figcaption {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .logo-num {
+            font-family: var(--font-headline);
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            background-color: var(--od);
+            color: var(--paper);
+            padding: 0.18rem 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            white-space: nowrap;
+            align-self: flex-start;
+        }
+        .logo-name {
+            font-family: var(--font-headline);
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .logo-path {
+            font-size: 0.78rem;
+            color: var(--ink-soft);
+            background-color: rgba(168, 138, 28, 0.14);
+            padding: 0.1em 0.35em;
+            border: 1px solid rgba(26, 26, 20, 0.18);
+            align-self: flex-start;
+        }
+        footer {
+            border-top: 2px solid var(--ink);
+            background-color: var(--paper-shade);
+            padding: 1.2rem 1.5rem;
+            margin-top: 3rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            color: var(--ink-soft);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header class="band">
+        <div class="band-inner">
+            <span class="wordmark">SPECODEX</span>
+            <span class="band-meta">LOGO PROOFS — ISSUE 1</span>
+        </div>
+    </header>
+
+    <main>
+        <h1>Logo proofs</h1>
+        <p class="lede">
+            One primary mark plus 25 alternatives. All marks share the field-manual
+            palette — paper, OD-green, ink, stencil yellow, stamp red — and are
+            120×120 SVG. Each lives at its noted path so it can be swapped in directly.
+        </p>
+
+        <div class="divider"><span>▮▮▮ PRIMARY ▮▮▮</span></div>
+        <section class="primary-row">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="14" width="92" height="92" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <rect x="14" y="14" width="92" height="22" fill="#3B4A2A"/>
+                  <rect x="62" y="60" width="40" height="10" fill="#A88A1C"/>
+                  <line x1="14" y1="56" x2="106" y2="56" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="14" y1="74" x2="106" y2="74" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="14" y1="92" x2="106" y2="92" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="60" y1="36" x2="60" y2="106" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+            </div>
+            <div>
+                <h2>Spec table</h2>
+                <p>
+                    A literal miniature of the data the project produces:
+                    a header band, gridded rows, and one cell highlighted as the
+                    extracted value. Reads at every size, including a favicon. Pairs
+                    cleanly to the left of the SPECODEX wordmark in the header band.
+                </p>
+                <p>Saved at <code>docs/logo.svg</code> — referenced by the README hero and the docs/index.html header.</p>
+            </div>
+        </section>
+
+        <div class="divider"><span>▮▮▮ ALTERNATIVES — 25 ▮▮▮</span></div>
+        <div class="gallery">
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="10" y="10" width="100" height="100" fill="#3B4A2A"/>
+                  <text x="60" y="92" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="96" fill="#E8E2C9">S</text>
+                  <rect x="10" y="48" width="100" height="6" fill="#3B4A2A"/>
+                  <rect x="10" y="76" width="100" height="6" fill="#3B4A2A"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-01</span>
+                <span class="logo-name">Stencil S</span>
+                <code class="logo-path">docs/logos/01.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <polygon points="60,12 104,36 104,84 60,108 16,84 16,36"
+                           fill="none" stroke="#1A1A14" stroke-width="4"/>
+                  <text x="60" y="74" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="36" fill="#3B4A2A" letter-spacing="2">SX</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-02</span>
+                <span class="logo-name">Hex SX mark</span>
+                <code class="logo-path">docs/logos/02.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="40" width="14" height="56" fill="#1A1A14"/>
+                  <rect x="14" y="40" width="42" height="14" fill="#1A1A14"/>
+                  <rect x="92" y="40" width="14" height="56" fill="#1A1A14"/>
+                  <rect x="64" y="40" width="42" height="14" fill="#1A1A14"/>
+                  <line x1="14" y1="22" x2="106" y2="22" stroke="#1A1A14" stroke-width="2"/>
+                  <text x="60" y="34" text-anchor="middle"
+                        font-family="'IBM Plex Mono', monospace" font-size="14" fill="#3B4A2A">100.0</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-03</span>
+                <span class="logo-name">Caliper jaws</span>
+                <code class="logo-path">docs/logos/03.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="14" width="92" height="92" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <rect x="34" y="34" width="52" height="52" fill="none" stroke="#3B4A2A" stroke-width="2"/>
+                  <line x1="60" y1="14" x2="60" y2="106" stroke="#1A1A14" stroke-width="1"/>
+                  <line x1="14" y1="60" x2="106" y2="60" stroke="#1A1A14" stroke-width="1"/>
+                  <rect x="56" y="56" width="8" height="8" fill="#7A1F1F"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-04</span>
+                <span class="logo-name">Crosshair</span>
+                <code class="logo-path">docs/logos/04.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="14" width="92" height="92" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <rect x="32" y="28" width="14" height="22" fill="#1A1A14"/>
+                  <rect x="32" y="56" width="14" height="22" fill="#1A1A14"/>
+                  <rect x="32" y="84" width="14" height="14" fill="#1A1A14"/>
+                  <line x1="58" y1="32" x2="100" y2="32" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="58" y1="50" x2="92" y2="50" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="58" y1="68" x2="98" y2="68" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="58" y1="86" x2="86" y2="86" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-05</span>
+                <span class="logo-name">Punch holes</span>
+                <code class="logo-path">docs/logos/05.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <path d="M 18 14 L 86 14 L 106 34 L 106 106 L 18 106 Z"
+                        fill="#E8E2C9" stroke="#1A1A14" stroke-width="3"/>
+                  <path d="M 86 14 L 86 34 L 106 34" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="28" y1="48" x2="96" y2="48" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="28" y1="62" x2="96" y2="62" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="28" y1="76" x2="96" y2="76" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="28" y1="90" x2="74" y2="90" stroke="#3B4A2A" stroke-width="3"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-06</span>
+                <span class="logo-name">Page corner</span>
+                <code class="logo-path">docs/logos/06.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="28" width="92" height="78" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <rect x="40" y="14" width="40" height="14" fill="#3B4A2A"/>
+                  <line x1="14" y1="42" x2="106" y2="42" stroke="#1A1A14" stroke-width="1"/>
+                  <line x1="22" y1="58" x2="98" y2="58" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="22" y1="72" x2="84" y2="72" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="22" y1="86" x2="92" y2="86" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-07</span>
+                <span class="logo-name">Index tab</span>
+                <code class="logo-path">docs/logos/07.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <line x1="20" y1="40" x2="20" y2="80" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="100" y1="40" x2="100" y2="80" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="20" y1="60" x2="100" y2="60" stroke="#1A1A14" stroke-width="2"/>
+                  <polygon points="20,60 32,54 32,66" fill="#1A1A14"/>
+                  <polygon points="100,60 88,54 88,66" fill="#1A1A14"/>
+                  <text x="60" y="50" text-anchor="middle"
+                        font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="600" fill="#3B4A2A">SPEC</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-08</span>
+                <span class="logo-name">Dimension line</span>
+                <code class="logo-path">docs/logos/08.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <g transform="rotate(-7 60 60)">
+                    <rect x="20" y="34" width="80" height="52" fill="none" stroke="#7A1F1F" stroke-width="3"/>
+                    <rect x="24" y="38" width="72" height="44" fill="none" stroke="#7A1F1F" stroke-width="1"/>
+                    <text x="60" y="58" text-anchor="middle"
+                          font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                          font-size="14" fill="#7A1F1F" letter-spacing="3">SPEC</text>
+                    <text x="60" y="76" text-anchor="middle"
+                          font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                          font-size="14" fill="#7A1F1F" letter-spacing="3">VERIFIED</text>
+                  </g>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-09</span>
+                <span class="logo-name">Approval stamp</span>
+                <code class="logo-path">docs/logos/09.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <path d="M 26 22 L 14 22 L 14 98 L 26 98" fill="none" stroke="#1A1A14" stroke-width="5"/>
+                  <path d="M 94 22 L 106 22 L 106 98 L 94 98" fill="none" stroke="#1A1A14" stroke-width="5"/>
+                  <text x="60" y="84" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="64" fill="#3B4A2A">S</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-10</span>
+                <span class="logo-name">Brackets [S]</span>
+                <code class="logo-path">docs/logos/10.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="20" y="34" width="60" height="68" fill="#E8E2C9" stroke="#1A1A14" stroke-width="2"/>
+                  <rect x="32" y="22" width="60" height="68" fill="#E8E2C9" stroke="#1A1A14" stroke-width="2"/>
+                  <rect x="44" y="14" width="60" height="68" fill="#E8E2C9" stroke="#1A1A14" stroke-width="3"/>
+                  <rect x="44" y="14" width="60" height="14" fill="#3B4A2A"/>
+                  <line x1="52" y1="40" x2="96" y2="40" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="52" y1="52" x2="88" y2="52" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="52" y1="64" x2="96" y2="64" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="52" y1="76" x2="80" y2="76" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-11</span>
+                <span class="logo-name">Datasheet stack</span>
+                <code class="logo-path">docs/logos/11.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <circle cx="60" cy="60" r="34" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <text x="60" y="74" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="40" fill="#3B4A2A">M</text>
+                  <line x1="14" y1="60" x2="26" y2="60" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="94" y1="60" x2="106" y2="60" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="60" y1="14" x2="60" y2="26" stroke="#1A1A14" stroke-width="3"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-12</span>
+                <span class="logo-name">Motor schematic</span>
+                <code class="logo-path">docs/logos/12.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <polygon points="60,14 100,38 100,82 60,106 20,82 20,38"
+                           fill="#3B4A2A" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="40" y1="42" x2="80" y2="78" stroke="#E8E2C9" stroke-width="6"/>
+                  <line x1="80" y1="42" x2="40" y2="78" stroke="#E8E2C9" stroke-width="6"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-13</span>
+                <span class="logo-name">Bolt head X</span>
+                <code class="logo-path">docs/logos/13.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <path d="M 16 80 A 44 44 0 0 1 104 80" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="16" y1="80" x2="22" y2="80" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="98" y1="80" x2="104" y2="80" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="60" y1="36" x2="60" y2="42" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="32" y1="48" x2="36" y2="52" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="84" y1="52" x2="88" y2="48" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="60" y1="80" x2="84" y2="48" stroke="#7A1F1F" stroke-width="3"/>
+                  <rect x="56" y="76" width="8" height="8" fill="#1A1A14"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-14</span>
+                <span class="logo-name">Gauge dial</span>
+                <code class="logo-path">docs/logos/14.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="28" y="28" width="64" height="64" fill="#1A1A14"/>
+                  <text x="60" y="68" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="22" fill="#A88A1C" letter-spacing="2">SX</text>
+                  <g fill="#1A1A14">
+                    <rect x="38" y="14" width="6" height="14"/>
+                    <rect x="57" y="14" width="6" height="14"/>
+                    <rect x="76" y="14" width="6" height="14"/>
+                    <rect x="38" y="92" width="6" height="14"/>
+                    <rect x="57" y="92" width="6" height="14"/>
+                    <rect x="76" y="92" width="6" height="14"/>
+                    <rect x="14" y="38" width="14" height="6"/>
+                    <rect x="14" y="57" width="14" height="6"/>
+                    <rect x="14" y="76" width="14" height="6"/>
+                    <rect x="92" y="38" width="14" height="6"/>
+                    <rect x="92" y="57" width="14" height="6"/>
+                    <rect x="92" y="76" width="14" height="6"/>
+                  </g>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-15</span>
+                <span class="logo-name">IC chip</span>
+                <code class="logo-path">docs/logos/15.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="14" width="92" height="92" fill="#3B4A2A"/>
+                  <rect x="28" y="28" width="64" height="64" fill="#E8E2C9"/>
+                  <rect x="42" y="42" width="36" height="36" fill="#3B4A2A"/>
+                  <rect x="54" y="54" width="12" height="12" fill="#A88A1C"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-16</span>
+                <span class="logo-name">Bullseye squares</span>
+                <code class="logo-path">docs/logos/16.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <path d="M 14 36 L 14 102 L 106 102 L 106 36 L 64 36 L 56 24 L 14 24 Z"
+                        fill="#3B4A2A" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="28" y1="58" x2="92" y2="58" stroke="#E8E2C9" stroke-width="2"/>
+                  <line x1="28" y1="72" x2="80" y2="72" stroke="#E8E2C9" stroke-width="2"/>
+                  <line x1="28" y1="86" x2="88" y2="86" stroke="#E8E2C9" stroke-width="2"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-17</span>
+                <span class="logo-name">Folder tab</span>
+                <code class="logo-path">docs/logos/17.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="18" y="18" width="84" height="84" fill="none" stroke="#1A1A14" stroke-width="2"/>
+                  <rect x="18" y="18" width="28" height="28" fill="#3B4A2A"/>
+                  <rect x="46" y="46" width="28" height="28" fill="#7A1F1F"/>
+                  <rect x="74" y="74" width="28" height="28" fill="#A88A1C"/>
+                  <line x1="46" y1="18" x2="46" y2="102" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="74" y1="18" x2="74" y2="102" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="18" y1="46" x2="102" y2="46" stroke="#1A1A14" stroke-width="2"/>
+                  <line x1="18" y1="74" x2="102" y2="74" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-18</span>
+                <span class="logo-name">Spec grid 3x3</span>
+                <code class="logo-path">docs/logos/18.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="20" y="44" width="80" height="32" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <line x1="60" y1="44" x2="60" y2="76" stroke="#1A1A14" stroke-width="2"/>
+                  <text x="40" y="66" text-anchor="middle"
+                        font-family="'IBM Plex Mono', monospace" font-size="16" font-weight="700" fill="#1A1A14">100</text>
+                  <text x="80" y="66" text-anchor="middle"
+                        font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="600" fill="#3B4A2A">±.05</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-19</span>
+                <span class="logo-name">Tolerance callout</span>
+                <code class="logo-path">docs/logos/19.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <polygon points="40,14 80,14 106,40 106,80 80,106 40,106 14,80 14,40" fill="#7A1F1F"/>
+                  <text x="60" y="74" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="36" fill="#E8E2C9" letter-spacing="3">SX</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-20</span>
+                <span class="logo-name">Octagon SX seal</span>
+                <code class="logo-path">docs/logos/20.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="14" y="40" width="92" height="40" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                  <polyline points="14,60 28,60 32,46 40,74 48,46 56,74 64,46 72,74 80,46 88,60 106,60"
+                            fill="none" stroke="#3B4A2A" stroke-width="3"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-21</span>
+                <span class="logo-name">Resistor symbol</span>
+                <code class="logo-path">docs/logos/21.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="56" y="40" width="50" height="40" fill="#3B4A2A"/>
+                  <text x="81" y="66" text-anchor="middle"
+                        font-family="'IBM Plex Mono', monospace" font-weight="600" font-size="14" fill="#E8E2C9">100</text>
+                  <line x1="22" y1="60" x2="56" y2="60" stroke="#1A1A14" stroke-width="3"/>
+                  <polygon points="56,60 44,54 44,66" fill="#1A1A14"/>
+                  <line x1="14" y1="50" x2="14" y2="70" stroke="#1A1A14" stroke-width="3"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-22</span>
+                <span class="logo-name">Arrow callout</span>
+                <code class="logo-path">docs/logos/22.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <polygon points="60,12 104,36 104,84 60,108 16,84 16,36" fill="#3B4A2A"/>
+                  <text x="60" y="84" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="64" fill="#E8E2C9">S</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-23</span>
+                <span class="logo-name">Hex S monogram</span>
+                <code class="logo-path">docs/logos/23.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#E8E2C9"/>
+                  <rect x="10" y="10" width="50" height="100" fill="#3B4A2A"/>
+                  <rect x="60" y="10" width="50" height="100" fill="#A88A1C"/>
+                  <text x="60" y="92" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="96" fill="#E8E2C9">S</text>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-24</span>
+                <span class="logo-name">Two-tone S split</span>
+                <code class="logo-path">docs/logos/24.svg</code>
+            </figcaption>
+        </figure>
+        <figure class="logo-cell">
+            <div class="logo-frame">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+                  <rect width="120" height="120" fill="#3B4A2A"/>
+                  <text x="60" y="80" text-anchor="middle"
+                        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+                        font-size="56" fill="#E8E2C9" letter-spacing="3">SX</text>
+                  <rect x="0" y="42" width="120" height="6" fill="#3B4A2A"/>
+                  <rect x="0" y="72" width="120" height="6" fill="#3B4A2A"/>
+                </svg>
+            </div>
+            <figcaption>
+                <span class="logo-num">OPT-25</span>
+                <span class="logo-name">Field stencil SX</span>
+                <code class="logo-path">docs/logos/25.svg</code>
+            </figcaption>
+        </figure>
+        </div>
+    </main>
+
+    <footer>
+        Specodex — built on the Datasheetminer engine. <code>docs/logos.html</code>
+    </footer>
+</body>
+</html>

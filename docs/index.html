@@ -3,525 +3,791 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Extract, search, and compare industrial product specs from datasheets and product pages. AI-powered specification mining for motors, drives, gearheads, and more.">
-    <title>Datasheet Miner - Product Spec Extraction & Search</title>
+    <meta name="description" content="Specodex — industrial product spec data: drives, motors, gearheads, contactors, actuators. Indexed, filtered, exportable. The number you need, with the datasheet that produced it.">
+    <meta name="theme-color" content="#3B4A2A">
+    <title>Specodex — A product selection frontend that only an engineer could love</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* Specodex landing — army-green / mil-spec throwback.
+         * Mirrors app/frontend/src/components/Welcome.css. Single fixed
+         * palette; no light/dark toggle (a field manual doesn't have a
+         * dark mode). */
 
-        /* Light theme - Earthy Green */
-        :root[data-theme="light"] {
-            --bg-primary: #f2f4f1;
-            --bg-secondary: #e7ebe5;
-            --bg-tertiary: #d8ddd5;
-            --text-primary: #2d3a2e;
-            --text-secondary: #5a6b5c;
-            --text-tertiary: #8a9a8c;
-            --border-color: #c5cfc7;
-            --accent-primary: #6b8e6f;
-            --accent-secondary: #567a5a;
-            --card-bg: #f7f9f6;
-            --code-bg: #e7ebe5;
-            --shadow-sm: rgba(45, 58, 46, 0.08);
-            --shadow-md: rgba(45, 58, 46, 0.12);
-        }
-
-        /* Dark theme (default) - Earthy Green */
-        :root[data-theme="dark"],
         :root {
-            --bg-primary: #1a1e1b;
-            --bg-secondary: #242a25;
-            --bg-tertiary: #313833;
-            --text-primary: #e2e7e3;
-            --text-secondary: #b8c3ba;
-            --text-tertiary: #8a9a8c;
-            --border-color: #3a4239;
-            --accent-primary: #7a9e7e;
-            --accent-secondary: #6b8e6f;
-            --card-bg: #242a25;
-            --code-bg: #242a25;
-            --shadow-sm: rgba(0, 0, 0, 0.2);
-            --shadow-md: rgba(0, 0, 0, 0.3);
+            --paper: #E8E2C9;
+            --paper-shade: #DDD5B6;
+            --od: #3B4A2A;
+            --od-deep: #2C3820;
+            --ink: #1A1A14;
+            --ink-soft: #3A3A2E;
+            --stencil: #A88A1C;
+            --stamp: #7A1F1F;
+            --grid: #B8AC85;
+            --rule: #1A1A14;
+
+            --font-headline: 'Oswald', 'Roboto Condensed', 'Arial Narrow', sans-serif;
+            --font-body: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            line-height: 1.6;
-            color: var(--text-primary);
-            background: var(--bg-primary);
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            background-color: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.55;
+            font-variant-numeric: tabular-nums;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
+        /* Faint paper grain — SVG turbulence at low opacity. */
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.06;
+            mix-blend-mode: multiply;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='280'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
         }
 
-        header {
-            padding: 3rem 0;
-            background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
-            box-shadow: 0 4px 12px var(--shadow-md);
+        body > *:not(.grain) {
             position: relative;
+            z-index: 1;
         }
 
-        .theme-toggle {
-            position: absolute;
-            top: 1.5rem;
-            right: 2rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 0.45rem;
-            cursor: pointer;
-            box-shadow: 0 1px 3px var(--shadow-sm);
-            width: 40px;
-            height: 40px;
+        /* ===== OD-green chrome band ===== */
+        .band {
+            background-color: var(--od);
+            color: var(--paper);
+            border-bottom: 2px solid var(--ink);
+            padding: 0.55rem 1.5rem;
+        }
+
+        .band-inner {
+            max-width: 1100px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
-            justify-content: center;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            text-align: center;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 1rem;
-        }
-
-        .tagline {
-            text-align: center;
-            font-size: 1.2rem;
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-        }
-
-        .cta-buttons {
-            display: flex;
+            justify-content: space-between;
             gap: 1rem;
-            justify-content: center;
+        }
+
+        .band-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .band-mark {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--paper);
+            background-color: var(--paper);
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .wordmark {
+            font-family: var(--font-headline);
+            font-weight: 700;
+            font-size: 1.6rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .band-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            opacity: 0.85;
+        }
+
+        .band-meta .rule {
+            width: 28px;
+            height: 1px;
+            background-color: var(--paper);
+            opacity: 0.5;
+        }
+
+        .band-stamp {
+            font-family: var(--font-headline);
+            font-weight: 500;
+        }
+
+        /* ===== Main shell ===== */
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 3.5rem 1.5rem 4rem;
+        }
+
+        /* Pseudo-stamp watermark — rotated, low-opacity, behind hero. */
+        body[data-issue]::before {
+            content: attr(data-issue);
+            position: fixed;
+            top: 6.5rem;
+            right: 2rem;
+            font-family: var(--font-headline);
+            font-size: 5rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--stamp);
+            opacity: 0.07;
+            transform: rotate(-3deg);
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 0;
+        }
+
+        /* ===== Hero ===== */
+        .hero {
+            padding: 1.5rem 0 3rem;
+            border-bottom: 1px solid var(--ink);
+        }
+
+        .hero-mark {
+            width: 96px;
+            height: 96px;
+            border: 2px solid var(--ink);
+            background-color: var(--paper);
+            display: block;
+            margin-bottom: 1.4rem;
+        }
+
+        .hero-tag {
+            font-family: var(--font-headline);
+            font-size: 0.8rem;
+            letter-spacing: 0.3em;
+            color: var(--od);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .hero-title {
+            font-family: var(--font-headline);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            line-height: 1.05;
+            color: var(--ink);
+            margin: 0 0 1.4rem;
+            max-width: 22ch;
+        }
+
+        .hero-sub {
+            max-width: 64ch;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--ink-soft);
+            margin: 0 0 2rem;
+        }
+
+        /* ===== CTAs — square, bordered, no rounded corners or shadows ===== */
+        .cta-row {
+            display: flex;
             flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
         }
 
-        .btn {
-            display: inline-block;
-            padding: 0.6rem 1.2rem;
-            font-size: 0.9rem;
-            font-weight: 600;
+        .cta {
+            display: inline-flex;
+            align-items: center;
+            font-family: var(--font-headline);
+            font-weight: 500;
+            font-size: 0.95rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            padding: 0.7rem 1.2rem;
+            border: 2px solid var(--ink);
             text-decoration: none;
-            border-radius: 4px;
-            border: 1px solid;
-            transition: all 0.2s;
+            transition: background-color 0.12s linear, color 0.12s linear;
+            border-radius: 0;
         }
 
-        .btn-primary {
-            background: var(--accent-primary);
-            color: white;
-            border-color: var(--accent-primary);
+        .cta-primary {
+            background-color: var(--stencil);
+            color: var(--paper);
         }
 
-        .btn-primary:hover {
-            background: var(--accent-secondary);
+        .cta-primary:hover,
+        .cta-primary:focus-visible {
+            background-color: var(--ink);
+            color: var(--stencil);
+            outline: none;
         }
 
-        .btn-secondary {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border-color: var(--border-color);
+        .cta-ghost {
+            background-color: transparent;
+            color: var(--ink);
         }
 
-        .btn-secondary:hover {
-            border-color: var(--text-tertiary);
+        .cta-ghost:hover,
+        .cta-ghost:focus-visible {
+            background-color: var(--ink);
+            color: var(--paper);
+            outline: none;
         }
 
-        section {
-            padding: 4rem 0;
-        }
-
-        .section-title {
-            font-size: 2rem;
-            text-align: center;
-            margin-bottom: 3rem;
-            color: var(--text-primary);
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .feature-card {
-            background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
-            padding: 2rem;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 6px var(--shadow-sm);
-        }
-
-        .feature-card:hover {
-            border-color: var(--text-tertiary);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .feature-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
-        }
-
-        .feature-card p {
-            color: var(--text-secondary);
-        }
-
-        .code-block {
-            background: var(--code-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-            overflow-x: auto;
-            font-family: 'Courier New', monospace;
+        /* ===== Stencil divider ===== */
+        .divider {
+            margin: 3.5rem 0 1.5rem;
+            font-family: var(--font-headline);
             font-size: 0.85rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: var(--od);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: var(--ink);
+            opacity: 0.6;
+        }
+
+        /* ===== Cell grids (TM-coded blocks) ===== */
+        .cell-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+        }
+
+        .cell {
+            border-right: 1px solid var(--ink);
+            border-bottom: 1px solid var(--ink);
+            padding: 1.4rem 1.4rem 1.6rem;
+            background-color: rgba(232, 226, 201, 0.4);
+        }
+
+        .cell-head {
+            display: flex;
+            align-items: baseline;
+            gap: 0.7rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .cell-code {
+            font-family: var(--font-headline);
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            background-color: var(--od);
+            color: var(--paper);
+            padding: 0.18rem 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .cell-title {
+            font-family: var(--font-headline);
+            font-size: 1.15rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin: 0;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+
+        .cell-body {
+            margin: 0;
+            font-size: 0.92rem;
+            color: var(--ink-soft);
             line-height: 1.6;
         }
 
-        .code-block pre {
-            color: var(--text-primary);
+        .cell code,
+        .hero-sub code {
+            font-family: var(--font-body);
+            background-color: rgba(168, 138, 28, 0.14);
+            padding: 0.05em 0.35em;
+            font-size: 0.9em;
+            border: 1px solid rgba(26, 26, 20, 0.18);
         }
 
-        .code-comment { color: var(--text-tertiary); }
-        .code-keyword { color: #8aae8e; }
-        .code-string { color: #6b8e6f; }
+        /* ===== Code block — terminal in a manual ===== */
+        .code-frame {
+            margin: 0;
+            border: 2px solid var(--ink);
+            background-color: var(--ink);
+            color: var(--paper);
+            font-family: var(--font-body);
+            font-size: 0.86rem;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
 
+        .code-frame pre {
+            margin: 0;
+            padding: 1.3rem 1.4rem;
+            font-family: inherit;
+        }
+
+        .code-frame .comment { color: #9C8E5C; }
+        .code-frame .cmd     { color: var(--stencil); }
+        .code-frame .arg     { color: var(--paper); }
+
+        /* ===== API table — mil-spec, no row banding ===== */
         .api-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 1.5rem 0;
+            font-size: 0.92rem;
+            border-top: 1px solid var(--ink);
+            border-bottom: 1px solid var(--ink);
         }
 
         .api-table th,
         .api-table td {
             text-align: left;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.9rem;
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid rgba(26, 26, 20, 0.25);
         }
 
         .api-table th {
-            color: var(--text-tertiary);
+            font-family: var(--font-headline);
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.18em;
+            color: var(--od);
+            border-top: 1px solid var(--ink);
+            border-bottom: 1px solid var(--ink);
+            background-color: var(--paper-shade);
         }
+
+        .api-table tr:last-child td { border-bottom: none; }
 
         .api-table code {
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: var(--accent-primary);
+            font-family: var(--font-body);
+            color: var(--ink);
+            background-color: rgba(168, 138, 28, 0.14);
+            padding: 0.05em 0.35em;
+            font-size: 0.9em;
+            border: 1px solid rgba(26, 26, 20, 0.18);
         }
 
+        /* ===== Footer ===== */
         footer {
-            padding: 3rem 0 2rem;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
+            border-top: 2px solid var(--ink);
+            background-color: var(--paper-shade);
+            padding: 1.2rem 1.5rem;
             margin-top: 4rem;
         }
 
-        .footer-links {
+        .footer-inner {
+            max-width: 1100px;
+            margin: 0 auto;
             display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
             flex-wrap: wrap;
+            align-items: center;
+            gap: 0.9rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            color: var(--ink-soft);
         }
 
-        .footer-links a {
-            color: var(--text-tertiary);
+        .footer-rule {
+            flex: 1;
+            height: 1px;
+            background-color: var(--ink);
+            opacity: 0.4;
+            min-width: 1.5rem;
+        }
+
+        .footer-link {
+            font-family: var(--font-headline);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--ink);
             text-decoration: none;
+            border-bottom: 1px solid var(--ink);
+            padding-bottom: 1px;
         }
 
-        .footer-links a:hover {
-            color: var(--accent-primary);
+        .footer-link:hover,
+        .footer-link:focus-visible {
+            color: var(--stencil);
+            border-bottom-color: var(--stencil);
+            outline: none;
         }
 
-        @media (max-width: 768px) {
-            h1 { font-size: 2rem; }
-            .tagline { font-size: 1rem; }
-            .section-title { font-size: 1.5rem; }
+        /* ===== Responsive nudges ===== */
+        @media (max-width: 600px) {
+            .band { padding: 0.5rem 1rem; }
+            .wordmark { font-size: 1.3rem; letter-spacing: 0.14em; }
+            .band-meta { font-size: 0.62rem; gap: 0.5rem; }
+            main { padding: 2.4rem 1rem 3rem; }
+            .hero { padding: 1rem 0 2rem; }
+            body[data-issue]::before { font-size: 2.6rem; right: 0.5rem; top: 5rem; }
+            .cell-list { grid-template-columns: 1fr; }
         }
     </style>
 </head>
-<body>
-    <header>
-        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-            <svg id="theme-icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-            <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-            </svg>
-        </button>
-        <div class="container">
-            <h1>Datasheet Miner</h1>
-            <p class="tagline">Extract, search, and compare industrial product specs from datasheets and product pages</p>
-            <div class="cta-buttons">
-                <a href="https://datasheets.advin.io" class="btn btn-primary">Open App</a>
-                <a href="https://github.com/jimothyjohn/datasheetminer" class="btn btn-secondary">GitHub</a>
-                <a href="#quickstart" class="btn btn-secondary">Self-Host</a>
-            </div>
+<body data-issue="ISSUE 1 — 2026">
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="band">
+        <div class="band-inner">
+            <span class="band-brand">
+                <svg class="band-mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect width="120" height="120" fill="#E8E2C9"/>
+                    <rect x="14" y="14" width="92" height="92" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                    <rect x="14" y="14" width="92" height="22" fill="#3B4A2A"/>
+                    <rect x="62" y="60" width="40" height="10" fill="#A88A1C"/>
+                    <line x1="14" y1="56" x2="106" y2="56" stroke="#1A1A14" stroke-width="2"/>
+                    <line x1="14" y1="74" x2="106" y2="74" stroke="#1A1A14" stroke-width="2"/>
+                    <line x1="14" y1="92" x2="106" y2="92" stroke="#1A1A14" stroke-width="2"/>
+                    <line x1="60" y1="36" x2="60" y2="106" stroke="#1A1A14" stroke-width="2"/>
+                </svg>
+                <span class="wordmark">SPECODEX</span>
+            </span>
+            <span class="band-meta">
+                <span>SPEC · ODEX</span>
+                <span class="rule" aria-hidden="true"></span>
+                <span class="band-stamp">ISSUE 1 — 2026</span>
+            </span>
         </div>
     </header>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">Data Sources</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">&#128196;</div>
-                    <h3>PDF Datasheets</h3>
-                    <p>Upload or point to a PDF catalog. The <code>datasheetminer</code> CLI identifies spec pages, extracts structured data via Gemini AI, and pushes validated products to DynamoDB.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#127760;</div>
-                    <h3>Product Webpages</h3>
-                    <p>The <code>web-scraper</code> CLI renders JS-heavy product pages in a headless browser, extracts JSON-LD structured data and HTML content, then runs the same AI extraction pipeline.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#128221;</div>
-                    <h3>Manual Entry</h3>
-                    <p>The web app's admin mode provides a product management UI for direct CRUD operations, bulk import, and datasheet upload via presigned S3 URLs.</p>
-                </div>
+    <main>
+        <section class="hero">
+            <svg class="hero-mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect width="120" height="120" fill="#E8E2C9"/>
+                <rect x="14" y="14" width="92" height="92" fill="none" stroke="#1A1A14" stroke-width="3"/>
+                <rect x="14" y="14" width="92" height="22" fill="#3B4A2A"/>
+                <rect x="62" y="60" width="40" height="10" fill="#A88A1C"/>
+                <line x1="14" y1="56" x2="106" y2="56" stroke="#1A1A14" stroke-width="2"/>
+                <line x1="14" y1="74" x2="106" y2="74" stroke="#1A1A14" stroke-width="2"/>
+                <line x1="14" y1="92" x2="106" y2="92" stroke="#1A1A14" stroke-width="2"/>
+                <line x1="60" y1="36" x2="60" y2="106" stroke="#1A1A14" stroke-width="2"/>
+            </svg>
+            <div class="hero-tag">▮▮▮ FIELD MANUAL ▮▮▮</div>
+            <h1 class="hero-title">A product selection frontend that only an engineer could love.</h1>
+            <p class="hero-sub">
+                Industrial spec data — drives, motors, gearheads, contactors, actuators — indexed, filtered, and
+                exportable. No marketing copy on the rows. No "request a quote" gates. The number you need, with
+                the datasheet that produced it.
+            </p>
+            <div class="cta-row">
+                <a href="https://datasheets.advin.io" class="cta cta-primary">Open the catalog →</a>
+                <a href="https://github.com/JimothyJohn/datasheetminer" class="cta cta-ghost" rel="noreferrer">Source on GitHub</a>
+                <a href="#quickstart" class="cta cta-ghost">Self-host</a>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section style="background: var(--bg-secondary);">
-        <div class="container">
-            <h2 class="section-title">Product Types</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <h3>Motors</h3>
-                    <p>Brushless DC, AC servo, AC induction, and more. Voltage, current, power, torque, speed, encoder type, rotor inertia, IP rating.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Drives</h3>
-                    <p>Servo and VFD drives. Input/output voltage, power, switching frequency, I/O counts, fieldbus protocols, safety ratings.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Gearheads</h3>
-                    <p>Planetary, harmonic, cycloidal. Gear ratio, backlash, continuous/peak torque, input speed, torsional rigidity, service life.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Electric Cylinders</h3>
-                    <p>Stroke, push/pull force, continuous force, linear speed, positioning repeatability, lead screw pitch.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Robot Arms</h3>
-                    <p>Payload, reach, pose repeatability, max TCP speed, number of axes, per-axis torque and speed.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Extensible</h3>
-                    <p>Add a Pydantic model in <code>datasheetminer/models/</code> and it auto-discovers in all CLIs and the web app. No config changes needed.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section aria-label="What it does">
+            <div class="divider"><span>▮▮▮ WHAT IT DOES ▮▮▮</span></div>
+            <ol class="cell-list">
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">TM-01</span>
+                        <h2 class="cell-title">Filter chips, not facets</h2>
+                    </div>
+                    <p class="cell-body">
+                        Every spec on every record is a chip. Click to constrain, click again to drop.
+                        No nested accordions, no "show more". The filter set is the data.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">TM-02</span>
+                        <h2 class="cell-title">Metric ↔ imperial, header toggle</h2>
+                    </div>
+                    <p class="cell-body">
+                        Display-layer conversion across the whole catalog — torque, force, length,
+                        temperature. The underlying value never moves; the unit you read does.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">TM-03</span>
+                        <h2 class="cell-title">Datasheet links on every row</h2>
+                    </div>
+                    <p class="cell-body">
+                        The PDF that produced the row is one click away. Verify a number, check a
+                        derate curve, copy a part code straight from the source.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">TM-04</span>
+                        <h2 class="cell-title">Rows export like a BOM</h2>
+                    </div>
+                    <p class="cell-body">
+                        Filter to a shortlist, export to CSV. Tabular numerics, canonical units,
+                        manufacturer + part number — drop it into a spec sheet without massage.
+                    </p>
+                </li>
+            </ol>
+        </section>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">Features</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">&#128269;</div>
-                    <h3>Advanced Filtering</h3>
-                    <p>Filter by any spec attribute with IS/NOT modes, range sliders, and multi-select. Sort by multiple columns simultaneously.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#9881;</div>
-                    <h3>Gear Ratio Computation</h3>
-                    <p>Auto-compute per-motor gear ratios from torque and speed filters, showing what gearing each motor needs to meet your requirements.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#128187;</div>
-                    <h3>CLI Tools</h3>
-                    <p>Five CLI commands: <code>datasheetminer</code> for PDFs, <code>web-scraper</code> for webpages, <code>page-finder</code> for spec-page detection, <code>dsm-agent</code> for batch workflows, <code>dsm</code> for queries.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#128241;</div>
-                    <h3>Mobile Responsive</h3>
-                    <p>Collapsible filters on mobile with touch-friendly targets. Dark/light theme toggle. Desktop-first with a snug mobile layout.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section aria-label="Data sources">
+            <div class="divider"><span>▮▮▮ DATA SOURCES ▮▮▮</span></div>
+            <ol class="cell-list">
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">DS-01</span>
+                        <h2 class="cell-title">PDF catalogs</h2>
+                    </div>
+                    <p class="cell-body">
+                        <code>specodex</code> CLI: page-finder identifies spec tables (free, no LLM call),
+                        Gemini extracts structured rows, Pydantic validates, DynamoDB stores. Never feed it
+                        a 600-page raw catalog — page filtering is mandatory.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">DS-02</span>
+                        <h2 class="cell-title">Product webpages</h2>
+                    </div>
+                    <p class="cell-body">
+                        <code>web-scraper</code> CLI: Playwright renders JS-heavy product pages, pulls
+                        JSON-LD + HTML, runs the same extraction pipeline. Behaves the same as PDFs from
+                        the database's perspective.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">DS-03</span>
+                        <h2 class="cell-title">Manual entry</h2>
+                    </div>
+                    <p class="cell-body">
+                        Admin-mode UI: presigned-URL upload, full CRUD, per-row edits. For when a vendor
+                        ships a one-off spec note that no PDF will ever show.
+                    </p>
+                </li>
+            </ol>
+        </section>
 
-    <section id="quickstart" style="background: var(--bg-secondary);">
-        <div class="container">
-            <h2 class="section-title">Quick Start</h2>
-            <div style="max-width: 800px; margin: 0 auto;">
-                <div class="code-block">
-                    <pre><code><span class="code-comment"># Clone and install</span>
-git clone https://github.com/jimothyjohn/datasheetminer.git
-cd datasheetminer
-uv sync
+        <section aria-label="Product types">
+            <div class="divider"><span>▮▮▮ PRODUCT TYPES ▮▮▮</span></div>
+            <ol class="cell-list">
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-01</span>
+                        <h2 class="cell-title">Motors</h2>
+                    </div>
+                    <p class="cell-body">
+                        Brushless DC, AC servo, AC induction. Voltage, current, power, torque, speed,
+                        encoder type, rotor inertia, IP rating.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-02</span>
+                        <h2 class="cell-title">Drives</h2>
+                    </div>
+                    <p class="cell-body">
+                        Servo and VFD drives. Input/output voltage, power, switching frequency, I/O
+                        counts, fieldbus protocols, safety ratings.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-03</span>
+                        <h2 class="cell-title">Gearheads</h2>
+                    </div>
+                    <p class="cell-body">
+                        Planetary, harmonic, cycloidal. Ratio, backlash, continuous and peak torque,
+                        input speed, torsional rigidity, service life.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-04</span>
+                        <h2 class="cell-title">Electric cylinders</h2>
+                    </div>
+                    <p class="cell-body">
+                        Stroke, push/pull force, continuous force, linear speed, positioning
+                        repeatability, lead-screw pitch.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-05</span>
+                        <h2 class="cell-title">Linear actuators</h2>
+                    </div>
+                    <p class="cell-body">
+                        Stroke, force class, lead, screw type, duty cycle, IP rating —
+                        the screw-driven side, kept separate from servo electric cylinders.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-06</span>
+                        <h2 class="cell-title">Robot arms</h2>
+                    </div>
+                    <p class="cell-body">
+                        Payload, reach, pose repeatability, max TCP speed, axis count, per-axis torque
+                        and speed.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-07</span>
+                        <h2 class="cell-title">Contactors</h2>
+                    </div>
+                    <p class="cell-body">
+                        AC-1/AC-3 ratings, coil voltages, auxiliary contact counts, short-circuit
+                        ratings — switching gear that lives one rack over from the drives.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">PT-08</span>
+                        <h2 class="cell-title">Extensible</h2>
+                    </div>
+                    <p class="cell-body">
+                        Run <code>./Quickstart schemagen &lt;pdf&gt;... --type &lt;name&gt;</code> with
+                        3–5 vendor catalogs to scaffold a new Pydantic model. It auto-discovers in
+                        every CLI; the TS allow-lists are documented in <code>CLAUDE.md</code>.
+                    </p>
+                </li>
+            </ol>
+        </section>
 
-<span class="code-comment"># Extract specs from a PDF datasheet</span>
-uv run datasheetminer \
+        <section id="quickstart" aria-label="Quick start">
+            <div class="divider"><span>▮▮▮ QUICK START ▮▮▮</span></div>
+            <p style="max-width: 64ch; color: var(--ink-soft); margin-bottom: 1.2rem;">
+                Everything goes through <code>./Quickstart &lt;command&gt;</code> — a single
+                bash entry point that delegates to <code>cli/quickstart.py</code>. Run it
+                with no command for local dev servers.
+            </p>
+            <div class="code-frame">
+<pre><span class="comment"># Clone and install</span>
+<span class="cmd">git</span> <span class="arg">clone https://github.com/JimothyJohn/datasheetminer.git</span>
+<span class="cmd">cd</span> <span class="arg">datasheetminer</span>
+<span class="cmd">uv</span> <span class="arg">sync</span>
+
+<span class="comment"># Local dev (backend :3001, frontend Vite :5173)</span>
+<span class="cmd">./Quickstart</span> <span class="arg">dev</span>
+
+<span class="comment"># Pre-push gate — mirrors CI exactly: lint + tests + build</span>
+<span class="cmd">./Quickstart</span> <span class="arg">verify</span>
+
+<span class="comment"># Extract specs from a PDF (page-finder + Gemini + Pydantic)</span>
+<span class="cmd">uv</span> <span class="arg">run specodex \
   --url "https://example.com/motor-catalog.pdf" \
-  --type motor --manufacturer "Acme" --product-name "X100"
+  --type motor --manufacturer "Acme" --product-name "X100"</span>
 
-<span class="code-comment"># Scrape a product webpage (JS-rendered)</span>
-uv run web-scraper \
+<span class="comment"># Scrape a product webpage (JS-rendered, same pipeline)</span>
+<span class="cmd">uv</span> <span class="arg">run web-scraper \
   --url "https://shop.example.com/products/X100" \
-  --type motor --manufacturer "Acme" --product-name "X100"
+  --type motor --manufacturer "Acme" --product-name "X100"</span>
 
-<span class="code-comment"># Query the database</span>
-uv run dsm find --type motor \
-  --where "rated_power>=1000" --sort "rated_torque:desc"
+<span class="comment"># Query the database</span>
+<span class="cmd">uv</span> <span class="arg">run dsm find --type motor \
+  --where "rated_power>=1000" --sort "rated_torque:desc"</span>
 
-<span class="code-comment"># Start the web app</span>
-cd app && npm install && npm run dev</code></pre>
-                </div>
+<span class="comment"># Propose a new Pydantic product model from 3-5 vendors</span>
+<span class="cmd">./Quickstart</span> <span class="arg">schemagen abb.pdf siemens.pdf schneider.pdf --type valve</span>
+
+<span class="comment"># Benchmark the ingress pipeline against control datasheets</span>
+<span class="cmd">./Quickstart</span> <span class="arg">bench</span></pre>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">API</h2>
-            <div style="max-width: 800px; margin: 0 auto;">
-                <table class="api-table">
-                    <thead>
-                        <tr>
-                            <th>Endpoint</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>GET /health</code></td>
-                            <td>Health check with status, mode, and timestamp</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/v1/search</code></td>
-                            <td>Full-text search with filters, sorting, and pagination</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/products</code></td>
-                            <td>List products (filter with <code>?type=motor</code>)</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/products/summary</code></td>
-                            <td>Counts by product type</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/products/categories</code></td>
-                            <td>Available product types with counts</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/products/manufacturers</code></td>
-                            <td>Unique manufacturer list</td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/datasheets</code></td>
-                            <td>Datasheet source entries</td>
-                        </tr>
-                        <tr>
-                            <td><code>POST /api/upload</code></td>
-                            <td>Queue a datasheet for AI processing (admin)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
+        <section aria-label="API surface">
+            <div class="divider"><span>▮▮▮ API ▮▮▮</span></div>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th style="width: 38%;">Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>GET /health</code></td><td>Status, mode, environment, timestamp</td></tr>
+                    <tr><td><code>GET /api/v1/search</code></td><td>Full-text + filtered + sorted search</td></tr>
+                    <tr><td><code>GET /api/products</code></td><td>List products (filter <code>?type=motor</code>)</td></tr>
+                    <tr><td><code>GET /api/products/summary</code></td><td>Counts by product type</td></tr>
+                    <tr><td><code>GET /api/products/categories</code></td><td>Available product types with counts</td></tr>
+                    <tr><td><code>GET /api/products/manufacturers</code></td><td>Unique manufacturer list</td></tr>
+                    <tr><td><code>GET /api/datasheets</code></td><td>Datasheet source entries</td></tr>
+                    <tr><td><code>POST /api/upload</code></td><td>Queue a datasheet for processing (admin)</td></tr>
+                </tbody>
+            </table>
+        </section>
 
-    <section style="background: var(--bg-secondary);">
-        <div class="container">
-            <h2 class="section-title">Architecture</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <h3>Extraction (Python)</h3>
-                    <p>Gemini AI extracts specs as CSV with unit-in-header columns. Parsed locally into <code>value;unit</code> compact strings, validated by Pydantic models and unit-family rules, quality-scored before storage.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Frontend</h3>
-                    <p>React + TypeScript + Vite. Deployed to S3 behind CloudFront. Two modes: admin (full CRUD) and public (read-only search and filtering).</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Backend</h3>
-                    <p>Express.js on AWS Lambda via API Gateway. REST API with search, product CRUD, datasheet management, and upload pipeline.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Data</h3>
-                    <p>DynamoDB single-table design with <code>PK=PRODUCT#TYPE</code>, <code>SK=PRODUCT#UUID</code>. S3 for PDF storage. Deterministic UUIDs for deduplication across sources.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section aria-label="Architecture">
+            <div class="divider"><span>▮▮▮ ARCHITECTURE ▮▮▮</span></div>
+            <ol class="cell-list">
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">ARCH-01</span>
+                        <h2 class="cell-title">Extraction (Python)</h2>
+                    </div>
+                    <p class="cell-body">
+                        Page-finder text heuristic strips a 600-page catalog to ~20 spec pages before any
+                        LLM call. Gemini emits structured JSON; <code>specodex</code> validators map it to
+                        canonical <code>value;unit</code> compact strings. Quality-scored, then written.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">ARCH-02</span>
+                        <h2 class="cell-title">Frontend</h2>
+                    </div>
+                    <p class="cell-body">
+                        React + TypeScript + Vite. Deployed to S3 behind CloudFront. Two modes: admin
+                        (full CRUD) and public (read-only search and filter).
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">ARCH-03</span>
+                        <h2 class="cell-title">Backend</h2>
+                    </div>
+                    <p class="cell-body">
+                        Express on AWS Lambda via API Gateway. REST: search, product CRUD, datasheet
+                        management, upload pipeline.
+                    </p>
+                </li>
+                <li class="cell">
+                    <div class="cell-head">
+                        <span class="cell-code">ARCH-04</span>
+                        <h2 class="cell-title">Data</h2>
+                    </div>
+                    <p class="cell-body">
+                        DynamoDB single-table: <code>PK=PRODUCT#TYPE</code>, <code>SK=PRODUCT#UUID</code>.
+                        S3 for PDFs. Deterministic UUIDs deduplicate across sources.
+                    </p>
+                </li>
+            </ol>
+        </section>
+    </main>
 
     <footer>
-        <div class="container">
-            <div class="footer-links">
-                <a href="https://datasheets.advin.io">Live App</a>
-                <a href="https://github.com/jimothyjohn/datasheetminer">GitHub</a>
-                <a href="https://github.com/jimothyjohn/datasheetminer/issues">Issues</a>
-            </div>
-            <p style="color: var(--text-tertiary); font-size: 0.9rem;">
-                Datasheet Miner. Open Source.
-            </p>
+        <div class="footer-inner">
+            <span>Specodex is built on the Datasheetminer engine.</span>
+            <span class="footer-rule" aria-hidden="true"></span>
+            <a href="https://datasheets.advin.io" class="footer-link">Live app</a>
+            <a href="https://github.com/JimothyJohn/datasheetminer" class="footer-link">GitHub</a>
+            <a href="https://github.com/JimothyJohn/datasheetminer/issues" class="footer-link">Issues</a>
+            <a href="logos.html" class="footer-link">Logo proofs</a>
         </div>
     </footer>
-
-    <script>
-        function toggleTheme() {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-theme');
-            const newTheme = current === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-
-            const moon = document.getElementById('theme-icon-moon');
-            const sun = document.getElementById('theme-icon-sun');
-            if (newTheme === 'dark') {
-                moon.style.display = 'block';
-                sun.style.display = 'none';
-            } else {
-                moon.style.display = 'none';
-                sun.style.display = 'block';
-            }
-        }
-
-        (function() {
-            const saved = localStorage.getItem('theme');
-            const theme = saved || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-
-            const moon = document.getElementById('theme-icon-moon');
-            const sun = document.getElementById('theme-icon-sun');
-            if (theme === 'dark') {
-                moon.style.display = 'block';
-                sun.style.display = 'none';
-            } else {
-                moon.style.display = 'none';
-                sun.style.display = 'block';
-            }
-        })();
-    </script>
 </body>
 </html>

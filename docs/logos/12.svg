@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <circle cx="60" cy="60" r="34" fill="none" stroke="#1A1A14" stroke-width="3"/>
+  <text x="60" y="74" text-anchor="middle"
+        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+        font-size="40" fill="#3B4A2A">M</text>
+  <line x1="14" y1="60" x2="26" y2="60" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="94" y1="60" x2="106" y2="60" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="60" y1="14" x2="60" y2="26" stroke="#1A1A14" stroke-width="3"/>
+</svg>

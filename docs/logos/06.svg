@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <path d="M 18 14 L 86 14 L 106 34 L 106 106 L 18 106 Z"
+        fill="#E8E2C9" stroke="#1A1A14" stroke-width="3"/>
+  <path d="M 86 14 L 86 34 L 106 34" fill="none" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="28" y1="48" x2="96" y2="48" stroke="#1A1A14" stroke-width="2"/>
+  <line x1="28" y1="62" x2="96" y2="62" stroke="#1A1A14" stroke-width="2"/>
+  <line x1="28" y1="76" x2="96" y2="76" stroke="#1A1A14" stroke-width="2"/>
+  <line x1="28" y1="90" x2="74" y2="90" stroke="#3B4A2A" stroke-width="3"/>
+</svg>

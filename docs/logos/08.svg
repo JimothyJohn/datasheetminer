@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <line x1="20" y1="40" x2="20" y2="80" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="100" y1="40" x2="100" y2="80" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="20" y1="60" x2="100" y2="60" stroke="#1A1A14" stroke-width="2"/>
+  <polygon points="20,60 32,54 32,66" fill="#1A1A14"/>
+  <polygon points="100,60 88,54 88,66" fill="#1A1A14"/>
+  <text x="60" y="50" text-anchor="middle"
+        font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="600" fill="#3B4A2A">SPEC</text>
+</svg>

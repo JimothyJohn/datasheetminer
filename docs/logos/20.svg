@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <polygon points="40,14 80,14 106,40 106,80 80,106 40,106 14,80 14,40" fill="#7A1F1F"/>
+  <text x="60" y="74" text-anchor="middle"
+        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+        font-size="36" fill="#E8E2C9" letter-spacing="3">SX</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <rect x="14" y="40" width="14" height="56" fill="#1A1A14"/>
+  <rect x="14" y="40" width="42" height="14" fill="#1A1A14"/>
+  <rect x="92" y="40" width="14" height="56" fill="#1A1A14"/>
+  <rect x="64" y="40" width="42" height="14" fill="#1A1A14"/>
+  <line x1="14" y1="22" x2="106" y2="22" stroke="#1A1A14" stroke-width="2"/>
+  <text x="60" y="34" text-anchor="middle"
+        font-family="'IBM Plex Mono', monospace" font-size="14" fill="#3B4A2A">100.0</text>
+</svg>

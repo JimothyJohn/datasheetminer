@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <g transform="rotate(-7 60 60)">
+    <rect x="20" y="34" width="80" height="52" fill="none" stroke="#7A1F1F" stroke-width="3"/>
+    <rect x="24" y="38" width="72" height="44" fill="none" stroke="#7A1F1F" stroke-width="1"/>
+    <text x="60" y="58" text-anchor="middle"
+          font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+          font-size="14" fill="#7A1F1F" letter-spacing="3">SPEC</text>
+    <text x="60" y="76" text-anchor="middle"
+          font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+          font-size="14" fill="#7A1F1F" letter-spacing="3">VERIFIED</text>
+  </g>
+</svg>

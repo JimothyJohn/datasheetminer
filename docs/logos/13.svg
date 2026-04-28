@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <polygon points="60,14 100,38 100,82 60,106 20,82 20,38"
+           fill="#3B4A2A" stroke="#1A1A14" stroke-width="3"/>
+  <line x1="40" y1="42" x2="80" y2="78" stroke="#E8E2C9" stroke-width="6"/>
+  <line x1="80" y1="42" x2="40" y2="78" stroke="#E8E2C9" stroke-width="6"/>
+</svg>

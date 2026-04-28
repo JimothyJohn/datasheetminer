@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Specodex mark">
+  <rect width="120" height="120" fill="#E8E2C9"/>
+  <rect x="10" y="10" width="100" height="100" fill="#3B4A2A"/>
+  <text x="60" y="92" text-anchor="middle"
+        font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700"
+        font-size="96" fill="#E8E2C9">S</text>
+  <rect x="10" y="48" width="100" height="6" fill="#3B4A2A"/>
+  <rect x="10" y="76" width="100" height="6" fill="#3B4A2A"/>
+</svg>
