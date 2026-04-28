@@ -66,56 +66,6 @@ class TestConvertFloatsToDecimal:
 
 
 # ---------------------------------------------------------------------------
-# TestParseCompactUnits
-# ---------------------------------------------------------------------------
-@pytest.mark.unit
-class TestParseCompactUnits:
-    @patch("specodex.db.dynamo.boto3")
-    def test_value_unit_string(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units("20;C")
-        assert result == {"value": Decimal("20"), "unit": "C"}
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_min_max_unit_string(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units("20-40;C")
-        assert result == {"min": Decimal("20"), "max": Decimal("40"), "unit": "C"}
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_negative_values(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units("-20-40;C")
-        assert result == {"min": Decimal("-20"), "max": Decimal("40"), "unit": "C"}
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_non_matching_string(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units("hello;world")
-        assert result == "hello;world"
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_nested_dict_recursive(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units({"specs": {"temp": "20;C"}})
-        assert result == {"specs": {"temp": {"value": Decimal("20"), "unit": "C"}}}
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_list_recursive(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        result = client._parse_compact_units(["20;C", "30;V"])
-        assert result == [
-            {"value": Decimal("20"), "unit": "C"},
-            {"value": Decimal("30"), "unit": "V"},
-        ]
-
-    @patch("specodex.db.dynamo.boto3")
-    def test_no_semicolon(self, mock_boto3: MagicMock) -> None:
-        client, _ = _make_client(mock_boto3)
-        assert client._parse_compact_units("plain text") == "plain text"
-
-
-# ---------------------------------------------------------------------------
 # TestSerializeItem
 # ---------------------------------------------------------------------------
 @pytest.mark.unit
@@ -159,16 +109,32 @@ class TestSerializeItem:
         assert data["product_id"] == str(motor.product_id)
 
     @patch("specodex.db.dynamo.boto3")
-    def test_compact_units_parsed(self, mock_boto3: MagicMock) -> None:
+    def test_value_unit_serialised_as_dict(self, mock_boto3: MagicMock) -> None:
         client, _ = _make_client(mock_boto3)
         motor = Motor(
             product_name="TestMotor",
             product_type="motor",
             manufacturer="Acme",
-            rated_speed="3000;rpm",
+            rated_speed={"value": 3000, "unit": "rpm"},
         )
         data = client._serialize_item(motor)
         assert data["rated_speed"] == {"value": Decimal("3000"), "unit": "rpm"}
+
+    @patch("specodex.db.dynamo.boto3")
+    def test_min_max_unit_serialised_as_dict(self, mock_boto3: MagicMock) -> None:
+        client, _ = _make_client(mock_boto3)
+        motor = Motor(
+            product_name="TestMotor",
+            product_type="motor",
+            manufacturer="Acme",
+            rated_voltage={"min": 100, "max": 240, "unit": "V"},
+        )
+        data = client._serialize_item(motor)
+        assert data["rated_voltage"] == {
+            "min": Decimal("100"),
+            "max": Decimal("240"),
+            "unit": "V",
+        }
 
 
 # ---------------------------------------------------------------------------

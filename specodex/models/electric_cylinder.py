@@ -49,10 +49,10 @@ class ElectricCylinder(ProductBase):
         None, description="Continuous rated force (e.g., in N)"
     )
     # mm/s is compound (length/time) — keep generic.
-    max_linear_speed: ValueUnit = Field(
+    max_linear_speed: Optional[ValueUnit] = Field(
         None, description="Maximum linear speed unloaded (e.g., in mm/s)"
     )
-    linear_speed_at_rated_load: ValueUnit = Field(
+    linear_speed_at_rated_load: Optional[ValueUnit] = Field(
         None, description="Linear speed at rated load (e.g., in mm/s)"
     )
     positioning_repeatability: Length = Field(
@@ -73,7 +73,7 @@ class ElectricCylinder(ProductBase):
 
     # --- Mechanical ---
     # mm/rev is compound — keep generic.
-    lead_screw_pitch: ValueUnit = Field(
+    lead_screw_pitch: Optional[ValueUnit] = Field(
         None, description="Lead screw pitch (e.g., in mm/rev)"
     )
     gear_ratio: Optional[float] = Field(
@@ -101,7 +101,9 @@ class ElectricCylinder(ProductBase):
         None, description="Operating temperature range"
     )
     # Time family not introduced — hours/cycles stay generic.
-    service_life: ValueUnit = Field(
+    service_life: Optional[ValueUnit] = Field(
         None, description="Expected service life (e.g., in hours or cycles)"
     )
-    noise_level: ValueUnit = Field(None, description="Noise level (e.g., in dBA)")
+    noise_level: Optional[ValueUnit] = Field(
+        None, description="Noise level (e.g., in dBA)"
+    )

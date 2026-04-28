@@ -180,6 +180,8 @@ class TestParseGeminiResponse:
         return _json.dumps(rows)
 
     def test_single_row_parsed(self):
+        from specodex.models.common import ValueUnit
+
         response = Mock(spec=[])
         response.text = self._json(
             [{"part_number": "TM-100", "rated_speed": {"value": 3000, "unit": "rpm"}}]
@@ -187,10 +189,11 @@ class TestParseGeminiResponse:
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
         assert len(result) == 1
         assert result[0].part_number == "TM-100"
-        # BeforeValidator converts {value, unit} dicts to "value;unit" strings.
-        assert result[0].rated_speed == "3000;rpm"
+        assert result[0].rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_min_max_range_reconstructed(self):
+        from specodex.models.common import MinMaxUnit
+
         response = Mock(spec=[])
         response.text = self._json(
             [
@@ -201,7 +204,7 @@ class TestParseGeminiResponse:
             ]
         )
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
-        assert result[0].rated_voltage == "40-60;V"
+        assert result[0].rated_voltage == MinMaxUnit(min=40, max=60, unit="V")
 
     def test_missing_optional_fields_become_none(self):
         response = Mock(spec=[])
@@ -211,13 +214,15 @@ class TestParseGeminiResponse:
         assert result[0].rated_voltage is None
 
     def test_markdown_fences_stripped(self):
+        from specodex.models.common import ValueUnit
+
         response = Mock(spec=[])
         body = self._json(
             [{"part_number": "TM-400", "rated_speed": {"value": 2500, "unit": "rpm"}}]
         )
         response.text = f"```json\n{body}\n```"
         result = parse_gemini_response(response, Motor, "motor", context=self._ctx())
-        assert result[0].rated_speed == "2500;rpm"
+        assert result[0].rated_speed == ValueUnit(value=2500, unit="rpm")
 
     def test_invalid_response_raises(self):
         response = Mock(spec=[])

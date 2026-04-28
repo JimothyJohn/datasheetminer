@@ -3,12 +3,10 @@
 ``to_gemini_schema`` emits the uppercase OpenAPI subset Gemini accepts via
 ``response_mime_type="application/json"`` + ``response_schema``.
 
-It relies on ``common.py``'s ``handle_value_unit_input`` /
-``handle_min_max_unit_input`` BeforeValidators, which already accept dict
-inputs of shape ``{"value": N, "unit": S}`` / ``{"min": N, "max": M,
-"unit": S}``. So we tell the LLM to emit objects of those shapes and the
-existing validator chain converts them to the canonical ``"value;unit"``
-compact strings. Zero changes in the downstream models.
+ValueUnit / MinMaxUnit fields are emitted as OBJECT schemas of shape
+``{"value": N, "unit": S}`` / ``{"min": N, "max": M, "unit": S}`` —
+which is exactly the canonical in-memory representation the Pydantic
+models use end-to-end.
 """
 
 from __future__ import annotations
@@ -19,7 +17,9 @@ from typing import Any, Dict, List, Literal, Optional, Type, Union, get_args, ge
 from pydantic import BaseModel
 
 from specodex.models.common import (
+    MinMaxUnit,
     MinMaxUnitMarker,
+    ValueUnit,
     ValueUnitMarker,
     find_min_max_unit_marker,
     find_value_unit_marker,
@@ -137,11 +137,17 @@ def _annotation_markers(annotation: Any) -> tuple:
 
 
 def _is_value_unit_annotation(annotation: Any) -> bool:
-    return any(isinstance(m, ValueUnitMarker) for m in _annotation_markers(annotation))
+    if any(isinstance(m, ValueUnitMarker) for m in _annotation_markers(annotation)):
+        return True
+    inner = _unwrap_optional(annotation)
+    return isinstance(inner, type) and issubclass(inner, ValueUnit)
 
 
 def _is_min_max_unit_annotation(annotation: Any) -> bool:
-    return any(isinstance(m, MinMaxUnitMarker) for m in _annotation_markers(annotation))
+    if any(isinstance(m, MinMaxUnitMarker) for m in _annotation_markers(annotation)):
+        return True
+    inner = _unwrap_optional(annotation)
+    return isinstance(inner, type) and issubclass(inner, MinMaxUnit)
 
 
 def _field_schema(annotation: Any) -> Optional[Dict[str, Any]]:
@@ -214,13 +220,16 @@ def to_gemini_schema(
         if not include_excluded and name in EXCLUDED_FIELDS:
             continue
         # Pydantic lifts our ValueUnitMarker / MinMaxUnitMarker into
-        # ``field.metadata`` for scalar Annotated aliases (stripping the
-        # outer Annotated off ``field.annotation``). Detect at the field
-        # level before falling through to the annotation-based recursion
-        # which still works for List[<alias>] and nested BaseModels.
-        if find_value_unit_marker(field.metadata):
+        # ``field.metadata`` for typed Annotated aliases (Voltage, Current,
+        # ...). Plain ValueUnit / MinMaxUnit fields carry no marker but we
+        # detect them by class identity in ``_is_*_annotation``.
+        if find_value_unit_marker(field.metadata) or _is_value_unit_annotation(
+            field.annotation
+        ):
             schema = _value_unit_schema()
-        elif find_min_max_unit_marker(field.metadata):
+        elif find_min_max_unit_marker(field.metadata) or _is_min_max_unit_annotation(
+            field.annotation
+        ):
             schema = _min_max_unit_schema()
         else:
             schema = _field_schema(field.annotation)

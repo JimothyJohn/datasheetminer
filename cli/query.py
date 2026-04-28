@@ -172,7 +172,16 @@ def product_summary(product: Any, *, omit_type: bool = False) -> dict:
 
 def extract_numeric(value: Any) -> float | None:
     """Pull a numeric value from ValueUnit, MinMaxUnit, int, float, or Decimal."""
+    from specodex.models.common import MinMaxUnit, ValueUnit
+
     if value is None:
+        return None
+    if isinstance(value, ValueUnit):
+        return float(value.value)
+    if isinstance(value, MinMaxUnit):
+        scalar = value.min if value.min is not None else value.max
+        return float(scalar) if scalar is not None else None
+    if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
         return float(value)

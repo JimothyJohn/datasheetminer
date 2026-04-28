@@ -79,7 +79,7 @@ class Gearhead(ProductBase):
         None, description="Emergency stop torque (T2NOT) (e.g., in Nm)"
     )
     # arcmin is neither a length nor any other family — keep generic.
-    backlash: ValueUnit = Field(
+    backlash: Optional[ValueUnit] = Field(
         None, description="Rotational lost motion (e.g., in arcminutes)"
     )
     efficiency: Optional[float] = Field(
@@ -89,14 +89,14 @@ class Gearhead(ProductBase):
         description="Efficiency of the gearhead as a ratio (e.g., 0.97 for 97%)",
     )
     # Nm/arcmin is compound — keep generic.
-    torsional_rigidity: ValueUnit = Field(
+    torsional_rigidity: Optional[ValueUnit] = Field(
         None, description="Torsional rigidity (e.g., in Nm/arcmin)"
     )
     rotor_inertia: Inertia = Field(
         None, description="Moment of inertia for the gearbox (e.g., in kg.cm²)"
     )
     # dB/dBA is its own beast — keep generic.
-    noise_level: ValueUnit = Field(
+    noise_level: Optional[ValueUnit] = Field(
         None, description="Noise level at 1m distance (e.g., in dBA)"
     )
 
@@ -124,7 +124,7 @@ class Gearhead(ProductBase):
         description="Operating temperature range",
     )
     # Service life in hours — Time family not introduced; stay generic.
-    service_life: ValueUnit = Field(
+    service_life: Optional[ValueUnit] = Field(
         None, description="Expected service life (e.g., in hours)"
     )
     lubrication_type: Optional[str] = Field(

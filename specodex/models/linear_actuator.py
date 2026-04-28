@@ -63,16 +63,16 @@ class LinearActuator(ProductBase):
         description="Static load rating for bearing capacity (e.g., in N)",
     )
     # mm/s and mm/s^2 are compound — keep generic.
-    max_linear_speed: ValueUnit = Field(
+    max_linear_speed: Optional[ValueUnit] = Field(
         None, description="Maximum linear speed (e.g., in mm/s)"
     )
-    max_acceleration: ValueUnit = Field(
+    max_acceleration: Optional[ValueUnit] = Field(
         None, description="Maximum linear acceleration (e.g., in mm/s²)"
     )
     positioning_repeatability: Length = Field(
         None, description="Repeatability of positioning (e.g., in mm)"
     )
-    backlash: ValueUnit = Field(
+    backlash: Optional[ValueUnit] = Field(
         None, description="Mechanical backlash (e.g., in mm or arcmin)"
     )
 
@@ -81,7 +81,7 @@ class LinearActuator(ProductBase):
         Literal["ball_screw", "lead_screw", "belt", "linear_motor"]
     ] = Field(None, description="Primary drive mechanism for linear motion.")
     # mm/rev is compound — keep generic.
-    lead_screw_pitch: ValueUnit = Field(
+    lead_screw_pitch: Optional[ValueUnit] = Field(
         None, description="Lead screw pitch (e.g., in mm/rev)"
     )
     screw_diameter: Length = Field(
@@ -129,7 +129,7 @@ class LinearActuator(ProductBase):
         None, description="Operating temperature range"
     )
     # %RH is its own family — keep generic.
-    operating_humidity_range: ValueUnit = Field(
+    operating_humidity_range: Optional[ValueUnit] = Field(
         None, description="Operating humidity range (e.g., in %RH)"
     )
     cleanroom_class: Optional[str] = Field(

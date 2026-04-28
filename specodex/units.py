@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import logging
 import math
-import re
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -140,107 +139,36 @@ def _round_converted(value: float) -> float:
     return round(value, precision)
 
 
-def normalize_unit(value_str: str, unit: str) -> tuple[str, str]:
-    """Normalize a value+unit pair to canonical form.
+def normalize_unit_value(value: float, unit: str) -> tuple[float, str]:
+    """Normalize a numeric value + unit pair to canonical form.
 
     Args:
-        value_str: The numeric value as a string (may contain non-numeric chars).
+        value: The numeric value as a float.
         unit: The unit string from the datasheet.
 
     Returns:
-        Tuple of (possibly converted value string, canonical unit string).
+        Tuple of (possibly converted numeric value, canonical unit string).
         If the unit is unknown or already canonical, returns inputs unchanged.
     """
     unit_clean = unit.strip()
 
-    # Already canonical or unknown — pass through
     if unit_clean not in _ALIAS_MAP:
-        return value_str, unit_clean
+        return value, unit_clean
 
     canonical, multiplier = _ALIAS_MAP[unit_clean]
 
-    # Try to parse the value as a float for conversion
-    try:
-        raw_value = float(value_str)
-    except (ValueError, TypeError):
-        # Non-numeric value (e.g., "2+"), can't convert — pass through
-        return value_str, unit_clean
-
     if multiplier is None:
-        converted = _convert_temperature(raw_value, unit_clean)
+        converted = _convert_temperature(value, unit_clean)
     else:
-        converted = raw_value * multiplier
+        converted = value * multiplier
 
     converted = _round_converted(converted)
 
-    # Format: use int if it's a whole number, otherwise float
-    if converted == int(converted) and abs(converted) < 1e12:
-        converted_str = str(int(converted))
-    else:
-        converted_str = f"{converted:g}"
-
     logger.info(
         "Unit conversion: %s %s → %s %s",
-        value_str,
+        value,
         unit_clean,
-        converted_str,
+        converted,
         canonical,
     )
-    return converted_str, canonical
-
-
-def normalize_value_unit(compact: str) -> str:
-    """Normalize a 'value;unit' compact string in place.
-
-    Args:
-        compact: String in 'value;unit' format.
-
-    Returns:
-        Normalized 'value;unit' string with canonical units.
-    """
-    if ";" not in compact:
-        return compact
-
-    parts = compact.split(";", 1)
-    if len(parts) != 2:
-        return compact
-
-    value_part, unit = parts
-
-    # Handle range values like "20-40" or "-20-40"
-    range_match = re.match(r"^(-?[\d.]+)-(-?[\d.]+)$", value_part)
-    if range_match:
-        min_str, max_str = range_match.groups()
-        min_converted, canonical = normalize_unit(min_str, unit)
-        max_converted, _ = normalize_unit(max_str, unit)
-        return f"{min_converted}-{max_converted};{canonical}"
-
-    # Single value
-    converted_value, canonical = normalize_unit(value_part, unit)
-    return f"{converted_value};{canonical}"
-
-
-_COMPACT_RE = re.compile(r"^(-?[\d.]+)(?:-(-?[\d.]+))?;(.+)$")
-
-
-def parse_compact(compact: str | None) -> tuple[list[float], str] | None:
-    """Parse a ``"value;unit"`` or ``"min-max;unit"`` compact string.
-
-    Returns ``(values, unit)`` where ``values`` is ``[v]`` for a single
-    value or ``[min, max]`` for a range, or ``None`` if unparseable.
-    The canonical shared parser — callers should prefer this over
-    re-rolling the regex locally.
-    """
-    if compact is None or ";" not in compact:
-        return None
-    m = _COMPACT_RE.match(compact)
-    if not m:
-        return None
-    lo_str, hi_str, unit = m.groups()
-    try:
-        lo = float(lo_str)
-        if hi_str is None:
-            return [lo], unit
-        return [lo, float(hi_str)], unit
-    except ValueError:
-        return None
+    return converted, canonical

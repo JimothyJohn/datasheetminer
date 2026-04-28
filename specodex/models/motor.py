@@ -52,8 +52,8 @@ class Motor(ProductBase):
     rated_current: Current = None
     peak_current: Current = None
     # Compound units (V/krpm, Nm/A) don't belong to a single family — keep generic.
-    voltage_constant: ValueUnit = None
-    torque_constant: ValueUnit = None
+    voltage_constant: Optional[ValueUnit] = None
+    torque_constant: Optional[ValueUnit] = None
     resistance: Resistance = None
     inductance: Inductance = None
     ip_rating: IpRating = None

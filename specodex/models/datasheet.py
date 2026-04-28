@@ -77,4 +77,4 @@ class Datasheet(BaseModel):
 
     # Additional metadata
     release_year: Optional[int] = None
-    warranty: ValueUnit = None
+    warranty: Optional[ValueUnit] = None

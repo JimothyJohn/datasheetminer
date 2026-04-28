@@ -78,7 +78,9 @@ class ContactorIcwRating(BaseModel):
     """
 
     # Time family not introduced — leave generic.
-    duration: ValueUnit = Field(..., description="Withstand duration, e.g. 10 s.")
+    duration: Optional[ValueUnit] = Field(
+        ..., description="Withstand duration, e.g. 10 s."
+    )
     current: Current = Field(..., description="Withstand current for the duration (A).")
 
 
@@ -243,33 +245,33 @@ class Contactor(ProductBase):
             "discrete options rather than a continuous range."
         ),
     )
-    coil_pickup_factor: MinMaxUnit = Field(
+    coil_pickup_factor: Optional[MinMaxUnit] = Field(
         None,
         description=(
             "Operating range for reliable pickup as a fraction of Uc "
             "(e.g. 0.85–1.1 ×Uc). Unitless ratio — use unit='×Uc'."
         ),
     )
-    coil_dropout_factor: MinMaxUnit = Field(
+    coil_dropout_factor: Optional[MinMaxUnit] = Field(
         None,
         description=(
             "Drop-out voltage as a fraction of Uc (e.g. 0.2–0.75 ×Uc). Unitless ratio."
         ),
     )
-    coil_time_constant: ValueUnit = Field(
+    coil_time_constant: Optional[ValueUnit] = Field(
         None,
         description=(
             "DC coil time constant (ms). Schneider TeSys D publishes this "
             "for DC coils; rarely meaningful for AC."
         ),
     )
-    coil_power_consumption_sealed: ValueUnit = Field(
+    coil_power_consumption_sealed: Optional[ValueUnit] = Field(
         None,
         description=(
             "Sealed (energized steady-state) coil consumption. W for DC, VA for AC."
         ),
     )
-    coil_power_consumption_inrush: ValueUnit = Field(
+    coil_power_consumption_inrush: Optional[ValueUnit] = Field(
         None,
         description="Inrush coil consumption at pickup. VA for AC, W for DC.",
     )
@@ -287,14 +289,14 @@ class Contactor(ProductBase):
     )
 
     # --- Durability / switching performance ---
-    mechanical_durability: ValueUnit = Field(
+    mechanical_durability: Optional[ValueUnit] = Field(
         None,
         description="Mechanical endurance (operations) without load.",
     )
-    electrical_durability_ac3: ValueUnit = Field(
+    electrical_durability_ac3: Optional[ValueUnit] = Field(
         None, description="Electrical endurance under AC-3 duty (operations)."
     )
-    operating_frequency_ac3: ValueUnit = Field(
+    operating_frequency_ac3: Optional[ValueUnit] = Field(
         None, description="Maximum switching frequency under AC-3 (operations/hour)."
     )
     making_capacity: Current = Field(
@@ -303,10 +305,10 @@ class Contactor(ProductBase):
     breaking_capacity: Current = Field(
         None, description="Breaking (opening) current capacity at rated voltage (A)."
     )
-    operating_time_close: MinMaxUnit = Field(
+    operating_time_close: Optional[MinMaxUnit] = Field(
         None, description="Close operate time from coil-on to main-contact-on (ms)."
     )
-    operating_time_open: MinMaxUnit = Field(
+    operating_time_open: Optional[MinMaxUnit] = Field(
         None, description="Open operate time from coil-off to main-contact-off (ms)."
     )
 
@@ -320,7 +322,7 @@ class Contactor(ProductBase):
     ip_rating: IpRating = Field(
         None, description="IP protection rating (typically 20 for front of panel)."
     )
-    altitude_max: ValueUnit = Field(
+    altitude_max: Optional[ValueUnit] = Field(
         None, description="Maximum operating altitude without derating (m)."
     )
 

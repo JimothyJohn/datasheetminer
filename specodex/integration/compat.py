@@ -27,8 +27,8 @@ from specodex.integration.ports import (
     FieldbusPort,
     MechanicalShaftPort,
 )
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.models.product import ProductBase
-from specodex.units import parse_compact
 
 
 CheckStatus = Literal["ok", "partial", "fail"]
@@ -72,22 +72,29 @@ class CompatibilityReport:
 # ---------------------------------------------------------------------------
 
 
-def _scalar(v: Optional[str]) -> Optional[Tuple[float, str]]:
-    parsed = parse_compact(v)
-    if parsed is None:
-        return None
-    values, unit = parsed
-    return values[0], unit
+def _scalar(v: Any) -> Optional[Tuple[float, str]]:
+    """Pull (value, unit) from a ValueUnit or single-bound MinMaxUnit."""
+    if isinstance(v, ValueUnit):
+        return v.value, v.unit
+    if isinstance(v, MinMaxUnit):
+        scalar = v.min if v.min is not None else v.max
+        if scalar is None:
+            return None
+        return scalar, v.unit
+    return None
 
 
-def _range(v: Optional[str]) -> Optional[Tuple[float, float, str]]:
-    parsed = parse_compact(v)
-    if parsed is None:
-        return None
-    values, unit = parsed
-    lo = values[0]
-    hi = values[1] if len(values) == 2 else lo
-    return lo, hi, unit
+def _range(v: Any) -> Optional[Tuple[float, float, str]]:
+    """Pull (min, max, unit) from a MinMaxUnit, or (v, v, unit) from a ValueUnit."""
+    if isinstance(v, MinMaxUnit):
+        lo = v.min if v.min is not None else v.max
+        hi = v.max if v.max is not None else v.min
+        if lo is None or hi is None:
+            return None
+        return lo, hi, v.unit
+    if isinstance(v, ValueUnit):
+        return v.value, v.value, v.unit
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +103,7 @@ def _range(v: Optional[str]) -> Optional[Tuple[float, float, str]]:
 
 
 def _check_voltage_fits(
-    supply: Optional[str], demand: Optional[str], field_name: str = "voltage"
+    supply: Any, demand: Any, field_name: str = "voltage"
 ) -> CheckResult:
     """Supply side offers a range (or single value); demand must fit inside.
 
@@ -117,9 +124,7 @@ def _check_voltage_fits(
     return CheckResult(field_name, "ok", f"{d[0]}-{d[1]} within {s[0]}-{s[1]} {s[2]}")
 
 
-def _check_supply_ge_demand(
-    supply: Optional[str], demand: Optional[str], field_name: str
-) -> CheckResult:
+def _check_supply_ge_demand(supply: Any, demand: Any, field_name: str) -> CheckResult:
     """Supply must be ≥ demand (e.g. drive rated_current ≥ motor rated_current)."""
     s = _scalar(supply)
     d = _scalar(demand)
@@ -132,9 +137,7 @@ def _check_supply_ge_demand(
     return CheckResult(field_name, "ok", f"supply {s[0]} ≥ demand {d[0]} {s[1]}")
 
 
-def _check_demand_le_max(
-    demand: Optional[str], maximum: Optional[str], field_name: str
-) -> CheckResult:
+def _check_demand_le_max(demand: Any, maximum: Any, field_name: str) -> CheckResult:
     return _check_supply_ge_demand(maximum, demand, field_name)
 
 
@@ -172,9 +175,7 @@ def _check_intersect(
     return CheckResult(field_name, "fail", f"no overlap between {a} and {b}")
 
 
-def _check_shaft_fit(
-    motor_shaft: Optional[str], gearhead_bore: Optional[str]
-) -> CheckResult:
+def _check_shaft_fit(motor_shaft: Any, gearhead_bore: Any) -> CheckResult:
     """Motor shaft OD must equal gearhead bore within 0.1 mm.
 
     Equality rather than "shaft ≤ bore" because motor shafts couple via

@@ -25,6 +25,7 @@ from specodex.integration.ports import (
     MechanicalShaftPort,
     Port,
 )
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.models.contactor import Contactor
 from specodex.models.drive import Drive
 from specodex.models.electric_cylinder import ElectricCylinder
@@ -170,17 +171,18 @@ def _robot_arm_ports(r: RobotArm) -> Dict[str, Port]:
     }
 
 
-def _scalar_to_zero_max_range(v: str | None) -> str | None:
-    """Convert a ValueUnit scalar "N;unit" to MinMaxUnit "0-N;unit".
+def _scalar_to_zero_max_range(v: ValueUnit | None) -> MinMaxUnit | None:
+    """Convert a ValueUnit scalar to a MinMaxUnit ``0-N`` range.
 
     Used where a product's spec is a *maximum capability* (e.g. a
     contactor's rated_operational_voltage_max) but the compat layer
     treats voltage as a range that must contain the demand.
     """
-    if v is None or ";" not in v:
+    if v is None:
+        return None
+    if isinstance(v, MinMaxUnit):
         return v
-    value, unit = v.split(";", 1)
-    return f"0-{value};{unit}"
+    return MinMaxUnit(min=0.0, max=v.value, unit=v.unit)
 
 
 def _guess_ac_dc_from_motor_type(t: str | None) -> str | None:

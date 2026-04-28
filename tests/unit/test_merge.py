@@ -59,10 +59,11 @@ class TestMergePerPageProducts:
             peak_current={"value": 20, "unit": "A"},
             rated_power={"value": 500, "unit": "W"},
         )
+        from specodex.models.common import ValueUnit
+
         result = merge_per_page_products([d_sparse, d_rich])
         assert len(result) == 1
-        # ValueUnit fields are stored as "value;unit" strings
-        assert result[0].rated_current == "10;A"
+        assert result[0].rated_current == ValueUnit(value=10, unit="A")
 
     def test_no_id_products_passthrough(self):
         d1 = _make_drive(manufacturer="", product_name="", part_number=None, pages=[1])

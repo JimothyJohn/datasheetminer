@@ -19,9 +19,9 @@ nulled-out fields correctly reduce the quality score.
 from __future__ import annotations
 
 import logging
-import re
-from typing import List
+from typing import List, Optional
 
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.models.product import ProductBase
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -100,36 +100,21 @@ GENERIC_MANUFACTURERS = frozenset(
 # ---------------------------------------------------------------------------
 
 
-def _parse_compact(compact: str | None) -> tuple[list[float], str] | None:
-    """Parse a 'value;unit' or 'min-max;unit' compact string.
+def _values_of(field: object) -> Optional[tuple[list[float], str]]:
+    """Return ``(values, unit)`` for a ValueUnit/MinMaxUnit-shaped field.
 
-    Returns (list_of_numeric_values, unit) or None if unparseable.
+    ``values`` is ``[v]`` for ValueUnit instances and ``[min, max]``
+    (skipping None) for MinMaxUnit instances. Returns ``None`` for
+    anything else (None, scalars, strings).
     """
-    if compact is None:
-        return None
-
-    parts = compact.split(";", 1)
-    if len(parts) != 2:
-        return None
-
-    value_part, unit = parts[0].strip(), parts[1].strip()
-    if not unit:
-        return None
-
-    # Range: "200-240" or "-20-40" (negative min)
-    range_match = re.match(r"^(-?[\d.]+)-(-?[\d.]+)$", value_part)
-    if range_match:
-        try:
-            values = [float(range_match.group(1)), float(range_match.group(2))]
-        except ValueError:
+    if isinstance(field, ValueUnit):
+        return [field.value], field.unit
+    if isinstance(field, MinMaxUnit):
+        nums = [v for v in (field.min, field.max) if v is not None]
+        if not nums:
             return None
-    else:
-        try:
-            values = [float(value_part)]
-        except ValueError:
-            return None
-
-    return values, unit
+        return nums, field.unit
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +172,7 @@ def validate_product(product: ProductBase) -> list[str]:
     # physically implausible.
     for field_name, (min_val, max_val) in FIELD_RULES.items():
         raw = getattr(product, field_name, None)
-        parsed = _parse_compact(raw)
+        parsed = _values_of(raw)
         if parsed is None:
             continue
 

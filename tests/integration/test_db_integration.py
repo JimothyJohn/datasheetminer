@@ -110,12 +110,14 @@ class TestMotorCRUD:
         assert fetched.part_number == "3GAA132001-ASE"
 
         # Update rated_speed
-        motor.rated_speed = "6000;rpm"
+        from specodex.models.common import ValueUnit
+
+        motor.rated_speed = ValueUnit(value=6000, unit="rpm")
         assert client.update(motor) is True
 
         updated = client.read(motor.product_id, Motor)
         assert updated is not None
-        assert updated.rated_speed == "6000;rpm"
+        assert updated.rated_speed == ValueUnit(value=6000, unit="rpm")
 
         # Delete
         assert client.delete(motor.product_id, Motor) is True

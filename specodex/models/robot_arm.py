@@ -16,6 +16,7 @@ from specodex.models.common import (
     IpRating,
     Length,
     Mass,
+    MinMaxUnit,
     TemperatureRange,
     Torque,
     ValueUnit,
@@ -31,10 +32,12 @@ class JointSpecs(BaseModel):
     joint_name: str = Field(
         ..., description="Name of the joint (e.g., 'Base', 'Wrist 1')"
     )
-    working_range: ValueUnit = Field(
+    working_range: Optional[ValueUnit] = Field(
         None, description="The rotational range of the joint"
     )
-    max_speed: ValueUnit = Field(None, description="Maximum speed of the joint")
+    max_speed: Optional[ValueUnit] = Field(
+        None, description="Maximum speed of the joint"
+    )
 
 
 class ForceTorqueSensor(BaseModel):
@@ -88,7 +91,7 @@ class ControllerIO(BaseModel):
         4, description="Number of quadrature digital inputs"
     )  #
     power_supply: Current = Field(
-        "2;A",
+        default_factory=lambda: ValueUnit(value=2.0, unit="A"),
         description="I/O power supply current at 24V",  #
     )
 
@@ -102,7 +105,7 @@ class Controller(BaseModel):
         description="Cleanroom classification (ISO 14644-1)",  #
     )
     operating_temp: TemperatureRange = Field(
-        "0-50;°C",  #
+        default_factory=lambda: MinMaxUnit(min=0.0, max=50.0, unit="°C"),
         description="Operating temperature range for the controller",
     )
     io_ports: Optional[ControllerIO] = Field(
@@ -114,7 +117,7 @@ class Controller(BaseModel):
         description="List of supported communication protocols",
     )
     power_source: VoltageRange = Field(
-        ";VAC",
+        None,
         description="Main power source requirements (e.g., 100-240VAC)",  #
     )
 
@@ -128,15 +131,15 @@ class TeachPendant(BaseModel):
         description="Screen resolution in pixels",  #
     )
     display_size: Length = Field(
-        "12;in",
+        default_factory=lambda: ValueUnit(value=12.0, unit="in"),
         description="Diagonal screen size",  #
     )
     weight: Mass = Field(
-        "1.6;kg",
+        default_factory=lambda: ValueUnit(value=1.6, unit="kg"),
         description="Weight of the pendant",  #
     )
     cable_length: Length = Field(
-        "4.5;m",
+        default_factory=lambda: ValueUnit(value=4.5, unit="m"),
         description="Cable length",  #
     )
 
@@ -165,7 +168,7 @@ class RobotArm(ProductBase):
         None, description="Pose repeatability per ISO 9283 (e.g., in mm)"
     )
     # m/s is compound — keep generic.
-    max_tcp_speed: ValueUnit = Field(
+    max_tcp_speed: Optional[ValueUnit] = Field(
         None, description="Maximum speed of the Tool Center Point (e.g., in m/s)"
     )
 
@@ -178,7 +181,7 @@ class RobotArm(ProductBase):
         "ISO Class 5",
         description="Cleanroom classification (ISO 14644-1)",  #
     )
-    noise_level: ValueUnit = Field(
+    noise_level: Optional[ValueUnit] = Field(
         None,
         description="Typical noise level (e.g., in dB(A))",  #
     )
@@ -187,7 +190,7 @@ class RobotArm(ProductBase):
         description="Allowed mounting positions",  #
     )
     operating_temp: TemperatureRange = Field(
-        "0-50;°C",  #
+        default_factory=lambda: MinMaxUnit(min=0.0, max=50.0, unit="°C"),
         description="Operating temperature range for the arm",
     )
     materials: Optional[List[str]] = Field(

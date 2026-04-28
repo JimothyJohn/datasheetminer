@@ -1,19 +1,28 @@
 """Shared Pydantic types for product models.
 
-Holds the ``ValueUnit`` / ``MinMaxUnit`` compact-string aliases, the
-per-quantity narrowed variants (``Voltage``, ``Current``, ...), the
-``IpRating`` coercer, and the ``ProductType`` literal.
+``ValueUnit`` and ``MinMaxUnit`` are real ``BaseModel`` classes — every
+numeric spec is carried end-to-end as ``{value, unit}`` or
+``{min, max, unit}``. The same shape Gemini emits, the same shape
+DynamoDB stores, the same shape the frontend consumes. No compact
+``"value;unit"`` strings.
+
+Per-quantity narrowed aliases (``Voltage``, ``Current``, ...) wrap
+``Optional[ValueUnit]`` (or ``Optional[MinMaxUnit]``) with a
+``BeforeValidator`` that coerces forgiving inputs (LLM dicts,
+space-separated strings, qualifier-prefixed numbers) and rejects
+wrong-family units to ``None`` so the quality filter can drop the row.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Annotated, Any, List, Literal, Optional
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, model_validator
 
-from specodex.units import normalize_value_unit
+from specodex.units import normalize_unit_value
 
 _logger = logging.getLogger(__name__)
 
@@ -38,168 +47,280 @@ class Datasheet(BaseModel):
     pages: Optional[List[int]] = None
 
 
-def _normalize_compact_str(v: str) -> str:
-    """Normalize units in a validated compact string to canonical forms."""
-    if v is None:
-        return v
-    return normalize_value_unit(v)
+# ---------------------------------------------------------------------------
+# Marker dataclasses — used by ``llm_schema.py`` to detect ValueUnit /
+# MinMaxUnit family fields when generating the Gemini response schema.
+# Pydantic strips the outer ``Annotated`` off ``field.annotation``, so
+# detection keys on ``field.metadata`` instead of identity.
+# ---------------------------------------------------------------------------
 
 
-def validate_value_unit_str(v: str) -> str:
-    if v is None:
-        return v
-    parts = v.split(";")
-    if len(parts) != 2:
-        # Reject multi-semicolon strings at the writer. The reader's regex
-        # (`_parse_compact_units`) greedily captures the unit via `(.*)`, so
-        # "1;2;V" would read back as {value=1, unit="2;V"} — see
-        # todo/fundamental-flaws.md, flaw #1. Exactly one semicolon is the
-        # invariant; anything else is malformed LLM output.
-        raise ValueError('must be in "value;unit" format (exactly one semicolon)')
+@dataclass(frozen=True)
+class UnitFamily:
+    """A physical-quantity family: canonical unit + accepted aliases."""
 
-    # We used to enforce float(parts[0]), but "2+" or "approx 5" might occur.
-    # Let's just ensure it's not empty.
-    if not parts[0].strip():
-        raise ValueError("value part cannot be empty")
+    name: str
+    canonical: str
+    accepted: frozenset[str]
 
-    if not parts[1]:
-        raise ValueError("unit cannot be empty")
-    return v
-
-
-def handle_value_unit_input(v: Any) -> Any:
-    if isinstance(v, dict):
-        # Gemini sometimes emits {} for fields it has no value for. Drop these
-        # before any key probing so the str validator doesn't crash on a dict.
-        if not v:
-            return None
-        val = v.get("value")
-        unit = v.get("unit")
-        if val is not None and unit is not None:
-            # Clean value
-            val = str(val).strip().strip("+~><")
-            return f"{val};{unit}"
-        # Handle min/max dicts stored as ValueUnit (e.g., payload stored as {min, max, unit})
-        min_val = v.get("min")
-        max_val = v.get("max")
-        if unit is not None and (min_val is not None or max_val is not None):
-            if min_val is not None and max_val is not None:
-                return f"{min_val}-{max_val};{unit}"
-            elif min_val is not None:
-                return f"{min_val};{unit}"
-            elif max_val is not None:
-                return f"{max_val};{unit}"
-        # Unit-only dicts ({"unit": "V"}) with no numeric payload are bogus
-        # LLM output; drop them instead of crashing the string validator.
-        if unit is not None and val is None and min_val is None and max_val is None:
-            return None
-    elif isinstance(v, str) and ";" not in v:
-        # Try to handle space-separated "value unit"
-        parts = v.strip().split()
-        if len(parts) == 2:
-            val = parts[0].strip().strip("+~><")
-            return f"{val};{parts[1]}"
-    elif isinstance(v, str) and ";" in v:
-        # Clean value in existing "val;unit" string
-        parts = v.split(";")
-        if len(parts) == 2:
-            val = parts[0].strip().strip("+~><")
-            return f"{val};{parts[1]}"
-    return v
+    def contains(self, unit: str) -> bool:
+        return unit == self.canonical or unit in self.accepted
 
 
 @dataclass(frozen=True)
 class ValueUnitMarker:
-    """Marker attached to a ValueUnit-family field's metadata.
-
-    Pydantic strips the outer ``Annotated`` wrapper off ``field.annotation``,
-    so identity checks against ``ValueUnit`` / ``Voltage`` / ... fail. Each
-    alias carries this marker as a metadata element; ``llm_schema.py``
-    scans ``field.metadata`` to identify ValueUnit-family fields and
-    their quantity.
-    """
+    """Marker for ValueUnit-family fields in a FieldInfo's metadata."""
 
     family: "UnitFamily | None" = None
 
 
 @dataclass(frozen=True)
 class MinMaxUnitMarker:
-    """Marker for MinMaxUnit-family fields — see ``ValueUnitMarker``."""
+    """Marker for MinMaxUnit-family fields in a FieldInfo's metadata."""
 
     family: "UnitFamily | None" = None
 
 
-ValueUnit = Annotated[
-    Optional[str],
-    BeforeValidator(handle_value_unit_input),
-    AfterValidator(validate_value_unit_str),
-    AfterValidator(_normalize_compact_str),
-    ValueUnitMarker(),
-]
+# ---------------------------------------------------------------------------
+# Input coercers — accept the assorted shapes Gemini emits and produce a
+# clean dict the BaseModel can validate. Returning ``None`` from any
+# coercer signals "drop the field" — the caller's BeforeValidator picks
+# that up at the field level.
+# ---------------------------------------------------------------------------
 
 
-def validate_min_max_unit_str(v: str) -> str:
+def _strip_value_qualifiers(v: Any) -> Optional[float]:
+    """Coerce a possibly-qualified numeric input to a plain float.
+
+    Accepts: int/float, Decimal (for DynamoDB read paths), "100", "100+",
+    "+100", "~50", ">100". Returns ``None`` for non-numeric strings
+    ("approx 5", "N/A").
+    """
     if v is None:
-        return v
-    parts = v.split(";")
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, Decimal):
+        return float(v)
+    if isinstance(v, str):
+        cleaned = v.strip().strip("+~><")
+        if not cleaned:
+            return None
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+    return None
+
+
+def _coerce_str_to_value_unit_dict(s: str) -> Optional[dict]:
+    """Parse a "value unit" or "value;unit" string into ``{value, unit}``."""
+    s = s.strip()
+    if not s:
+        return None
+    if ";" in s:
+        parts = s.split(";", 1)
+        if len(parts) != 2:
+            return None
+        val_str, unit = parts[0].strip(), parts[1].strip()
+        if not unit:
+            return None
+        val = _strip_value_qualifiers(val_str)
+        if val is None:
+            return None
+        return {"value": val, "unit": unit}
+    parts = s.split()
+    if len(parts) >= 2:
+        val = _strip_value_qualifiers(parts[0])
+        unit = " ".join(parts[1:])
+        if val is None or not unit:
+            return None
+        return {"value": val, "unit": unit}
+    return None
+
+
+def _coerce_dict_to_value_unit_dict(d: dict) -> Optional[dict]:
+    """Coerce assorted dict shapes to a clean ``{value, unit}`` dict."""
+    if not d:
+        return None
+    val_raw = d.get("value")
+    unit_raw = d.get("unit")
+    unit = str(unit_raw).strip() if unit_raw is not None else ""
+
+    if val_raw is not None and unit:
+        val = _strip_value_qualifiers(val_raw)
+        if val is None:
+            return None
+        return {"value": val, "unit": unit}
+
+    # ValueUnit field receiving min/max input — collapse to scalar.
+    min_val = _strip_value_qualifiers(d.get("min"))
+    max_val = _strip_value_qualifiers(d.get("max"))
+    if unit and (min_val is not None or max_val is not None):
+        scalar = min_val if min_val is not None else max_val
+        return {"value": scalar, "unit": unit}
+    return None
+
+
+def _coerce_str_to_min_max_unit_dict(s: str) -> Optional[dict]:
+    """Parse a "min-max;unit" / "value;unit" string into a MinMaxUnit dict."""
+    s = s.strip()
+    if not s or ";" not in s:
+        # Fall back to the value-unit shape if it looks like one
+        return None
+    parts = s.split(";", 1)
     if len(parts) != 2:
-        # Same invariant as validate_value_unit_str — unit cannot contain ';'.
-        raise ValueError('must be in "range;unit" format (exactly one semicolon)')
-
-    range_part = parts[0]
-    # Handle " to " which LLM sometimes outputs
+        return None
+    range_part, unit = parts[0].strip(), parts[1].strip()
+    if not unit:
+        return None
     range_part = range_part.replace(" to ", "-")
+    # Try range "lo-hi" (handle leading negative on lo).
+    import re
 
-    # If it's still just a single value like "20", treat it as a range "20-20" or just accept it?
-    # The regex in DynamoDBClient._parse_compact_units handles "val" and "min-max".
-    # So we just need to ensure it looks reasonable.
-
-    # We won't strictly validate the numbers here to allow for things like "-20" (negative)
-    # which split("-") makes messy.
-    # Just ensure it's not empty.
-    if not range_part.strip():
-        raise ValueError("range part cannot be empty")
-
-    if not parts[1]:
-        raise ValueError("unit cannot be empty")
-
-    # Reconstruct with cleaned range_part
-    return f"{range_part};{parts[1]}"
-
-
-def handle_min_max_unit_input(v: Any) -> Any:
-    if isinstance(v, dict):
-        if not v:
+    m = re.match(r"^(-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)$", range_part)
+    if m:
+        try:
+            return {
+                "min": float(m.group(1)),
+                "max": float(m.group(2)),
+                "unit": unit,
+            }
+        except ValueError:
             return None
-        min_val = v.get("min")
-        max_val = v.get("max")
-        val = v.get("value")
-        unit = v.get("unit")
-        if unit is not None:
-            if min_val is not None and max_val is not None:
-                return f"{min_val}-{max_val};{unit}"
-            elif min_val is not None:
-                return f"{min_val};{unit}"
-            elif max_val is not None:
-                return f"{max_val};{unit}"
-            # Handle {value, unit} dicts (stored by TypeScript backend as single-value)
-            elif val is not None:
-                return f"{val};{unit}"
-        # Gemini occasionally emits unit-only dicts like {"unit": "V"} with no
-        # min/max/value; treat as absent instead of letting the downstream
-        # string validator AttributeError on a dict.
-        if unit is not None and min_val is None and max_val is None and val is None:
-            return None
-    return v
+    # Single value
+    val = _strip_value_qualifiers(range_part)
+    if val is None:
+        return None
+    return {"min": val, "max": None, "unit": unit}
 
 
-MinMaxUnit = Annotated[
-    Optional[str],
-    BeforeValidator(handle_min_max_unit_input),
-    AfterValidator(validate_min_max_unit_str),
-    AfterValidator(_normalize_compact_str),
-    MinMaxUnitMarker(),
-]
+def _coerce_dict_to_min_max_unit_dict(d: dict) -> Optional[dict]:
+    """Coerce assorted dict shapes to a clean ``{min, max, unit}`` dict."""
+    if not d:
+        return None
+    unit_raw = d.get("unit")
+    unit = str(unit_raw).strip() if unit_raw is not None else ""
+    if not unit:
+        return None
+    min_val = _strip_value_qualifiers(d.get("min"))
+    max_val = _strip_value_qualifiers(d.get("max"))
+    if min_val is not None or max_val is not None:
+        return {"min": min_val, "max": max_val, "unit": unit}
+    val = _strip_value_qualifiers(d.get("value"))
+    if val is not None:
+        return {"min": val, "max": None, "unit": unit}
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Structured ValueUnit / MinMaxUnit classes
+# ---------------------------------------------------------------------------
+
+
+class ValueUnit(BaseModel):
+    """A numeric value paired with a unit — the canonical scalar spec shape.
+
+    Pydantic accepts forgiving input forms (dicts with extra keys,
+    space-separated strings, qualifier-prefixed numbers) and normalises
+    the unit to its canonical form (mNm → Nm) on construction. The
+    serialised form is always ``{"value": <float>, "unit": "<str>"}``.
+    """
+
+    model_config = {"populate_by_name": True}
+
+    value: float
+    unit: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_input(cls, data: Any) -> Any:
+        if data is None or isinstance(data, ValueUnit):
+            return data
+        if isinstance(data, MinMaxUnit):
+            scalar = data.min if data.min is not None else data.max
+            if scalar is None:
+                raise ValueError("MinMaxUnit has no min/max to collapse to scalar")
+            return {"value": scalar, "unit": data.unit}
+        if isinstance(data, str):
+            coerced = _coerce_str_to_value_unit_dict(data)
+            if coerced is None:
+                raise ValueError(f"could not parse {data!r} as value+unit")
+            return coerced
+        if isinstance(data, dict):
+            coerced = _coerce_dict_to_value_unit_dict(data)
+            if coerced is None:
+                raise ValueError(f"could not extract value+unit from {data!r}")
+            return coerced
+        return data
+
+    @model_validator(mode="after")
+    def _normalize_unit(self) -> "ValueUnit":
+        new_value, new_unit = normalize_unit_value(self.value, self.unit)
+        if new_value != self.value:
+            self.value = new_value
+        if new_unit != self.unit:
+            self.unit = new_unit
+        return self
+
+
+class MinMaxUnit(BaseModel):
+    """A numeric range paired with a shared unit — canonical range spec shape.
+
+    At least one of ``min`` / ``max`` must be present; either may be
+    ``None`` for half-open intervals (e.g. ``max=85, min=None`` for "up
+    to 85 °C"). Serialised form is ``{"min": <num|null>, "max": <num|null>,
+    "unit": "<str>"}``.
+    """
+
+    model_config = {"populate_by_name": True}
+
+    min: Optional[float] = None
+    max: Optional[float] = None
+    unit: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_input(cls, data: Any) -> Any:
+        if data is None or isinstance(data, MinMaxUnit):
+            return data
+        if isinstance(data, ValueUnit):
+            return {"min": data.value, "max": None, "unit": data.unit}
+        if isinstance(data, str):
+            coerced = _coerce_str_to_min_max_unit_dict(data)
+            if coerced is None:
+                raise ValueError(f"could not parse {data!r} as min-max+unit")
+            return coerced
+        if isinstance(data, dict):
+            coerced = _coerce_dict_to_min_max_unit_dict(data)
+            if coerced is None:
+                raise ValueError(f"could not extract min/max+unit from {data!r}")
+            return coerced
+        return data
+
+    @model_validator(mode="after")
+    def _normalize_unit(self) -> "MinMaxUnit":
+        if self.min is None and self.max is None:
+            raise ValueError("MinMaxUnit must have at least one of min or max")
+        canonical_unit = self.unit
+        if self.min is not None:
+            new_min, canonical_unit = normalize_unit_value(self.min, self.unit)
+            self.min = new_min
+        if self.max is not None:
+            new_max, canonical_unit = normalize_unit_value(self.max, self.unit)
+            self.max = new_max
+        if canonical_unit != self.unit:
+            self.unit = canonical_unit
+        return self
+
+
+# ---------------------------------------------------------------------------
+# IpRating — bare int with forgiving input coercion. Unrelated to
+# ValueUnit/MinMaxUnit; lives here for proximity to the other field
+# aliases.
+# ---------------------------------------------------------------------------
 
 
 def _coerce_ip_rating(v: Any) -> Any:
@@ -236,32 +357,18 @@ IpRating = Annotated[Optional[int], BeforeValidator(_coerce_ip_rating)]
 # ---------------------------------------------------------------------------
 # Per-quantity ValueUnit / MinMaxUnit aliases
 #
-# ``ValueUnit`` and ``MinMaxUnit`` above are untyped — any unit string
-# parses. Fields where the quantity is known (a voltage, a current) use
-# the narrowed aliases below, which reject wrong-family units at Pydantic
-# validation time (e.g. "5;rpm" on a ``Current`` field becomes None).
+# These narrow the canonical types to a single physical-quantity family
+# and reject wrong-family units at validation time (e.g. "5 rpm" on a
+# Current field becomes None). Conventions:
 #
-# Conventions:
 #   - Canonical unit matches ``specodex/units.py`` ``UNIT_CONVERSIONS``
 #     so normalisation and family-check agree.
-#   - Each family lists every form the LLM might emit — both aliases that
-#     normalise to the canonical (mA → A) and aliases that pass through
-#     unchanged (Vac, Arms, ohm).
+#   - Each family lists every form the LLM might emit — both aliases
+#     that normalise to the canonical (mA → A) and aliases that pass
+#     through unchanged (Vac, Arms, ohm).
 #   - Fields whose quantity is fuzzy (``warranty``, ``msrp``, ``backlash``
 #     in arcmin, compound units like V/krpm) stay on plain ValueUnit.
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class UnitFamily:
-    """A physical-quantity family: canonical unit + accepted aliases."""
-
-    name: str
-    canonical: str
-    accepted: frozenset[str]
-
-    def contains(self, unit: str) -> bool:
-        return unit == self.canonical or unit in self.accepted
 
 
 VOLTAGE = UnitFamily(
@@ -376,55 +483,62 @@ INDUCTANCE = UnitFamily(
 )
 
 
-def _enforce_family(family: UnitFamily):
-    """AfterValidator that nulls values whose unit isn't in ``family``.
+def _typed_value_unit(family: UnitFamily):
+    """Build a ValueUnit Annotated narrowed to one quantity family.
 
-    Runs after ``_normalize_compact_str`` has already converted aliases
-    in ``UNIT_CONVERSIONS`` to their canonical form, so the unit we see
-    here is either canonical or an un-normalised family member (Vac,
-    Arms, ohm). Anything outside the family is a wrong-family
-    extraction — return None so the quality filter can reject the row.
+    The BeforeValidator coerces forgiving inputs into a ValueUnit
+    instance (or returns ``None`` if the input is unparseable / wrong
+    family). A wrong-family unit returns None so the quality filter
+    can drop the row, rather than raising and killing the whole
+    extraction.
     """
 
-    def _check(v: Optional[str]) -> Optional[str]:
+    def _coerce(v: Any) -> Any:
         if v is None:
-            return v
-        if ";" not in v:
             return None
-        _, unit = v.split(";", 1)
-        if family.contains(unit):
-            return v
-        _logger.debug(
-            "rejecting %s value '%s' — unit '%s' not in family",
-            family.name,
-            v,
-            unit,
-        )
-        return None
+        if isinstance(v, ValueUnit):
+            return v if family.contains(v.unit) else None
+        if isinstance(v, MinMaxUnit):
+            if not family.contains(v.unit):
+                return None
+            scalar = v.min if v.min is not None else v.max
+            if scalar is None:
+                return None
+            return ValueUnit(value=scalar, unit=v.unit)
+        try:
+            instance = ValueUnit.model_validate(v)
+        except (ValueError, TypeError):
+            return None
+        return instance if family.contains(instance.unit) else None
 
-    return _check
-
-
-def _typed_value_unit(family: UnitFamily):
-    """Build a ValueUnit-shape Annotated alias narrowed to one quantity."""
     return Annotated[
-        Optional[str],
-        BeforeValidator(handle_value_unit_input),
-        AfterValidator(validate_value_unit_str),
-        AfterValidator(_normalize_compact_str),
-        AfterValidator(_enforce_family(family)),
+        Optional[ValueUnit],
+        BeforeValidator(_coerce),
         ValueUnitMarker(family=family),
     ]
 
 
 def _typed_min_max_unit(family: UnitFamily):
-    """Build a MinMaxUnit-shape Annotated alias narrowed to one quantity."""
+    """Build a MinMaxUnit Annotated narrowed to one quantity family."""
+
+    def _coerce(v: Any) -> Any:
+        if v is None:
+            return None
+        if isinstance(v, MinMaxUnit):
+            return v if family.contains(v.unit) else None
+        if isinstance(v, ValueUnit):
+            if not family.contains(v.unit):
+                return None
+            return MinMaxUnit(min=v.value, max=None, unit=v.unit)
+        try:
+            instance = MinMaxUnit.model_validate(v)
+        except (ValueError, TypeError):
+            return None
+        return instance if family.contains(instance.unit) else None
+
     return Annotated[
-        Optional[str],
-        BeforeValidator(handle_min_max_unit_input),
-        AfterValidator(validate_min_max_unit_str),
-        AfterValidator(_normalize_compact_str),
-        AfterValidator(_enforce_family(family)),
+        Optional[MinMaxUnit],
+        BeforeValidator(_coerce),
         MinMaxUnitMarker(family=family),
     ]
 

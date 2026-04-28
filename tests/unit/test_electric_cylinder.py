@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.models.electric_cylinder import ElectricCylinder
 
 DETERMINISTIC_UUID = UUID("12345678-1234-1234-1234-123456789012")
@@ -51,11 +52,11 @@ class TestElectricCylinderCreation:
             noise_level="45;dBA",
         )
         assert ec.product_id == DETERMINISTIC_UUID
-        assert ec.stroke == "20;mm"
-        assert ec.max_push_force == "80;N"
-        assert ec.max_pull_force == "50;N"
-        assert ec.continuous_force == "30;N"
-        assert ec.rated_voltage == "12-24;V"
+        assert ec.stroke == ValueUnit(value=20, unit="mm")
+        assert ec.max_push_force == ValueUnit(value=80, unit="N")
+        assert ec.max_pull_force == ValueUnit(value=50, unit="N")
+        assert ec.continuous_force == ValueUnit(value=30, unit="N")
+        assert ec.rated_voltage == MinMaxUnit(min=12, max=24, unit="V")
         assert ec.gear_ratio == 14.0
         assert ec.motor_type == "brushless dc"
         assert ec.SK == f"PRODUCT#{DETERMINISTIC_UUID}"
@@ -83,26 +84,26 @@ class TestElectricCylinderForceSpecs:
             max_pull_force="80;N",
             continuous_force="45;N",
         )
-        assert ec.max_push_force == "120;N"
-        assert ec.max_pull_force == "80;N"
-        assert ec.continuous_force == "45;N"
+        assert ec.max_push_force == ValueUnit(value=120, unit="N")
+        assert ec.max_pull_force == ValueUnit(value=80, unit="N")
+        assert ec.continuous_force == ValueUnit(value=45, unit="N")
 
     def test_force_unit_conversion_kn(self):
         """kN should normalize to N via unit conversion."""
         ec = ElectricCylinder(
             product_name="Test", manufacturer=MFG, max_push_force="0.5;kN"
         )
-        assert ec.max_push_force == "500;N"
+        assert ec.max_push_force == ValueUnit(value=500, unit="N")
 
     def test_force_unit_conversion_lbf(self):
         ec = ElectricCylinder(
             product_name="Test", manufacturer=MFG, max_push_force="10;lbf"
         )
-        assert ec.max_push_force == "44.4822;N"
+        assert ec.max_push_force == ValueUnit(value=44.4822, unit="N")
 
     def test_stroke_field(self):
         ec = ElectricCylinder(product_name="Test", manufacturer=MFG, stroke="50;mm")
-        assert ec.stroke == "50;mm"
+        assert ec.stroke == ValueUnit(value=50, unit="mm")
 
 
 @pytest.mark.unit
@@ -113,7 +114,7 @@ class TestElectricCylinderMotorSpecs:
         ec = ElectricCylinder(
             product_name="Test", manufacturer=MFG, rated_voltage="12-48;V"
         )
-        assert ec.rated_voltage == "12-48;V"
+        assert ec.rated_voltage == MinMaxUnit(min=12, max=48, unit="V")
 
     def test_voltage_dict_input(self):
         ec = ElectricCylinder(
@@ -121,7 +122,7 @@ class TestElectricCylinderMotorSpecs:
             manufacturer=MFG,
             rated_voltage={"min": "12", "max": "48", "unit": "V"},
         )
-        assert ec.rated_voltage == "12-48;V"
+        assert ec.rated_voltage == MinMaxUnit(min=12, max=48, unit="V")
 
     def test_current_fields(self):
         ec = ElectricCylinder(
@@ -130,14 +131,14 @@ class TestElectricCylinderMotorSpecs:
             rated_current="1.2;A",
             peak_current="3.5;A",
         )
-        assert ec.rated_current == "1.2;A"
-        assert ec.peak_current == "3.5;A"
+        assert ec.rated_current == ValueUnit(value=1.2, unit="A")
+        assert ec.peak_current == ValueUnit(value=3.5, unit="A")
 
     def test_power_conversion(self):
         ec = ElectricCylinder(
             product_name="Test", manufacturer=MFG, rated_power="0.5;kW"
         )
-        assert ec.rated_power == "500;W"
+        assert ec.rated_power == ValueUnit(value=500, unit="W")
 
 
 @pytest.mark.unit
@@ -146,7 +147,7 @@ class TestElectricCylinderMechanical:
         ec = ElectricCylinder(
             product_name="Test", manufacturer=MFG, lead_screw_pitch="1.0;mm/rev"
         )
-        assert ec.lead_screw_pitch == "1.0;mm/rev"
+        assert ec.lead_screw_pitch == ValueUnit(value=1.0, unit="mm/rev")
 
     def test_gear_ratio(self):
         ec = ElectricCylinder(product_name="Test", manufacturer=MFG, gear_ratio=14.0)
@@ -154,7 +155,7 @@ class TestElectricCylinderMechanical:
 
     def test_backlash(self):
         ec = ElectricCylinder(product_name="Test", manufacturer=MFG, backlash="0.08;mm")
-        assert ec.backlash == "0.08;mm"
+        assert ec.backlash == ValueUnit(value=0.08, unit="mm")
 
 
 @pytest.mark.unit

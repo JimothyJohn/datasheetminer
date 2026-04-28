@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.models.datasheet import Datasheet
 from specodex.models.drive import Drive
 from specodex.models.gearhead import Gearhead
@@ -29,7 +30,7 @@ MFG = "TestMfg"
 class TestValueUnit:
     def test_valid_value_unit_string(self):
         motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="3000;rpm")
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_dict_input_conversion(self):
         motor = Motor(
@@ -37,16 +38,15 @@ class TestValueUnit:
             manufacturer=MFG,
             rated_speed={"value": "3000", "unit": "rpm"},
         )
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_space_separated_input(self):
         motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="3000 rpm")
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_strip_special_chars(self):
-        # BeforeValidator strips +~>< from value part in semicolon format
         motor = Motor(product_name="Test", manufacturer=MFG, rated_speed="+3000;rpm")
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_strip_special_chars_dict(self):
         motor = Motor(
@@ -54,19 +54,22 @@ class TestValueUnit:
             manufacturer=MFG,
             rated_speed={"value": "~3000", "unit": "rpm"},
         )
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
     def test_strip_special_chars_space_separated(self):
         motor = Motor(product_name="Test", manufacturer=MFG, rated_speed=">3000 rpm")
-        assert motor.rated_speed == "3000;rpm"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
 
-    def test_missing_value_part_raises(self):
-        with pytest.raises(ValidationError, match="value part cannot be empty"):
-            Motor(product_name="Test", manufacturer=MFG, rated_speed=";rpm")
+    def test_missing_value_part_drops_to_none(self):
+        # The typed alias coercer drops unparseable inputs to None at the
+        # field level instead of raising — keeps a single bad value from
+        # killing the whole extraction.
+        m = Motor(product_name="Test", manufacturer=MFG, rated_speed=";rpm")
+        assert m.rated_speed is None
 
-    def test_missing_unit_part_raises(self):
-        with pytest.raises(ValidationError, match="unit cannot be empty"):
-            Motor(product_name="Test", manufacturer=MFG, rated_speed="3000;")
+    def test_missing_unit_part_drops_to_none(self):
+        m = Motor(product_name="Test", manufacturer=MFG, rated_speed="3000;")
+        assert m.rated_speed is None
 
     def test_none_passthrough(self):
         motor = Motor(product_name="Test", manufacturer=MFG)
@@ -77,7 +80,7 @@ class TestValueUnit:
 class TestMinMaxUnit:
     def test_valid_range_string(self):
         motor = Motor(product_name="Test", manufacturer=MFG, rated_voltage="200-240;V")
-        assert motor.rated_voltage == "200-240;V"
+        assert motor.rated_voltage == MinMaxUnit(min=200, max=240, unit="V")
 
     def test_dict_input_min_max(self):
         motor = Motor(
@@ -85,7 +88,7 @@ class TestMinMaxUnit:
             manufacturer=MFG,
             rated_voltage={"min": "200", "max": "240", "unit": "V"},
         )
-        assert motor.rated_voltage == "200-240;V"
+        assert motor.rated_voltage == MinMaxUnit(min=200, max=240, unit="V")
 
     def test_dict_input_min_only(self):
         motor = Motor(
@@ -93,7 +96,7 @@ class TestMinMaxUnit:
             manufacturer=MFG,
             rated_voltage={"min": "200", "unit": "V"},
         )
-        assert motor.rated_voltage == "200;V"
+        assert motor.rated_voltage == MinMaxUnit(min=200, max=None, unit="V")
 
     def test_dict_input_max_only(self):
         motor = Motor(
@@ -101,21 +104,23 @@ class TestMinMaxUnit:
             manufacturer=MFG,
             rated_voltage={"max": "240", "unit": "V"},
         )
-        assert motor.rated_voltage == "240;V"
+        assert motor.rated_voltage == MinMaxUnit(min=None, max=240, unit="V")
 
     def test_to_separator_replaced(self):
         motor = Motor(
             product_name="Test", manufacturer=MFG, rated_voltage="200 to 240;V"
         )
-        assert motor.rated_voltage == "200-240;V"
+        assert motor.rated_voltage == MinMaxUnit(min=200, max=240, unit="V")
 
     def test_empty_range_rejected(self):
-        with pytest.raises(ValidationError, match="range part cannot be empty"):
-            Motor(product_name="Test", manufacturer=MFG, rated_voltage=";V")
+        # Empty value-part on the range string returns None at the field level
+        # (typed alias drops it as unparseable) rather than raising.
+        m = Motor(product_name="Test", manufacturer=MFG, rated_voltage=";V")
+        assert m.rated_voltage is None
 
     def test_empty_unit_rejected(self):
-        with pytest.raises(ValidationError, match="unit cannot be empty"):
-            Motor(product_name="Test", manufacturer=MFG, rated_voltage="200-240;")
+        m = Motor(product_name="Test", manufacturer=MFG, rated_voltage="200-240;")
+        assert m.rated_voltage is None
 
 
 @pytest.mark.unit
@@ -201,8 +206,8 @@ class TestMotor:
         )
         assert motor.product_id == DETERMINISTIC_UUID
         assert motor.manufacturer == "Delta Electronics"
-        assert motor.rated_speed == "3000;rpm"
-        assert motor.rated_voltage == "200-240;V"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
+        assert motor.rated_voltage == MinMaxUnit(min=200, max=240, unit="V")
         assert motor.poles == 8
         assert motor.PK == "PRODUCT#MOTOR"
 
@@ -222,9 +227,9 @@ class TestMotor:
             rated_torque="2.5;Nm",
             rated_power="400;W",
         )
-        assert motor.rated_speed == "3000;rpm"
-        assert motor.rated_torque == "2.5;Nm"
-        assert motor.rated_power == "400;W"
+        assert motor.rated_speed == ValueUnit(value=3000, unit="rpm")
+        assert motor.rated_torque == ValueUnit(value=2.5, unit="Nm")
+        assert motor.rated_power == ValueUnit(value=400, unit="W")
 
 
 @pytest.mark.unit
@@ -245,8 +250,14 @@ class TestDrive:
             input_voltage_frequency=["50-60;Hz", "50;Hz"],
             switching_frequency=["8;kHz", "16;kHz"],
         )
-        assert drive.input_voltage_frequency == ["50-60;Hz", "50;Hz"]
-        assert drive.switching_frequency == ["8;kHz", "16;kHz"]
+        assert drive.input_voltage_frequency == [
+            MinMaxUnit(min=50, max=60, unit="Hz"),
+            MinMaxUnit(min=50, max=None, unit="Hz"),
+        ]
+        assert drive.switching_frequency == [
+            ValueUnit(value=8, unit="kHz"),
+            ValueUnit(value=16, unit="kHz"),
+        ]
 
     def test_drive_type_literal(self):
         drive = Drive(product_name="Test", manufacturer=MFG, product_type="drive")
@@ -422,8 +433,8 @@ class TestRobotArm:
             ),
         )
         assert arm.product_type == "robot_arm"
-        assert arm.payload == "5;kg"
-        assert arm.reach == "850;mm"
+        assert arm.payload == ValueUnit(value=5, unit="kg")
+        assert arm.reach == ValueUnit(value=850, unit="mm")
         assert len(arm.joints) == 1
         assert arm.joints[0].joint_name == "Base"
 
@@ -434,15 +445,15 @@ class TestRobotArm:
             max_speed="180;deg/s",
         )
         assert joint.joint_name == "Wrist 1"
-        assert joint.working_range == "360;deg"
-        assert joint.max_speed == "180;deg/s"
+        assert joint.working_range == ValueUnit(value=360, unit="deg")
+        assert joint.max_speed == ValueUnit(value=180, unit="deg/s")
 
     def test_joint_specs_value_unit_dict(self):
         joint = JointSpecs(
             joint_name="Base",
             working_range={"value": "360", "unit": "deg"},
         )
-        assert joint.working_range == "360;deg"
+        assert joint.working_range == ValueUnit(value=360, unit="deg")
 
     def test_force_torque_sensor(self):
         fts = ForceTorqueSensor(
@@ -451,10 +462,13 @@ class TestRobotArm:
             torque_range="10;Nm",
             torque_precision="0.1;Nm",
         )
-        assert fts.force_range == "50;N"
-        assert fts.force_precision == "3.5;N"
-        assert fts.torque_range == "10;Nm"
-        assert fts.torque_precision == "0.1;Nm"
+        # Force/Torque are typed aliases; ForceTorqueSensor still uses Force/
+        # Torque (unchanged). They construct ValueUnit instances under the
+        # hood now.
+        assert fts.force_range == ValueUnit(value=50, unit="N")
+        assert fts.force_precision == ValueUnit(value=3.5, unit="N")
+        assert fts.torque_range == ValueUnit(value=10, unit="Nm")
+        assert fts.torque_precision == ValueUnit(value=0.1, unit="Nm")
 
     def test_force_torque_sensor_defaults(self):
         fts = ForceTorqueSensor()
@@ -467,7 +481,7 @@ class TestRobotArm:
         assert arm.product_family == "e-Series"
         assert arm.degrees_of_freedom == 6
         assert arm.ip_rating == 54
-        assert arm.operating_temp == "0-50;°C"
+        assert arm.operating_temp == MinMaxUnit(min=0, max=50, unit="°C")
 
     def test_robot_arm_nested_controller(self):
         arm = RobotArm(
@@ -483,9 +497,9 @@ class TestRobotArm:
 
     def test_teach_pendant_defaults(self):
         tp = TeachPendant()
-        assert tp.display_size == "12;in"
-        assert tp.weight == "1.6;kg"
-        assert tp.cable_length == "4.5;m"
+        assert tp.display_size == ValueUnit(value=12, unit="in")
+        assert tp.weight == ValueUnit(value=1.6, unit="kg")
+        assert tp.cable_length == ValueUnit(value=4.5, unit="m")
         assert tp.ip_rating == 54
 
     def test_tool_io_creation(self):

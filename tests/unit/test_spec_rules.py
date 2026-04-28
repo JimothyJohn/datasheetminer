@@ -2,9 +2,10 @@
 
 import pytest
 
+from specodex.models.common import MinMaxUnit, ValueUnit
 from specodex.spec_rules import (
     FIELD_RULES,
-    _parse_compact,
+    _values_of,
     validate_product,
     validate_products,
 )
@@ -33,33 +34,33 @@ def _motor(**overrides) -> Motor:
 
 
 # ---------------------------------------------------------------------------
-# _parse_compact
+# _values_of (extracts numeric values from ValueUnit / MinMaxUnit)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestParseCompact:
-    def test_single_value(self):
-        assert _parse_compact("480;Vac") == ([480.0], "Vac")
+class TestValuesOf:
+    def test_value_unit(self):
+        assert _values_of(ValueUnit(value=480, unit="V")) == ([480.0], "V")
 
-    def test_range_value(self):
-        assert _parse_compact("200-240;Vrms") == ([200.0, 240.0], "Vrms")
+    def test_min_max_unit(self):
+        assert _values_of(MinMaxUnit(min=200, max=240, unit="V")) == (
+            [200.0, 240.0],
+            "V",
+        )
 
-    def test_negative_range(self):
-        result = _parse_compact("-20-40;°C")
-        assert result == ([-20.0, 40.0], "°C")
+    def test_min_only(self):
+        assert _values_of(MinMaxUnit(min=200, max=None, unit="V")) == ([200.0], "V")
 
     def test_none_input(self):
-        assert _parse_compact(None) is None
+        assert _values_of(None) is None
 
-    def test_no_semicolon(self):
-        assert _parse_compact("480") is None
+    def test_string_input(self):
+        assert _values_of("480") is None
 
-    def test_empty_unit(self):
-        assert _parse_compact("480;") is None
-
-    def test_non_numeric(self):
-        assert _parse_compact("TBD;V") is None
+    def test_empty_minmax(self):
+        with pytest.raises(Exception):
+            MinMaxUnit(min=None, max=None, unit="V")
 
 
 # ---------------------------------------------------------------------------
@@ -87,8 +88,8 @@ class TestUnitMismatch:
     def test_valid_units_pass(self):
         m = _motor(rated_voltage="200-240;Vrms", rated_speed="6000;rpm")
         violations = validate_product(m)
-        assert m.rated_voltage == "200-240;Vrms"
-        assert m.rated_speed == "6000;rpm"
+        assert m.rated_voltage == MinMaxUnit(min=200, max=240, unit="Vrms")
+        assert m.rated_speed == ValueUnit(value=6000, unit="rpm")
         assert not violations
 
 

@@ -505,9 +505,8 @@ def parse_gemini_response(
     raises if zero rows succeed.
 
     ValueUnit / MinMaxUnit fields come through as ``{"value", "unit"}`` or
-    ``{"min", "max", "unit"}`` dicts and are converted to the canonical
-    ``"value;unit"`` compact strings by the existing ``BeforeValidator``
-    chain in ``common.py``.
+    ``{"min", "max", "unit"}`` dicts and are validated directly into
+    structured Pydantic instances by the model classes in ``common.py``.
     """
     raw_text: str = ""
     if response and hasattr(response, "text") and response.text:

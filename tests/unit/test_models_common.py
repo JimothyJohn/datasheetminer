@@ -1,160 +1,229 @@
-"""
-Extended tests for models/common.py validators.
-Covers uncovered branches in handle_value_unit_input and handle_min_max_unit_input.
-"""
+"""Tests for the structured ValueUnit / MinMaxUnit classes in models/common.py."""
 
 import pytest
+
 from specodex.models.common import (
+    Current,
+    MinMaxUnit,
+    Voltage,
+    ValueUnit,
+    VoltageRange,
+    _coerce_dict_to_min_max_unit_dict,
+    _coerce_dict_to_value_unit_dict,
     _coerce_ip_rating,
-    handle_value_unit_input,
-    handle_min_max_unit_input,
-    validate_value_unit_str,
-    validate_min_max_unit_str,
-    _normalize_compact_str,
+    _coerce_str_to_min_max_unit_dict,
+    _coerce_str_to_value_unit_dict,
 )
+from pydantic import BaseModel
+from typing import Optional
 
 
-class TestHandleValueUnitInput:
-    """Covers all branches of handle_value_unit_input."""
+class TestValueUnit:
+    """The structured ValueUnit BaseModel."""
 
     def test_dict_with_value_and_unit(self):
-        assert handle_value_unit_input({"value": 100, "unit": "W"}) == "100;W"
+        v = ValueUnit.model_validate({"value": 100, "unit": "W"})
+        assert v.value == 100.0
+        assert v.unit == "W"
 
     def test_dict_cleans_plus_signs(self):
-        assert handle_value_unit_input({"value": "100+", "unit": "W"}) == "100;W"
+        v = ValueUnit.model_validate({"value": "100+", "unit": "W"})
+        assert v.value == 100.0
+        assert v.unit == "W"
 
     def test_dict_cleans_tilde(self):
-        assert handle_value_unit_input({"value": "~50", "unit": "rpm"}) == "50;rpm"
+        v = ValueUnit.model_validate({"value": "~50", "unit": "rpm"})
+        assert v.value == 50.0
+        assert v.unit == "rpm"
 
-    def test_dict_with_min_max_unit(self):
-        result = handle_value_unit_input({"min": 10, "max": 50, "unit": "V"})
-        assert result == "10-50;V"
+    def test_dict_with_min_collapses_to_value(self):
+        v = ValueUnit.model_validate({"min": 10, "unit": "V"})
+        assert v.value == 10.0
+        assert v.unit == "V"
 
-    def test_dict_with_min_only(self):
-        result = handle_value_unit_input({"min": 10, "unit": "V"})
-        assert result == "10;V"
-
-    def test_dict_with_max_only(self):
-        result = handle_value_unit_input({"max": 50, "unit": "V"})
-        assert result == "50;V"
+    def test_dict_with_min_max_collapses_to_min(self):
+        v = ValueUnit.model_validate({"min": 10, "max": 50, "unit": "V"})
+        assert v.value == 10.0
+        assert v.unit == "V"
 
     def test_space_separated_string(self):
-        assert handle_value_unit_input("100 W") == "100;W"
+        v = ValueUnit.model_validate("100 W")
+        assert v.value == 100.0
+        assert v.unit == "W"
 
-    def test_space_separated_cleans_prefix(self):
-        assert handle_value_unit_input(">100 W") == "100;W"
+    def test_compact_string_legacy(self):
+        v = ValueUnit.model_validate("100;W")
+        assert v.value == 100.0
+        assert v.unit == "W"
 
-    def test_semicolon_string_passthrough(self):
-        assert handle_value_unit_input("100;W") == "100;W"
+    def test_normalizes_unit(self):
+        v = ValueUnit.model_validate({"value": 500, "unit": "mNm"})
+        assert v.value == 0.5
+        assert v.unit == "Nm"
 
-    def test_semicolon_string_cleans_value(self):
-        assert handle_value_unit_input("+100;W") == "100;W"
+    def test_empty_dict_rejected(self):
+        with pytest.raises(Exception):
+            ValueUnit.model_validate({})
 
-    def test_non_matching_passthrough(self):
-        assert handle_value_unit_input(42) == 42
+    def test_unit_only_dict_rejected(self):
+        with pytest.raises(Exception):
+            ValueUnit.model_validate({"unit": "V"})
 
-    def test_none_passthrough(self):
-        assert handle_value_unit_input(None) is None
+    def test_serialises_as_dict(self):
+        v = ValueUnit(value=100, unit="W")
+        assert v.model_dump() == {"value": 100.0, "unit": "W"}
 
-    def test_dict_without_unit(self):
-        result = handle_value_unit_input({"value": 100})
-        assert result == {"value": 100}
-
-    def test_empty_dict(self):
-        # Gemini sometimes emits {} for fields it has no value for;
-        # dropping to None is safer than passing the dict to the str validator.
-        assert handle_value_unit_input({}) is None
-
-    def test_unit_only_dict_becomes_none(self):
-        # Gemini sometimes emits {"unit": "V"} with no numeric payload;
-        # dropping it to None is safer than crashing the string validator.
-        assert handle_value_unit_input({"unit": "V"}) is None
+    def test_scientific_notation_passes_through(self):
+        """The semicolon-canary case from the original bug report."""
+        v = ValueUnit.model_validate({"value": 5.5e-5, "unit": "kg·cm²"})
+        assert v.value == 5.5e-5
+        assert v.unit == "kg·cm²"
 
 
-class TestHandleMinMaxUnitInput:
-    """Covers all branches of handle_min_max_unit_input."""
+class TestMinMaxUnit:
+    """The structured MinMaxUnit BaseModel."""
 
     def test_dict_with_min_max_unit(self):
-        assert (
-            handle_min_max_unit_input({"min": 0, "max": 100, "unit": "C"}) == "0-100;C"
-        )
+        v = MinMaxUnit.model_validate({"min": 0, "max": 100, "unit": "°C"})
+        assert v.min == 0.0
+        assert v.max == 100.0
+        assert v.unit == "°C"
 
     def test_dict_with_min_only(self):
-        assert handle_min_max_unit_input({"min": -20, "unit": "C"}) == "-20;C"
+        v = MinMaxUnit.model_validate({"min": -20, "unit": "°C"})
+        assert v.min == -20.0
+        assert v.max is None
+        assert v.unit == "°C"
 
-    def test_dict_with_max_only(self):
-        assert handle_min_max_unit_input({"max": 80, "unit": "C"}) == "80;C"
+    def test_dict_with_value_unit_collapses(self):
+        """ValueUnit shape arriving on a MinMaxUnit field becomes min-only."""
+        v = MinMaxUnit.model_validate({"value": 24, "unit": "V"})
+        assert v.min == 24.0
+        assert v.max is None
+        assert v.unit == "V"
 
-    def test_dict_with_value_unit(self):
-        assert handle_min_max_unit_input({"value": 24, "unit": "V"}) == "24;V"
+    def test_compact_range_string(self):
+        v = MinMaxUnit.model_validate("100-240;V")
+        assert v.min == 100.0
+        assert v.max == 240.0
+        assert v.unit == "V"
 
-    def test_dict_without_unit(self):
-        result = handle_min_max_unit_input({"min": 0, "max": 100})
-        assert result == {"min": 0, "max": 100}
+    def test_to_separator_in_string(self):
+        v = MinMaxUnit.model_validate("10 to 50;V")
+        assert v.min == 10.0
+        assert v.max == 50.0
 
-    def test_non_dict_passthrough(self):
-        assert handle_min_max_unit_input("10-20;C") == "10-20;C"
+    def test_unit_only_dict_rejected(self):
+        with pytest.raises(Exception):
+            MinMaxUnit.model_validate({"unit": "V"})
 
-    def test_none_passthrough(self):
-        assert handle_min_max_unit_input(None) is None
-
-    def test_unit_only_dict_becomes_none(self):
-        # drive.md flagged this: Gemini emits {"unit": "V"} for operating_temp
-        # and the old MinMaxUnit validator AttributeError'd on the dict.
-        assert handle_min_max_unit_input({"unit": "V"}) is None
-
-
-class TestValidateValueUnitStr:
-    def test_valid_format(self):
-        assert validate_value_unit_str("100;W") == "100;W"
-
-    def test_none_passthrough(self):
-        assert validate_value_unit_str(None) is None
-
-    def test_missing_semicolon_raises(self):
-        with pytest.raises(ValueError, match="value;unit"):
-            validate_value_unit_str("100W")
-
-    def test_empty_value_raises(self):
-        with pytest.raises(ValueError, match="value part cannot be empty"):
-            validate_value_unit_str(";W")
-
-    def test_empty_unit_raises(self):
-        with pytest.raises(ValueError, match="unit cannot be empty"):
-            validate_value_unit_str("100;")
-
-    def test_non_numeric_value_allowed(self):
-        """LLM sometimes outputs things like '2+;Years'."""
-        assert validate_value_unit_str("2+;Years") == "2+;Years"
+    def test_no_min_max_rejected(self):
+        with pytest.raises(Exception):
+            MinMaxUnit.model_validate({"value": None, "unit": "V"})
 
 
-class TestValidateMinMaxUnitStr:
-    def test_valid_range(self):
-        assert validate_min_max_unit_str("10-50;V") == "10-50;V"
+class TestTypedAliases:
+    """Typed aliases (Voltage, Current, ...) drop wrong-family units to None."""
 
-    def test_none_passthrough(self):
-        assert validate_min_max_unit_str(None) is None
+    class _Probe(BaseModel):
+        v: Optional[ValueUnit] = None  # type: ignore[assignment]
+        # Wrap typed alias inside a real model so the BeforeValidator runs.
 
-    def test_missing_semicolon_raises(self):
-        with pytest.raises(ValueError, match="range;unit"):
-            validate_min_max_unit_str("10-50V")
+    def test_voltage_accepts_voltage_unit(self):
+        class M(BaseModel):
+            v: Voltage = None
 
-    def test_empty_range_raises(self):
-        with pytest.raises(ValueError, match="range part cannot be empty"):
-            validate_min_max_unit_str(";V")
+        m = M(v={"value": 100, "unit": "V"})
+        assert m.v.value == 100.0
+        assert m.v.unit == "V"
 
-    def test_empty_unit_raises(self):
-        with pytest.raises(ValueError, match="unit cannot be empty"):
-            validate_min_max_unit_str("10-50;")
+    def test_voltage_rejects_wrong_family(self):
+        class M(BaseModel):
+            v: Voltage = None
 
-    def test_to_separator_replaced(self):
-        """'10 to 50;V' should be normalized to '10-50;V'."""
-        assert validate_min_max_unit_str("10 to 50;V") == "10-50;V"
+        m = M(v={"value": 100, "unit": "rpm"})
+        assert m.v is None
+
+    def test_current_accepts_mA_normalised(self):
+        class M(BaseModel):
+            v: Current = None
+
+        m = M(v={"value": 500, "unit": "mA"})
+        assert m.v.value == 0.5
+        assert m.v.unit == "A"
+
+    def test_voltage_range_accepts(self):
+        class M(BaseModel):
+            v: VoltageRange = None
+
+        m = M(v={"min": 100, "max": 240, "unit": "V"})
+        assert m.v.min == 100.0
+        assert m.v.max == 240.0
+        assert m.v.unit == "V"
+
+    def test_voltage_range_rejects_wrong_family(self):
+        class M(BaseModel):
+            v: VoltageRange = None
+
+        m = M(v={"min": 0, "max": 50, "unit": "°C"})
+        assert m.v is None
 
 
-class TestNormalizeCompactStr:
-    def test_none_passthrough(self):
-        assert _normalize_compact_str(None) is None
+class TestStrCoercer:
+    def test_compact(self):
+        assert _coerce_str_to_value_unit_dict("100;W") == {"value": 100.0, "unit": "W"}
+
+    def test_space(self):
+        assert _coerce_str_to_value_unit_dict("100 W") == {"value": 100.0, "unit": "W"}
+
+    def test_empty_returns_none(self):
+        assert _coerce_str_to_value_unit_dict("") is None
+
+    def test_garbage_returns_none(self):
+        assert _coerce_str_to_value_unit_dict("approx 5") is None
+
+
+class TestDictCoercer:
+    def test_value_unit(self):
+        assert _coerce_dict_to_value_unit_dict({"value": 1, "unit": "V"}) == {
+            "value": 1.0,
+            "unit": "V",
+        }
+
+    def test_empty_returns_none(self):
+        assert _coerce_dict_to_value_unit_dict({}) is None
+
+    def test_min_max_collapses(self):
+        d = _coerce_dict_to_value_unit_dict({"min": 1, "max": 5, "unit": "V"})
+        assert d == {"value": 1.0, "unit": "V"}
+
+
+class TestMinMaxStrCoercer:
+    def test_range(self):
+        assert _coerce_str_to_min_max_unit_dict("10-50;V") == {
+            "min": 10.0,
+            "max": 50.0,
+            "unit": "V",
+        }
+
+    def test_to_separator(self):
+        assert _coerce_str_to_min_max_unit_dict("10 to 50;V") == {
+            "min": 10.0,
+            "max": 50.0,
+            "unit": "V",
+        }
+
+
+class TestMinMaxDictCoercer:
+    def test_min_max(self):
+        assert _coerce_dict_to_min_max_unit_dict({"min": 1, "max": 5, "unit": "V"}) == {
+            "min": 1.0,
+            "max": 5.0,
+            "unit": "V",
+        }
+
+    def test_unit_only_returns_none(self):
+        assert _coerce_dict_to_min_max_unit_dict({"unit": "V"}) is None
 
 
 class TestCoerceIpRating:

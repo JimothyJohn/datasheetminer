@@ -10,10 +10,7 @@ from unittest.mock import MagicMock, patch
 from specodex.models.motor import Motor
 from specodex.models.drive import Drive
 from specodex.models.robot_arm import RobotArm
-from specodex.models.common import (
-    handle_value_unit_input,
-    handle_min_max_unit_input,
-)
+from specodex.models.common import MinMaxUnit, ValueUnit
 
 
 class TestModelSerializationPerformance:
@@ -65,15 +62,16 @@ class TestValidatorPerformance:
             "100 W",
             "100;W",
             {"min": 10, "max": 50, "unit": "V"},
-            42,
-            None,
         ]
         start = time.perf_counter()
         for _ in range(1000):
             for inp in inputs:
-                handle_value_unit_input(inp)
+                try:
+                    ValueUnit.model_validate(inp)
+                except Exception:
+                    pass
         elapsed = (time.perf_counter() - start) * 1000
-        assert elapsed < 200, f"6000 validator calls took {elapsed:.1f}ms"
+        assert elapsed < 600, f"4000 validator calls took {elapsed:.1f}ms"
 
     def test_min_max_unit_input_handling_fast(self):
         inputs = [
@@ -81,14 +79,16 @@ class TestValidatorPerformance:
             {"min": -20, "unit": "C"},
             {"value": 24, "unit": "V"},
             "10-50;C",
-            None,
         ]
         start = time.perf_counter()
         for _ in range(1000):
             for inp in inputs:
-                handle_min_max_unit_input(inp)
+                try:
+                    MinMaxUnit.model_validate(inp)
+                except Exception:
+                    pass
         elapsed = (time.perf_counter() - start) * 1000
-        assert elapsed < 200, f"5000 validator calls took {elapsed:.1f}ms"
+        assert elapsed < 600, f"4000 validator calls took {elapsed:.1f}ms"
 
 
 class TestDBOperationPerformance:

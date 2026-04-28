@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar, Union
-import re
 from uuid import UUID
 
 import boto3  # type: ignore
@@ -68,44 +67,6 @@ class DynamoDBClient:
         else:
             return obj
 
-    def _parse_compact_units(self, obj: Any) -> Any:
-        """
-        Recursively parse compact "value;unit" strings into structured dicts.
-        Also handles "min-max;unit" strings.
-        """
-        if isinstance(obj, dict):
-            return {k: self._parse_compact_units(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._parse_compact_units(item) for item in obj]
-        elif isinstance(obj, str) and ";" in obj:
-            # AI-generated comment:
-            # Improved regex to handle negative numbers and ranges correctly.
-            # Captures:
-            # Group 1: Start value (min) or single value
-            # Group 2: Optional end value (max) (without the separator hyphen)
-            # Group 3: Unit
-            # Examples:
-            # "20;C" -> grp1="20", grp2=None, grp3="C"
-            # "20-40;C" -> grp1="20", grp2="40", grp3="C"
-            # "-20-40;C" -> grp1="-20", grp2="40", grp3="C"
-            # "-20--40;C" -> grp1="-20", grp2="-40", grp3="C"
-            match = re.match(r"^(-?[\d.]+)(?:-(-?[\d.]+))?;(.*)$", obj)
-            if match:
-                val1, val2, unit = match.groups()
-                try:
-                    if val2 is not None:
-                        return {
-                            "min": Decimal(val1),
-                            "max": Decimal(val2),
-                            "unit": unit,
-                        }
-                    else:
-                        return {"value": Decimal(val1), "unit": unit}
-                except Exception:
-                    # If Decimal conversion fails (e.g. "2+"), return original string
-                    return obj
-        return obj
-
     def _serialize_item(self, model: Union[ProductBase, Datasheet]) -> Dict[str, Any]:
         """Convert Pydantic model to DynamoDB item format.
 
@@ -143,10 +104,9 @@ class DynamoDBClient:
             product_id_str: str = str(data.get("product_id", ""))
             data["SK"] = f"PRODUCT#{product_id_str}"
 
-        # First, parse our custom compact string formats into dicts
-        data = self._parse_compact_units(data)
-
-        # Then, convert all float values to Decimal for DynamoDB compatibility
+        # ValueUnit / MinMaxUnit fields already serialise as nested dicts via
+        # ``model_dump`` — no compact-string parsing needed. Convert all
+        # float values to Decimal for DynamoDB compatibility.
         data = self._convert_floats_to_decimal(data)
 
         return data
