@@ -1,5 +1,22 @@
 # CI/CD: tighten the dev loop, make it agent-friendly
 
+## 2026-04-28 (PM): Smoke Prod red — secret-derived job output stripped between jobs ✅ fixed
+
+After the operator set `HOSTED_ZONE_ID` correctly (`Z039212425BG1MHVPYWDN`) and re-ran `25031648467`, **Deploy Prod went green** — Phase 3c rebrand landed in prod (`specodex-api-prod` Lambda, `Project=Specodex` tag, `Specodex-prod-*` exports; `https://datasheets.advin.io/health` returns 200 with `mode: "public"`). Smoke Prod failed at the `Wait for /health to go 200` step with `URL rejected: No host part in the URL` and `Production /health returned 000`.
+
+Root cause: `Extract stack outputs` was running `./Quickstart cdk-outputs --key SiteUrl --key CloudFrontUrl`. Prod has the `SiteUrl` output (`https://${DOMAIN_NAME}` ≈ `https://datasheets.advin.io`), and that string contains the `DOMAIN_NAME` secret value. **GitHub Actions strips secret-derived values from job outputs** — the consuming `smoke-prod` job sees `needs.deploy-prod.outputs.url` as empty. In the deploy job's own log it shows up as `Production URL: https://***`, which is the masking that gives the bug away. Staging was unaffected because staging only emits `CloudFrontUrl` (the `*.cloudfront.net` domain — not secret-derived).
+
+Fix: swap the priority so `CloudFrontUrl` always wins for prod. The CloudFront URL serves identical content (the custom domain is a Route53 alias to that same distribution), passes between jobs cleanly, and was already what staging uses. Loss: smoke-prod no longer exercises the user-facing custom-domain path — but the SiteAliasRecord CFN resource and stack-status verify already prove DNS is wired correctly. Trade is fine.
+
+```yaml
+# .github/workflows/ci.yml — deploy-prod / Extract stack outputs
+URL=$(./Quickstart cdk-outputs --key CloudFrontUrl)
+```
+
+Why this hadn't surfaced: this was the first time Smoke Prod ever ran. Every prior CI prod-deploy attempt failed at Deploy Prod (originally OIDC trust policy, then `??` vs `||`, then wrong-zone secret), so smoke was always skipped. Three layers of bugs deep, and only the green deploy let us see this one.
+
+Lesson: be wary of `secrets.*` flowing through job outputs. Any `${{ steps.foo.outputs.x }}` value derived from a secret will silently be empty in downstream `needs.<job>.outputs.x`. Audit other workflow paths if you add more cross-job output passing.
+
 ## 2026-04-28: Prod deploy red — `HOSTED_ZONE_ID` secret points at wrong zone
 
 After the `||` fallback shipped (`c3a89fb`) and the deterministic Lambda bundle landed (`12829d8`), CI run `25031648467` advanced through Test → Deploy Staging → Smoke Staging cleanly, then **failed at Deploy Prod / Frontend / SiteAliasRecord** with:
