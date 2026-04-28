@@ -26,7 +26,9 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import ThemeToggle from './components/ThemeToggle';
+import GitHubLink from './components/GitHubLink';
 import UnitToggle from './components/UnitToggle';
+import DensityToggle from './components/DensityToggle';
 import NetworkStatus from './components/NetworkStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import BuildTray from './components/BuildTray';
@@ -106,15 +108,20 @@ function AppShell() {
                   SPECODEX
                 </NavLink>
               </h1>
-              <nav className="nav-inline">
-                <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
-                {isAdmin && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
-                {isAdmin && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
-                {isAdmin && <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>}
-              </nav>
+              <GitHubLink />
+              {isAdmin && (
+                <nav className="nav-inline">
+                  <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
+                  <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
+                  <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
+                  <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>
+                </nav>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <div className="header-options">
+              <span className="header-options-label" aria-hidden="true">OPTIONS</span>
               <UnitToggle />
+              <DensityToggle />
               <ThemeToggle />
             </div>
           </header>

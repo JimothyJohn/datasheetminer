@@ -106,6 +106,13 @@ interface AppContextType extends AppState {
   // true so the build flow narrows automatically; user can disable per session.
   compatibleOnly: boolean;
   setCompatibleOnly: (v: boolean) => void;
+
+  // Results-table row density. Lives at app level so the header toggle and
+  // the table both read/write the same value. Persisted in localStorage
+  // under 'productListRowDensity' (key preserved from when this lived in
+  // ProductList so existing user prefs carry over).
+  rowDensity: 'compact' | 'comfy';
+  setRowDensity: (d: 'compact' | 'comfy') => void;
 }
 
 /**
@@ -176,6 +183,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     safeSave('specodex.compatibleOnly', compatibleOnly);
   }, [compatibleOnly]);
   const setCompatibleOnly = useCallback((v: boolean) => setCompatibleOnlyState(v), []);
+
+  // Results-table row density.
+  const [rowDensity, setRowDensityState] = useState<'compact' | 'comfy'>(() =>
+    safeLoadString(
+      'productListRowDensity',
+      (v): v is 'compact' | 'comfy' => v === 'compact' || v === 'comfy',
+      'compact',
+    ),
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('productListRowDensity', rowDensity);
+    } catch {
+      // best-effort
+    }
+  }, [rowDensity]);
+  const setRowDensity = useCallback((d: 'compact' | 'comfy') => setRowDensityState(d), []);
 
   // ========== Caching Infrastructure ==========
   /**
@@ -717,6 +742,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearBuild,
     compatibleOnly,
     setCompatibleOnly,
+
+    // Row density
+    rowDensity,
+    setRowDensity,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -8,7 +8,13 @@
 
 import { useApp } from '../context/AppContext';
 
-export default function UnitToggle() {
+interface UnitToggleProps {
+  /** Compact variant for inline use (e.g. filter sidebar). Defaults to the
+   *  44×44 header chip. */
+  compact?: boolean;
+}
+
+export default function UnitToggle({ compact = false }: UnitToggleProps) {
   const { unitSystem, setUnitSystem } = useApp();
   const isImperial = unitSystem === 'imperial';
 
@@ -20,6 +26,20 @@ export default function UnitToggle() {
     ? 'Switch to metric display (compound coefficients shown as-is)'
     : 'Switch to imperial display (compound coefficients shown as-is)';
 
+  if (compact) {
+    return (
+      <button
+        className="unit-toggle-compact"
+        onClick={toggle}
+        aria-label={isImperial ? 'Switch to metric units' : 'Switch to imperial units'}
+        title={title}
+      >
+        <span className={`unit-toggle-compact-pill${!isImperial ? ' active' : ''}`}>SI</span>
+        <span className={`unit-toggle-compact-pill${isImperial ? ' active' : ''}`}>IMP</span>
+      </button>
+    );
+  }
+
   return (
     <button
       className="theme-toggle unit-toggle"
@@ -29,7 +49,7 @@ export default function UnitToggle() {
     >
       <span
         style={{
-          fontSize: '0.7rem',
+          fontSize: '0.85rem',
           fontWeight: 700,
           letterSpacing: '0.04em',
           fontFamily: 'inherit',

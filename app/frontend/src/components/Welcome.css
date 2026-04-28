@@ -1,25 +1,29 @@
-/* Specodex landing — army-green / mil-spec throwback.
- * Scoped to .specodex-landing and descendants. Does not inherit
- * the app's theme variables; this surface has its own fixed palette
- * (Stage 1: landing-only). When Stage 2 adopts the palette in the
- * app shell, the variables here graduate to App.css. */
+/* Specodex landing — manila / engineering-paper field manual.
+ * Scoped to .specodex-landing and descendants. The palette responds to
+ * the app's `data-theme` attribute: dark is the default (matches App.css
+ * :root default), light is opt-in via `:root[data-theme="light"]`.
+ * Variable names `--od` / `--od-deep` are kept for stability across
+ * consumers; the values are now sepia/espresso ink, not olive drab. */
 
 .specodex-landing {
-  --paper: #E8E2C9;
-  --paper-shade: #DDD5B6;
-  --od: #3B4A2A;
-  --od-deep: #2C3820;
-  --ink: #1A1A14;
-  --ink-soft: #3A3A2E;
-  /* Khaki amber (was DoD safety orange #C84A1A) — orange + OD read
-   * "Christmas" once both surfaces were live. Amber is the field-manual
-   * highlighter analogue and lives next to OD without fighting. */
-  --stencil: #A88A1C;
-  --stamp: #7A1F1F;
-  /* Grid hairline — was muted olive (#7A8A5A); now warm khaki so the
-   * landing's grid texture stops adding to the green surface area. */
-  --grid: #B8AC85;
-  --rule: #1A1A14;
+  /* Dark defaults — manual lit at night.
+   * --on-od is the always-manila ink used for text/rules on the deep-ink
+   * band and chip; it must stay light in both themes since the band sits
+   * on dark sepia. --accent-text is the standalone-text accent (hero tag,
+   * divider): warm amber in both themes for visibility. */
+  --paper: #1f1810;
+  --paper-shade: #2a2218;
+  --od: #1a1209;
+  --od-deep: #120c06;
+  --ink: #e8e2c9;
+  --ink-soft: #b8ac85;
+  --on-od: #e8e2c9;
+  --accent-text: #d4a52a;
+  --stencil: #d4a52a;
+  --stamp: #a03525;
+  --grid: #5c5c4a;
+  --rule: #e8e2c9;
+  --feature-bg: rgba(42, 34, 24, 0.5);
 
   --font-headline: 'Oswald', 'Roboto Condensed', 'Arial Narrow', sans-serif;
   --font-body: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -34,6 +38,23 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   overflow-x: hidden;
+}
+
+/* Light palette — manila drafting paper. */
+:root[data-theme="light"] .specodex-landing {
+  --paper: #E8E2C9;
+  --paper-shade: #DDD5B6;
+  --od: #3A2C1C;
+  --od-deep: #2A1F12;
+  --ink: #1A1A14;
+  --ink-soft: #3A3A2E;
+  --on-od: #E8E2C9;
+  --accent-text: #A88A1C;
+  --stencil: #A88A1C;
+  --stamp: #7A1F1F;
+  --grid: #B8AC85;
+  --rule: #1A1A14;
+  --feature-bg: rgba(232, 226, 201, 0.4);
 }
 
 /* Faint paper grain — SVG turbulence at low opacity. */
@@ -52,10 +73,10 @@
   z-index: 1;
 }
 
-/* ===== Top band: OD-green stencil header ===== */
+/* ===== Top band: deep-ink stencil header ===== */
 .specodex-band {
   background-color: var(--od);
-  color: var(--paper);
+  color: var(--on-od);
   border-bottom: 2px solid var(--ink);
   padding: 0.55rem 1.5rem;
 }
@@ -75,18 +96,24 @@
   font-size: 1.6rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--paper);
+  color: var(--on-od);
 }
 
 .specodex-band-meta {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--paper);
+  color: var(--on-od);
   opacity: 0.85;
+}
+
+.specodex-band-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
 }
 
 .specodex-band-spec {
@@ -96,7 +123,7 @@
 .specodex-band-rule {
   width: 28px;
   height: 1px;
-  background-color: var(--paper);
+  background-color: var(--on-od);
   opacity: 0.5;
 }
 
@@ -134,16 +161,6 @@
   pointer-events: none;
   white-space: nowrap;
   z-index: 0;
-}
-
-.specodex-hero-tag {
-  font-family: var(--font-headline);
-  font-size: 0.8rem;
-  letter-spacing: 0.3em;
-  color: var(--od);
-  text-transform: uppercase;
-  margin-bottom: 1rem;
-  font-weight: 500;
 }
 
 .specodex-hero-title {
@@ -213,128 +230,6 @@
   outline: none;
 }
 
-/* ===== Stencil divider ===== */
-.specodex-divider {
-  margin: 3rem 0 1.5rem;
-  font-family: var(--font-headline);
-  font-size: 0.85rem;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--od);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.specodex-divider::before,
-.specodex-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background-color: var(--ink);
-  opacity: 0.6;
-}
-
-/* ===== Feature grid ===== */
-.specodex-feature-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--ink);
-  border-left: 1px solid var(--ink);
-}
-
-.specodex-feature {
-  border-right: 1px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
-  padding: 1.4rem 1.4rem 1.6rem;
-  background-color: rgba(232, 226, 201, 0.4);
-}
-
-.specodex-feature-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  margin-bottom: 0.6rem;
-}
-
-.specodex-feature-code {
-  font-family: var(--font-headline);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  background-color: var(--od);
-  color: var(--paper);
-  padding: 0.18rem 0.5rem;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.specodex-feature-title {
-  font-family: var(--font-headline);
-  font-size: 1.15rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0;
-  color: var(--ink);
-  line-height: 1.2;
-}
-
-.specodex-feature-body {
-  margin: 0;
-  font-size: 0.92rem;
-  color: var(--ink-soft);
-  line-height: 1.6;
-}
-
-/* ===== Footer ===== */
-.specodex-footer {
-  border-top: 2px solid var(--ink);
-  background-color: var(--paper-shade);
-  padding: 1.2rem 1.5rem;
-  margin-top: 2rem;
-}
-
-.specodex-footer-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.9rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
-}
-
-.specodex-footer-rule {
-  flex: 1;
-  height: 1px;
-  background-color: var(--ink);
-  opacity: 0.4;
-  min-width: 1.5rem;
-}
-
-.specodex-footer-link {
-  font-family: var(--font-headline);
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--ink);
-  text-decoration: none;
-  border-bottom: 1px solid var(--ink);
-  padding-bottom: 1px;
-}
-
-.specodex-footer-link:hover,
-.specodex-footer-link:focus-visible {
-  color: var(--stencil);
-  border-bottom-color: var(--stencil);
-  outline: none;
-}
-
 /* ===== Responsive nudges ===== */
 @media (max-width: 600px) {
   .specodex-band {
@@ -345,7 +240,7 @@
     letter-spacing: 0.14em;
   }
   .specodex-band-meta {
-    font-size: 0.62rem;
+    font-size: 0.85rem;
     gap: 0.5rem;
   }
   .specodex-main {
@@ -358,8 +253,5 @@
   .specodex-landing[data-issue]::before {
     font-size: 2.6rem;
     right: 0.5rem;
-  }
-  .specodex-feature-list {
-    grid-template-columns: 1fr;
   }
 }
