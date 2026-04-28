@@ -12,6 +12,7 @@ import AttributeSelector from './AttributeSelector';
 import FilterChip from './FilterChip';
 import DistributionChart from './DistributionChart';
 import Dropdown from './Dropdown';
+import UnitToggle from './UnitToggle';
 
 interface FilterBarProps {
   productType: ProductType;
@@ -149,7 +150,13 @@ export default function FilterBar({
           ariaLabel="Product type"
           placeholder={categories.length === 0 ? 'Loading...' : 'Select Product Type...'}
           options={[
-            { value: '', label: categories.length === 0 ? 'Loading...' : 'Select Product Type...' },
+            // Only offer the placeholder choice while no type is selected.
+            // Once the user picks a real type, removing it from the option
+            // list prevents accidentally re-selecting null and dropping
+            // back into the empty-state UI.
+            ...(productType === null
+              ? [{ value: '', label: categories.length === 0 ? 'Loading...' : 'Select Product Type...' }]
+              : []),
             ...categories.map((category) => ({
               value: category.type,
               label: category.display_name,
@@ -158,7 +165,10 @@ export default function FilterBar({
         />
       </div>
 
-      <h2 className="filter-sidebar-title">Specs</h2>
+      <div className="filter-sidebar-title-row">
+        <h2 className="filter-sidebar-title">Specs</h2>
+        <UnitToggle compact />
+      </div>
 
       {/* Match summary — total vs filtered, with percentage bar. Anchors
        * the top of the pane so the impact of every chip is visible
@@ -272,6 +282,19 @@ export default function FilterBar({
         }}
         isOpen={showAttributeSelector}
         cursorPosition={selectorCursor}
+        emptyHint={
+          productType === null ? (
+            <>
+              <strong className="attribute-selector-hint-title">
+                Select a product type first
+              </strong>
+              <span className="attribute-selector-hint-body">
+                Use the dropdown at the top of the sidebar to choose what
+                you're filtering — specs are scoped to that type.
+              </span>
+            </>
+          ) : undefined
+        }
       />
     </div>
   );

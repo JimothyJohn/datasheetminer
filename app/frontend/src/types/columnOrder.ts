@@ -43,7 +43,10 @@ export const COLUMN_ORDER: Partial<
   ],
   drive: [
     'rated_power',
-    // e.g. 'manufacturer', 'input_voltage', 'rated_current', 'peak_current', 'ip_rating',
+    'input_voltage',
+    'input_voltage_phases',
+    'rated_current',
+    'peak_current',
   ],
   robot_arm: [
     // e.g. 'manufacturer', 'payload', 'reach', 'degrees_of_freedom', 'pose_repeatability', 'max_tcp_speed',

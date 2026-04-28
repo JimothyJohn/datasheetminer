@@ -56,10 +56,10 @@ describe('AttributeSelector', () => {
       />
     );
 
-    expect(screen.getByPlaceholderText(/Search attributes/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search specs/i)).toBeInTheDocument();
   });
 
-  it('should display all attributes', () => {
+  it('should display attributes from expanded sections, hide collapsed ones', () => {
     render(
       <AttributeSelector
         attributes={mockAttributes}
@@ -69,8 +69,16 @@ describe('AttributeSelector', () => {
       />
     );
 
-    expect(screen.getByText('Manufacturer')).toBeInTheDocument();
+    // Mechanical is expanded by default — Rated Power renders immediately.
     expect(screen.getByText('Rated Power')).toBeInTheDocument();
+    // Identification is collapsed by default — its items aren't in the DOM
+    // until the header is clicked.
+    expect(screen.queryByText('Manufacturer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Part Number')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Identification'));
+
+    expect(screen.getByText('Manufacturer')).toBeInTheDocument();
     expect(screen.getByText('Part Number')).toBeInTheDocument();
   });
 
@@ -84,10 +92,12 @@ describe('AttributeSelector', () => {
       />
     );
 
-    const manufacturerButton = screen.getByText('Manufacturer');
-    fireEvent.click(manufacturerButton);
+    // Rated Power is in `mechanical` (expanded by default) so it's directly
+    // clickable without needing to expand its section first.
+    const ratedPowerButton = screen.getByText('Rated Power');
+    fireEvent.click(ratedPowerButton);
 
-    expect(mockSelect).toHaveBeenCalledWith(mockAttributes[0]);
+    expect(mockSelect).toHaveBeenCalledWith(mockAttributes[1]);
   });
 
   it('should call onClose when overlay clicked', () => {
@@ -124,7 +134,7 @@ describe('AttributeSelector', () => {
     expect(screen.queryByText('Manufacturer')).not.toBeInTheDocument();
   });
 
-  it('should handle empty attributes list', () => {
+  it('should show fallback hint when attributes list is empty', () => {
     render(
       <AttributeSelector
         attributes={[]}
@@ -134,6 +144,20 @@ describe('AttributeSelector', () => {
       />
     );
 
-    expect(screen.getByText(/No attributes found matching/i)).toBeInTheDocument();
+    expect(screen.getByText(/No specs available/i)).toBeInTheDocument();
+  });
+
+  it('should render the supplied emptyHint when attributes list is empty', () => {
+    render(
+      <AttributeSelector
+        attributes={[]}
+        onSelect={mockSelect}
+        onClose={mockClose}
+        isOpen={true}
+        emptyHint={<span>Pick a product type first</span>}
+      />
+    );
+
+    expect(screen.getByText(/Pick a product type first/i)).toBeInTheDocument();
   });
 });

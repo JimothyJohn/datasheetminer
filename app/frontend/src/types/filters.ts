@@ -136,6 +136,192 @@ export interface AttributeMetadata {
   defaultVisible?: boolean;
 }
 
+// ========== Attribute Categories ==========
+//
+// Attributes are grouped into semantic sections in the AttributeSelector
+// dropdown so an integrator scanning for "voltage" doesn't have to scroll
+// past 20 mechanical specs to find it. The category is intrinsic to the
+// attribute *key*, not to its value payload — `rated_power` is electrical
+// regardless of whether it carries a `ValueUnit` or a bare number — so this
+// map is the single source of truth and lives separately from the per-type
+// curated metadata. Keys not in the map fall through to 'other', which
+// renders as a clearly-labelled bucket at the end so schema evolution
+// surfaces uncategorized fields instead of silently dropping them.
+//
+// Section render order is fixed in CATEGORY_ORDER below.
+
+export type AttributeCategory =
+  | 'identification'
+  | 'mechanical'
+  | 'electrical'
+  | 'software'
+  | 'network'
+  | 'environment'
+  | 'other';
+
+// Order is intentional: mechanical / electrical / environment lead because
+// integrators sort by physical specs first, then drill into integration
+// (software/network) and lookup metadata (identification). The first three
+// are also the default-expanded set in AttributeSelector.tsx.
+export const CATEGORY_ORDER: readonly AttributeCategory[] = [
+  'mechanical',
+  'electrical',
+  'environment',
+  'software',
+  'network',
+  'identification',
+  'other',
+];
+
+// Sections expanded on first open. Matches the lead-three of CATEGORY_ORDER.
+// Mirrored in AttributeSelector.tsx as the initial state.
+export const DEFAULT_EXPANDED_CATEGORIES: readonly AttributeCategory[] = [
+  'mechanical',
+  'electrical',
+  'environment',
+];
+
+export const CATEGORY_LABELS: Record<AttributeCategory, string> = {
+  identification: 'Identification',
+  mechanical: 'Mechanical',
+  electrical: 'Electrical',
+  software: 'Software',
+  network: 'Network',
+  environment: 'Environment',
+  other: 'Other',
+};
+
+const CATEGORY_BY_KEY: Record<string, AttributeCategory> = {
+  // ----- Identification -----
+  manufacturer: 'identification',
+  part_number: 'identification',
+  product_name: 'identification',
+  product_family: 'identification',
+  component_type: 'identification',
+  type: 'identification',
+  series: 'identification',
+  frame_size: 'identification',
+  vendor_frame_size: 'identification',
+  nema_size: 'identification',
+  motor_type: 'identification',
+  gear_type: 'identification',
+
+  // ----- Mechanical -----
+  rated_torque: 'mechanical',
+  peak_torque: 'mechanical',
+  rated_speed: 'mechanical',
+  nominal_input_speed: 'mechanical',
+  max_input_speed: 'mechanical',
+  rotor_inertia: 'mechanical',
+  gear_ratio: 'mechanical',
+  stages: 'mechanical',
+  backlash: 'mechanical',
+  torsional_rigidity: 'mechanical',
+  efficiency: 'mechanical',
+  input_shaft_diameter: 'mechanical',
+  output_shaft_diameter: 'mechanical',
+  shaft_diameter: 'mechanical',
+  max_radial_load: 'mechanical',
+  max_axial_load: 'mechanical',
+  weight: 'mechanical',
+  payload: 'mechanical',
+  reach: 'mechanical',
+  degrees_of_freedom: 'mechanical',
+  pose_repeatability: 'mechanical',
+  max_tcp_speed: 'mechanical',
+  mounting_position: 'mechanical',
+  mounting_types: 'mechanical',
+  materials: 'mechanical',
+  stroke: 'mechanical',
+  max_push_force: 'mechanical',
+  max_pull_force: 'mechanical',
+  continuous_force: 'mechanical',
+  max_linear_speed: 'mechanical',
+  linear_speed_at_rated_load: 'mechanical',
+  lead_screw_pitch: 'mechanical',
+  positioning_repeatability: 'mechanical',
+  lubrication_type: 'mechanical',
+  poles: 'mechanical',
+  dimensions: 'mechanical',
+  mechanical_durability: 'mechanical',
+
+  // ----- Electrical -----
+  rated_power: 'electrical',
+  rated_voltage: 'electrical',
+  input_voltage: 'electrical',
+  input_voltage_phases: 'electrical',
+  input_voltage_frequency: 'electrical',
+  rated_current: 'electrical',
+  peak_current: 'electrical',
+  switching_frequency: 'electrical',
+  voltage_constant: 'electrical',
+  torque_constant: 'electrical',
+  resistance: 'electrical',
+  inductance: 'electrical',
+  ie_ac3_400v: 'electrical',
+  motor_power_ac3_400v_kw: 'electrical',
+  motor_power_ac3_480v_hp: 'electrical',
+  conventional_thermal_current: 'electrical',
+  rated_insulation_voltage: 'electrical',
+  rated_impulse_withstand_voltage: 'electrical',
+  rated_operational_voltage_max: 'electrical',
+  rated_frequency: 'electrical',
+  sccr: 'electrical',
+  coil_voltage_range_ac: 'electrical',
+  coil_voltage_range_dc: 'electrical',
+  coil_voltage_options: 'electrical',
+  coil_pickup_factor: 'electrical',
+  coil_dropout_factor: 'electrical',
+  coil_time_constant: 'electrical',
+  coil_power_consumption_sealed: 'electrical',
+  coil_power_consumption_inrush: 'electrical',
+  making_capacity: 'electrical',
+  breaking_capacity: 'electrical',
+  operating_time_close: 'electrical',
+  operating_time_open: 'electrical',
+  electrical_durability_ac3: 'electrical',
+  operating_frequency_ac3: 'electrical',
+  number_of_poles: 'electrical',
+  auxiliary_contact_configuration: 'electrical',
+
+  // ----- Software (control + feedback) -----
+  control_modes: 'software',
+  encoder_feedback_support: 'software',
+
+  // ----- Network (fieldbus + I/O) -----
+  fieldbus: 'network',
+  ethernet_ports: 'network',
+  digital_inputs: 'network',
+  digital_outputs: 'network',
+  analog_inputs: 'network',
+  analog_outputs: 'network',
+
+  // ----- Environment -----
+  operating_temp: 'environment',
+  storage_temp: 'environment',
+  altitude_max: 'environment',
+  max_humidity: 'environment',
+  ip_rating: 'environment',
+  cleanroom_class: 'environment',
+  noise_level: 'environment',
+  service_life: 'environment',
+  approvals: 'environment',
+  certifications: 'environment',
+  standards_compliance: 'environment',
+  safety_features: 'environment',
+  safety_rating: 'environment',
+  safety_certifications: 'environment',
+  pollution_degree: 'environment',
+};
+
+/**
+ * Map an attribute key to its semantic section in the AttributeSelector
+ * dropdown. Unmapped keys fall through to 'other' — visible at the end of
+ * the list as a clearly-labelled bucket so new schema fields don't vanish.
+ */
+export const getCategoryForKey = (key: string): AttributeCategory =>
+  CATEGORY_BY_KEY[key] ?? 'other';
+
 // ========== Attribute Metadata Functions ==========
 
 /**
@@ -381,10 +567,10 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['drive'] },
   { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'W', defaultVisible: true },
   { key: 'input_voltage', displayName: 'Input Voltage', type: 'range', applicableTypes: ['drive'], nested: true, unit: 'V', defaultVisible: true },
+  { key: 'input_voltage_phases', displayName: 'Input Voltage Phases', type: 'array', applicableTypes: ['drive'], defaultVisible: true },
   { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
   { key: 'peak_current', displayName: 'Peak Current', type: 'object', applicableTypes: ['drive'], nested: true, unit: 'A', defaultVisible: true },
   { key: 'ip_rating', displayName: 'IP Rating', type: 'number', applicableTypes: ['drive'], defaultVisible: true },
-  { key: 'input_voltage_phases', displayName: 'Input Voltage Phases', type: 'array', applicableTypes: ['drive'] },
   { key: 'fieldbus', displayName: 'Fieldbus', type: 'array', applicableTypes: ['drive'] },
   { key: 'control_modes', displayName: 'Control Modes', type: 'array', applicableTypes: ['drive'] },
   { key: 'encoder_feedback_support', displayName: 'Encoder Feedback', type: 'array', applicableTypes: ['drive'] },
