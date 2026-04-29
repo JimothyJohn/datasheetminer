@@ -53,15 +53,33 @@ deprecation warning emitting on every run. Single-PR cleanup.
 
 ### 3. Wire `tests/integration/` into CI
 
-8 files exist (`test_pipeline.py`, `test_db_integration.py`,
-`test_intake_guards_end_to_end.py`, `test_scraper_degraded_inputs.py`,
-etc.) and **none** run in CI. New integration tests in any branch rot
-silently. Fix: a `test-integration` job running `pytest tests/integration/
--m "not live"` with moto-mocked AWS; gate `live`-marked tests behind
-a separate nightly trigger.
+**Status:** Pre-work cleanup landed (commit `<TBD>` after this PR). The
+`tests/integration/` tree had two dead files removed (stale AI-generated
+`tests/test_cli.py`, stale SAM-template `tests/integration/test_api_gateway.py`)
+and a `live` marker added to `pytest.ini`. **Wiring CI to run the suite
+is still gated on triaging 7 real test bugs:**
 
-Also include `tests/test_cli.py` (top-level) in the unit pass — it's
-currently excluded by the `tests/unit/` glob.
+- `test_deploy_readiness.py` × 2 — `productTypes.ts` allowlist drift
+  (Python `ProductType` literal includes `"datasheet"` and `"linear_actuator"`
+  but TS doesn't; cross-language drift the CLAUDE.md "Adding a new product
+  type" checklist warns about).
+- `test_pipeline.py` × 3 — mock chain in `TestPdfToDbPipeline` /
+  `TestHtmlToDbPipeline` / `TestBatchFromJson` doesn't cover an internal
+  PDF-parse step; `pikepdf`/`PyPDF2` is being called on the fake bytes
+  and failing with "Failed to open stream".
+- `test_scraper_degraded_inputs.py` × 2 — `TestPageRouting`
+  `test_explicit_pages_routes_to_per_page` and
+  `test_text_heuristic_drives_per_page_when_pages_none`. Same mock-chain
+  class of failure.
+
+These are real bugs in either the tests or the SUT, not "test needs
+moto." Each needs a focused look. Until they're triaged, wiring CI
+would make the gate red — violates CLAUDE.md "never skip a failing test
+to clear CI."
+
+**Wire-up plan once triaged:** new `test-integration` job running
+`pytest tests/integration/ -m "not live"` with moto-mocked AWS;
+`live`-marked tests stay deferred to a separate nightly trigger.
 
 ### 4. Nightly `./Quickstart bench` workflow
 
