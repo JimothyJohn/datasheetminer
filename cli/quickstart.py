@@ -20,6 +20,10 @@ Usage:
                                   (try: ./Quickstart price-enrich --help)
     ./Quickstart ingest-report    Group ingest-log quality-fails by manufacturer
                                   (try: ./Quickstart ingest-report --help)
+    ./Quickstart godmode          Data-quality observatory — coverage, oddities,
+                                  distributions, outliers, drift, etc.
+                                  Writes outputs/godmode/<ts>.html for review.
+                                  (try: ./Quickstart godmode --help)
     ./Quickstart schemagen PDF --type NAME
                                   Propose a new Pydantic product model from a PDF
                                   (try: ./Quickstart schemagen --help)
@@ -815,6 +819,13 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "ingest-report":
         run(
             ["uv", "run", "python", "-m", "cli.ingest_report", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "godmode":
+        run(
+            ["uv", "run", "python", "-m", "cli.godmode", *sys.argv[2:]],
             cwd=ROOT,
         )
         return
