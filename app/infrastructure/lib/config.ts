@@ -6,7 +6,6 @@
 export interface DomainConfig {
   domainName: string;
   certificateArn: string;
-  hostedZoneId: string;
   hostedZoneName: string;
 }
 
@@ -29,9 +28,8 @@ export function getConfig(): AppConfig {
 
   const domainName = process.env.DOMAIN_NAME;
   const certificateArn = process.env.CERTIFICATE_ARN;
-  const hostedZoneId = process.env.HOSTED_ZONE_ID;
   let domain: DomainConfig | undefined;
-  if (domainName && certificateArn && hostedZoneId) {
+  if (domainName && certificateArn) {
     // HOSTED_ZONE_NAME is optional — default to the parent of DOMAIN_NAME
     // (e.g. datasheets.advin.io → advin.io). `||` (not `??`) so that an
     // empty string from an unset GitHub Actions secret falls back too —
@@ -39,7 +37,7 @@ export function getConfig(): AppConfig {
     // Route53 rejects it with DomainLabelEmpty.
     const hostedZoneName =
       process.env.HOSTED_ZONE_NAME || domainName.split('.').slice(1).join('.');
-    domain = { domainName, certificateArn, hostedZoneId, hostedZoneName };
+    domain = { domainName, certificateArn, hostedZoneName };
   }
 
   return {

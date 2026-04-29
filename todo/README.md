@@ -21,7 +21,7 @@ reshapes its substrate.
 
 | # | Doc | Status | Effort | One-line summary |
 |---|-----|--------|--------|------------------|
-| 1 | [CICD.md](CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. `HOSTED_ZONE_ID` rotated, Phase 3c rebrand in prod. Followups (CDK `fromLookup`, action refresh, integration tests in CI, nightly bench, JUnit XML, security scans, `staging.yml` cleanup) are mine to land. **Operator queue: empty.** |
+| 1 | [CICD.md](CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. Action refresh, integration tests in CI, JUnit XML all shipped. Followup #1 (`fromLookup`) code-ready on branch `cicd-followup-fromlookup` — gated on operator adding `route53:ListHostedZonesByName`/`route53:GetHostedZone` to the deploy role. Remaining followups (nightly bench, `paths-ignore`, security scans, `staging.yml` cleanup) are mine to land. |
 | 2 | [REBRAND.md](REBRAND.md) | 🚧 Phase 3a–e ✅ shipped + deployed; Stage 4 (DNS cutover) pending | 🟡 medium | Datasheetminer → Specodex. Stages 1+2 chrome ✅, 3a (Python pkg) ✅, 3b (Node workspaces) ✅, 3c (CDK rename) ✅ deployed 2026-04-28, 3d (GH repo rename) ✅, 3e (docs sweep) ✅. Stage 4 (`specodex.com` DNS cutover + ACM cert + CloudFront alt-domain) waits on zone NS propagation. |
 | 3 | [UNITS.md](UNITS.md) | ✅ shipped 2026-04-28 — code `a8f6162` + `aac7050`, data backfill applied to dev (273 rows) + prod (10 rows) | 🟢 done | **Linchpin.** `ValueUnit`/`MinMaxUnit` carry `{value, unit}` end-to-end. `cli/migrate_units_to_dict.py` rescued `~`/`,`/`≤`/`≥` quirks; `±` and `;null`/`;unknown` left in review. Manual triage of ~373 dev + 10 prod review entries pending — pre-existing data quality, non-blocking. |
 | 4 | [DEDUPE.md](DEDUPE.md) | ⏸ deferred | 🟡 medium (high blast radius) | One-time cross-vendor sweep for prefix-drift duplicates left by `--force` re-ingests pre-family-aware-ID fix. Audit + safe-merge + human review. **Phase 1 audit is a Late Night candidate** — read-only on DB, output is JSON. |
@@ -39,7 +39,7 @@ Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴
 UNITS was the linchpin (Pydantic + DynamoDB + frontend rendering substrate). Now done.
 With UNITS landed and CICD green, the remaining order:
 
-1. **CICD followups.** Autonomous; `fromLookup`/action refresh/integration-tests-in-CI/nightly bench, in that order. Each is a separate small PR.
+1. **CICD followups.** `fromLookup` code-ready on `cicd-followup-fromlookup` (gated on operator adding Route53 read perms to deploy role). Then nightly bench, `paths-ignore`, security scans, `staging.yml` cleanup. Each is a separate small PR.
 2. **REBRAND Stage 4.** DNS cutover for `specodex.com` once registrar NS records propagate. Mechanical AWS plumbing — touches no Python/TS code, can interleave with anything else.
 3. **DEDUPE.** Operates on post-UNITS uniform data. Phase 1 audit is a Late Night candidate (read-only). Phase 2 auto-merge + Phase 3 human review queue follow.
 4. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
