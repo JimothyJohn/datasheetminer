@@ -48,6 +48,60 @@ jobs:
       - name: Verify (Python)
         run: ./Quickstart verify --only python
 
+      # JUnit XML written by ./Quickstart verify lands in
+      # outputs/test-reports/. Upload always (even on test failure) so the
+      # run page has the artifact for post-mortem, then summarise pass/fail
+      # to $GITHUB_STEP_SUMMARY so failure cause is visible without
+      # `gh run view --log-failed`.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-test-reports
+          path: outputs/test-reports/python-*.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Summarise Python tests
+        if: always()
+        run: |
+          # Parse JUnit XML and emit a markdown summary. stdlib only.
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          print("## Python tests")
+          for path in sorted(glob.glob("outputs/test-reports/python-*.xml")):
+              try:
+                  root = ET.parse(path).getroot()
+              except ET.ParseError as e:
+                  print(f"- `{path}`: parse error — {e}")
+                  continue
+              # pytest emits <testsuites><testsuite ... /></testsuites>.
+              # Older versions emit a bare <testsuite>. Handle both.
+              suites = list(root.iter("testsuite"))
+              if not suites:
+                  continue
+              total = sum(int(s.get("tests", 0)) for s in suites)
+              fail = sum(int(s.get("failures", 0)) for s in suites)
+              err = sum(int(s.get("errors", 0)) for s in suites)
+              skip = sum(int(s.get("skipped", 0)) for s in suites)
+              passed = total - fail - err - skip
+              status = "✅" if fail == 0 and err == 0 else "❌"
+              print(f"- {status} `{Path(path).name}` — {passed}/{total} passed, "
+                    f"{fail} failed, {err} errored, {skip} skipped")
+              if fail or err:
+                  print()
+                  print("<details><summary>Failures</summary>\n")
+                  for case in root.iter("testcase"):
+                      for fail_el in list(case.iter("failure")) + list(case.iter("error")):
+                          name = f"{case.get('classname', '?')}::{case.get('name', '?')}"
+                          msg = (fail_el.get("message") or "").splitlines()[0][:200]
+                          print(f"- `{name}` — {msg}")
+                  print("\n</details>")
+          PY
+
   # ── Stage 1b: Backend unit tests ────────────────────────────────
   test-backend:
     name: Test Backend

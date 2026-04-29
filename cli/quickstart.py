@@ -369,15 +369,40 @@ def cmd_verify(args: argparse.Namespace) -> None:
         info("Python: ruff format --check")
         run(["uv", "run", "ruff", "format", "--check"], cwd=ROOT)
 
+        # JUnit XML lands in outputs/test-reports/ for the CI step-summary
+        # step + actions/upload-artifact. Local runs write the same files;
+        # outputs/ is gitignored so it's invisible to the user.
+        reports_dir = ROOT / "outputs" / "test-reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
         info("Python: pytest tests/unit/ -m 'not slow'")
         run(
-            ["uv", "run", "pytest", "tests/unit/", "-m", "not slow", "-v"],
+            [
+                "uv",
+                "run",
+                "pytest",
+                "tests/unit/",
+                "-m",
+                "not slow",
+                "-v",
+                f"--junitxml={reports_dir}/python-unit.xml",
+            ],
             cwd=ROOT,
         )
 
         if do_integration:
             info("Python: pytest tests/integration/")
-            run(["uv", "run", "pytest", "tests/integration/", "-v"], cwd=ROOT)
+            run(
+                [
+                    "uv",
+                    "run",
+                    "pytest",
+                    "tests/integration/",
+                    "-v",
+                    f"--junitxml={reports_dir}/python-integration.xml",
+                ],
+                cwd=ROOT,
+            )
 
     if "backend" in stages:
         info("Backend: lint")
