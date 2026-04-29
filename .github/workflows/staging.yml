@@ -1,6 +1,13 @@
-name: Staging Integration Tests
+name: Manual contract tests (any URL)
 
-# Manual-only — staging tests create/mutate data. Never auto-run against production.
+# Manual-only ad-hoc smoke. Distinct from `smoke-staging` in ci.yml,
+# which is hardwired to the just-deployed staging URL — this one runs
+# tests/staging/ against an ARBITRARY URL passed via workflow_dispatch
+# input. Use it to smoke a feature branch deploy, a PR preview, or a
+# remote dev environment without re-running the whole CI deploy chain.
+#
+# Tests under tests/staging/ create/mutate data. Don't run this against
+# production — there's no guard, just don't.
 on:
   workflow_dispatch:
     inputs:
@@ -14,12 +21,14 @@ jobs:
     name: Staging Contract Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --quiet
