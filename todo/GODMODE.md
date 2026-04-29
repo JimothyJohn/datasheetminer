@@ -1,330 +1,234 @@
-# GOD mode dashboard
+# GOD mode dashboard — data-quality observatory
 
-A single page that answers "what the hell is going on with this project right
-now?" without forcing context-switching between AWS Console, GitHub,
-CloudWatch, the terminal, and three Quickstart commands.
+A single page that answers **"how clean is the catalog right now and where
+should I spend the next ingester improvement?"** Read-only on the database,
+zero new infrastructure, designed to drive a tight feedback loop:
+
+> dashboard surfaces an oddity → adjust prompt / page_finder / model /
+> validators → re-ingest → dashboard shows the fix
+
+Everything else (Gemini cost monitoring, Claude usage, deploy state,
+CloudWatch errors, repo activity) belongs in other docs or skips the
+dashboard entirely. **Scope is data quality, full stop.**
 
 ## Goal
 
-One URL — `/godmode` in the React app, gated by the existing `adminOnly`
-middleware — that surfaces, at a glance:
+One report — `./Quickstart godmode` writes `outputs/godmode/<ts>.html` and
+updates `latest.html` — that surfaces, at a glance:
 
-1. **AI usage** — Gemini token spend / RPM / error rate (from ingest_log);
-   Claude Code token spend (from local transcripts). Cost in dollars.
-2. **Pipeline health** — recent ingest attempts, success vs quality_fail vs
-   extract_fail, top failing manufacturers, p50/p95 wall-clock per attempt.
-3. **Database health** — products by type, products written in last 24 h,
-   "unhealthy" rows (nulls below the quality floor, missing prices, stale
-   `createdAt`, orphaned `INGEST#` records with no matching product).
-4. **Repo activity** — commits last 7/30 d, LOC by language, churn (lines
-   added/removed), test pass rate from the last `./Quickstart test` run.
-5. **Deploy state** — current stack version per stage (dev/staging/prod),
-   `/health` response, last 10 CloudWatch errors.
-6. **Backlog state** — `todo/*.md` count by status (🚧 / ⏸ / 🔴 / ✅),
-   urgency surfaced.
+1. **Coverage matrix.** For each `(product_type, field)`: % of products
+   where the value is non-null and non-placeholder. Heat-map the gaps.
+2. **String oddities.** Across every string field on every product, count
+   patterns that almost certainly indicate misextraction:
+   - contains `;` (compact-string leak — should be 0 post-UNITS migration)
+   - literal `null` / `unknown` / `N/A` / `-` / `TBD` as the value
+   - leading/trailing whitespace
+   - non-ASCII outside the expected unit symbols (`°`, `±`, `Ω`, `μ`, `²`)
+   - mixed encodings on the same field across products
+3. **Per-field distributions.** Numeric fields → histogram (10 buckets,
+   p5/p50/p95 marked). Categorical fields → top-20 with counts. Spotting:
+   - numeric fields stuck at one value across many products (LLM
+     memorising a column header)
+   - categorical fields with hundreds of singletons (parsing each row's
+     freeform text instead of canonicalising)
+4. **Cluster commonalities.** For each `(manufacturer, product_type)`
+   bucket of size ≥ 3: which fields hold the same value across **every**
+   product in the bucket? Often a vendor-template artefact — the LLM
+   extracted the catalog header instead of the per-row value.
+5. **Range outliers.** Per `ValueUnit` family (voltage/current/torque/...),
+   products whose value sits > 3σ from the family median. Often
+   misextractions: a "5000V" servo is a typo for "500V", a "0.1mm" robot
+   reach is a unit confusion.
+6. **Unit-family mismatches.** How often does a `Torque` field carry a
+   non-torque unit? `UNITS` rejected such rows to `None` post-migration —
+   this surfaces the rejected-prone manufacturers + fields so you can
+   tighten the schema hint or the prompt example.
+7. **Per-manufacturer failure modes.** Top-N most-failing fields per
+   manufacturer, with up to 3 sample raw-string values per failure. The
+   sample values are the input to the next prompt-engineering pass.
+8. **Quality-score distribution.** Histogram of `specodex.quality.score()`
+   across the catalog, broken down by `(product_type, manufacturer)`. The
+   bottom decile is where ingester improvements move the most product.
+9. **Drift signal.** Diff against the previous snapshot in
+   `outputs/godmode/`: which fields' null-rate jumped, which manufacturers
+   started failing, which `string oddities` patterns appeared since last
+   run. The simplest "what broke this week?" answer.
 
-Stupid simple on purpose: read existing data sources, no new agents, no new
-metrics pipeline. Every panel must answer "where does the number come from?"
-in one sentence.
+Stupid simple on purpose: read DynamoDB once, compute everything in Python,
+emit a self-contained HTML report. No new agents, no metrics pipeline, no
+backend route, no auth surface.
 
-## Non-goals
+## Non-goals (explicit cut from the prior version of this doc)
 
-- **No new metrics infrastructure.** No CloudWatch custom metrics, no
-  Prometheus, no Datadog. We already have ingest_log in DynamoDB and
-  CloudWatch Logs — derive everything from there.
-- **No real-time push.** Polling on an Refresh button is fine. SSE/WebSockets
-  would be over-engineering for a one-user dashboard.
-- **No historical timeseries store.** Last-N-days windows computed on
-  demand. If we want trends later, that's a separate doc.
-- **No ML/anomaly detection.** Threshold colors only (green/yellow/red).
-- **No Claude org admin API integration.** Personal Claude usage comes from
-  reading local `~/.claude/projects/` transcripts; we don't try to auth
-  against console.anthropic.com.
-- **No mobile responsiveness.** Desk-only tool.
+- **No Gemini token / cost panel.** Cost tracking belongs in
+  `cli/bench.py:PRICING` + a future `todo/COST.md`.
+- **No Claude usage panel.** Claude Code transcript parsing is a developer
+  tool, not a data quality signal.
+- **No repo activity panel.** Commits / LOC / churn — `git log` already
+  answers those without a dashboard.
+- **No deploy state panel.** That's `todo/CICD.md` territory; smoke tests
+  already verify deploys.
+- **No CloudWatch error panel.** `aws logs tail --follow` is the right
+  tool, not a panel.
+- **No backlog state panel.** `todo/README.md` is the index of record.
+- **No real-time push.** This is offline analysis — re-run the CLI
+  whenever you want a fresh view.
+- **No frontend integration.** Pure CLI report → HTML file. No
+  `/godmode` route, no admin auth, no React component. If we ever want
+  in-app access, the report is a static HTML file the existing CDN can
+  serve.
+- **No anomaly ML.** Threshold-based callouts only. Outliers are 3σ from
+  family median; oddities are pattern matches; cluster commonalities are
+  exact-equal across a bucket. All explainable in one sentence.
 
-## Architecture options
+## Architecture
 
-### Option A — extend the React admin surface (recommended)
+One Python module, three layers:
 
-Add `/godmode` route in the React app, backed by a new Express router at
-`/api/admin/godmode/*`, gated by the existing `adminOnly` middleware. Each
-panel = one endpoint that returns JSON shaped exactly for its widget.
+    cli/godmode.py
+      ├─ scan(stage)                       # one DynamoDB Scan per stage,
+      │                                    # cap at SCAN_LIMIT, paginated
+      ├─ analyse(rows) -> Snapshot         # all of #1-8 above
+      ├─ diff(snapshot, prev) -> Drift     # #9
+      └─ render(snapshot, drift) -> html   # self-contained HTML
 
-Pros:
-- Reuses existing auth, deployment, build pipeline.
-- Backend already has DynamoDB, CloudWatch, and CloudFormation SDK clients.
-- The frontend already has chart primitives (`DistributionChart`).
+Output:
 
-Cons:
-- Backend (Lambda) can't read your local git repo or `~/.claude/`. Anything
-  local needs a separate path (Option B).
+    outputs/godmode/
+      ├─ <ts>.json                # machine-readable snapshot (so diff works)
+      ├─ <ts>.html                # the report
+      └─ latest.html              # symlink / copy of newest
 
-### Option B — local-only HTML snapshot
+`./Quickstart godmode --stage dev` runs against dev (read-only), defaults
+to dev. `--stage prod` is allowed but cautioned — the scan is read-only
+but costs DynamoDB read units; sample with `--limit 5000` first.
 
-`./Quickstart godmode` runs a Python script that pulls everything (DynamoDB,
-git, Claude transcripts, last bench, last test result) into a single
-self-contained HTML file at `outputs/godmode/latest.html`, then opens it.
+## Data model
 
-Pros:
-- Can read `~/.claude/`, local git, local test runs — all the things a
-  Lambda can't see.
-- Zero deploy required, zero auth question.
+The dashboard only knows about ProductBase rows (`PK = "PRODUCT#*"`). For
+each row, walk every field declared on the Pydantic model class for that
+`product_type`. Decide per field:
 
-Cons:
-- Stale the moment you regenerate. No "live" view.
-- Duplicates panels we'd want in the deployed dashboard anyway.
+| Field type | Coverage check | Oddities to flag | Distribution |
+|---|---|---|---|
+| `Optional[str]` | non-null, non-placeholder string | `;`, `null`/`unknown`/`-`/`TBD`/`N/A`, leading/trailing whitespace, mixed encoding | top-20 categorical |
+| `Optional[ValueUnit]` | not null | unit not in family's accepted set | numeric histogram of `value`, top-N of `unit` |
+| `Optional[MinMaxUnit]` | not null AND has at least one of min/max | min > max, unit not in family | histograms of min and max separately |
+| `Optional[List[X]]` | non-empty list | empty-string elements, duplicate elements | length distribution |
+| `Optional[int]` (e.g. `IpRating`) | not null, in expected range (e.g. IP00–IP69) | values outside the rating-spec range | top-20 |
+| nested `BaseModel` | recurse into its fields | recurse | recurse |
 
-### Recommended: A + B, split by data locality
+Placeholder values come from `specodex.quality:is_placeholder` — keep that
+function as the single source of truth and have the dashboard call it.
 
-- **Deployed (Option A) covers**: Gemini usage, ingest pipeline, DynamoDB
-  health, deploy state, CloudWatch errors. All cloud-data, accessible from
-  Lambda.
-- **Local (Option B) covers**: Claude usage, git activity, LOC, last test
-  run, backlog state. All local-data, would be expensive or impossible to
-  ship to Lambda.
+## What "good" looks like (acceptance signals)
 
-Both render with the same panel CSS so they feel like one tool. The local
-script can write its JSON to a known path that the deployed dashboard
-optionally embeds via file upload (later — not MVP).
+The dashboard is doing its job when these statements are answerable from a
+single page in <30 s:
 
-## Data sources (where each number comes from)
+- "Which manufacturer has the worst coverage on `rated_torque` right now?"
+- "How many products still hold a string with `;` somewhere?" (post-UNITS,
+  the answer must be 0)
+- "Which `(manufacturer, type)` pairs have an inertia value identical
+  across the whole bucket?" (signals the LLM grabbed a header)
+- "Did anything regress since last week's snapshot?"
+- "Where should I aim the next prompt tweak?" (= bottom decile of quality
+  score, top-N failing fields, sample values to feed back)
 
-| Panel | Source | Already exists? |
-|---|---|---|
-| Gemini tokens / cost | `INGEST#*` records — `gemini_input_tokens`, `gemini_output_tokens` fields | ✅ since ENRICH.md |
-| Gemini RPM / error rate | Same records, group by minute, count `extract_fail` | ✅ |
-| Gemini-non-ingest calls (schemagen, price LLM) | **gap** — not currently logged with tokens | ❌ requires a small change to `specodex/llm.py` to emit a structured log line with `{call_kind, input_tokens, output_tokens}` per call |
-| Claude usage | `~/.claude/projects/*/conversations/*.jsonl` — each turn's `usage` field | ✅ files exist; need a parser |
-| Ingest success rate | `INGEST#*` `status` field, last N days | ✅ |
-| Top failing manufacturers | `cli/ingest_report.py` already does this — call its function | ✅ |
-| Products by type | `categories` endpoint (already shipped) | ✅ |
-| New products last 24 h | DynamoDB scan on `createdAt > now-24h` (need GSI or accept scan cost) | ⚠ need to confirm `createdAt` exists on every row |
-| Unhealthy products | Scan + apply same logic as `quality.py` to live rows | ⚠ scan cost — limit to last 1000 rows or sample |
-| Orphaned ingest records | `INGEST#*` with `status=success` but no matching product PK | ⚠ join on client side |
-| Commits 7/30 d | `git log --since="7 days ago" --oneline \| wc -l` | ✅ |
-| LOC by language | `cloc` (would need install) **or** `find ... -name "*.py" \| xargs wc -l` (zero-dep) | ✅ with shell only |
-| Churn | `git log --since=... --shortstat` | ✅ |
-| Last test result | Parse `pytest --json-report` output OR re-run quickly | ⚠ pytest needs `pytest-json-report` plugin OR write to a known path |
-| Stack version per stage | `aws cloudformation describe-stacks --query 'Stacks[0].LastUpdatedTime'` | ✅ AWS CLI |
-| `/health` per stage | `curl` each stage's URL | ✅ |
-| Last 10 CloudWatch errors | `aws logs filter-log-events --filter-pattern ERROR` | ✅ |
-| Backlog state | Parse `todo/README.md` table | ✅ |
+If the answer requires opening a separate tool, the dashboard isn't doing
+the job and the relevant section needs more.
 
 ## MVP slice — ship this first
 
-The cheapest panels with the highest information density. Everything below
-reuses data we already capture.
+Order is by signal-per-effort: each step's output is useful before the
+next one lands.
 
-1. **Gemini panel (deployed)** — last 24 h / 7 d / 30 d:
-   - Total input + output tokens.
-   - Total cost (use the same `$/1M` constants from `cli/bench.py`).
-   - Calls / hour sparkline.
-   - Success / quality_fail / extract_fail counts.
-   - **One endpoint:** `GET /api/admin/godmode/gemini?window=24h`.
+1. **`scan(stage)` + JSON snapshot.** Just dump rows to JSON-with-counts.
+   No HTML yet. Lets us start collecting daily snapshots for the diff.
+   *(45 min)*
 
-2. **Ingest pipeline panel (deployed)** — last 24 h / 7 d:
-   - Attempts processed.
-   - Top 10 manufacturers by quality_fail count.
-   - p50 / p95 `fields_filled_avg`.
-   - "Most recent 20 attempts" table with status, manufacturer, URL, fields_filled.
-   - **One endpoint:** `GET /api/admin/godmode/ingest?window=24h`.
+2. **Coverage matrix + string oddities.** The two highest-leverage
+   panels. HTML is a single `<table>` for coverage and a flat list of
+   `(field, pattern, count, sample_values[])` for oddities. *(2 h)*
 
-3. **Database panel (deployed)**:
-   - Count by `product_type` (already exists — reuse `categories`).
-   - Count of products written last 24 h (needs `createdAt` audit first).
-   - Count of products below quality floor (sample 1000 rows).
-   - **One endpoint:** `GET /api/admin/godmode/db`.
+3. **Per-field distributions.** Numeric histograms via plain HTML+CSS
+   bars (no chart library). Categorical top-20 as `<ol>`. *(2 h)*
 
-4. **Repo panel (local, Option B)**:
-   - Commits last 7 d / 30 d, top contributors.
-   - LOC by extension (`.py`, `.ts`, `.tsx`).
-   - Churn (added / removed) last 7 d.
-   - Test result from last `./Quickstart test` run (write a JSON sidecar).
-   - Backlog status counts from `todo/README.md`.
-   - **One CLI:** `./Quickstart godmode` writes `outputs/godmode/latest.html`.
+4. **Cluster commonalities + range outliers.** Both are O(n) post-scan.
+   Render as collapsible `<details>` blocks. *(1.5 h)*
 
-5. **Claude usage panel (local, Option B)**:
-   - Parse `~/.claude/projects/-Users-nick-github-specodex/conversations/*.jsonl`.
-   - Sum `usage.input_tokens`, `usage.output_tokens`,
-     `usage.cache_read_input_tokens`, `usage.cache_creation_input_tokens`
-     per day for the last 30 days.
-   - Cost using current Sonnet 4.6 / Opus 4.7 pricing — pin in a constant.
-   - **Same CLI as #4.**
+5. **Unit-family mismatches + per-manufacturer failure modes.** Reuse
+   the existing `UnitFamily.contains` + `is_placeholder`. The sample-
+   values list is what makes this actionable. *(1.5 h)*
 
-Anything beyond MVP — orphan detection, deploy panel, CloudWatch errors —
-goes in a follow-up. Each adds one endpoint + one widget.
+6. **Quality-score distribution + drift.** Quality score reuses
+   `specodex.quality:score`. Drift requires a prior `<ts>.json` to diff
+   against — first run shows nothing in this panel, that's fine. *(1 h)*
 
-## Per-panel design notes
+About a day for the full thing. No MVP-vs-followup split — every panel
+above is core to the data-quality remit.
 
-### Gemini usage
-
-The ingest_log already captures `gemini_input_tokens` / `gemini_output_tokens`
-per call (see `specodex/ingest_log.py:build_record`). The deployed panel
-queries `INGEST#*` records by SK timestamp range and aggregates client-side
-(<1000 records per window in practice).
-
-**Gap to close before this works:** schemagen and the price-LLM cascade also
-call Gemini but don't emit ingest_log records. Two options:
-
-- **(easier)** Have `specodex/llm.py` emit a CloudWatch log line per
-  call — `{"event": "gemini_call", "kind": "schemagen|price|extract", "input_tokens": N, "output_tokens": N}` — and `metric filter` it into a count. Heavy.
-- **(simpler)** Write a sibling row to ingest_log keyed under a different PK
-  prefix — `LLM#<kind>#<sha256(prompt)[:16]>` — same shape, same query
-  pattern. Then the dashboard queries both prefixes.
-
-Recommend the second. Keeps everything in one table, one query pattern.
-
-### Claude usage
-
-Claude Code stores conversations as JSONL files. Each assistant turn has a
-`usage` block:
-
-    {"role": "assistant", "usage": {"input_tokens": 1234, "output_tokens": 567,
-     "cache_read_input_tokens": 8000, "cache_creation_input_tokens": 200}}
-
-Parser pseudocode:
-
-    for jsonl in glob("~/.claude/projects/*/conversations/*.jsonl"):
-        for line in jsonl:
-            turn = json.loads(line)
-            if turn.get("role") == "assistant" and "usage" in turn:
-                day = turn["timestamp"][:10]
-                model = turn.get("model", "unknown")
-                bucket[(day, model)] += turn["usage"]
-
-Then apply the per-model `$/1M` constants. Cache reads are 10% of the
-non-cached price — important to count separately.
-
-**Caveat:** the `~/.claude/projects/` path is project-specific (the project
-directory is the path after `projects/`). The dashboard should default to
-the current project but allow `--all-projects` to roll up across
-everything.
-
-### Database health
-
-"Unhealthy" needs a definition. Three categories:
-
-- **Quality floor breach**: products whose live `fields_filled` ratio
-  (computed by walking model fields) is below the floor in `quality.py`.
-  These shouldn't exist post-quality-gate but **historically have been
-  written** (see CLAUDE.md note about `scraper.py:batch_create(parsed_models)`
-  bug). Catch and surface.
-- **Missing price**: `msrp` field is null after the price-enrich run.
-- **Stale**: `createdAt` older than 6 months and never updated. Probably
-  fine but worth seeing.
-
-Implementation: scan the products table in pages of 100 with a `Limit`
-cap (no full-table scan in the request path). If the table grows past
-~5000 rows we'll need a precomputed health index — defer that doc.
-
-### Repo activity
-
-LOC without `cloc`:
-
-    find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
-      -not -path "./node_modules/*" -not -path "./.venv/*" \
-      -not -path "./app/*/node_modules/*" -exec wc -l {} + | tail -1
-
-Churn:
-
-    git log --since="7 days ago" --shortstat --pretty=format: \
-      | grep -E "files? changed" \
-      | awk '{ins+=$4; del+=$6} END {print ins, del}'
-
-Test result: `./Quickstart test` doesn't currently emit a machine-readable
-sidecar. Two ways to fix:
-
-- Add `pytest --json-report --json-report-file=outputs/test/last.json` to
-  the test step. Requires `pytest-json-report` (one new dev dep).
-- Or have the Quickstart wrapper capture the exit code + last 50 lines of
-  output to `outputs/test/last.txt`. Zero deps, less rich.
-
-Recommend the second — matches the project's "stupid simple" bent.
-
-### Deploy state
-
-Three calls, run in parallel:
-
-    aws cloudformation describe-stacks --stack-name DatasheetMiner-Dev-Api \
-      --query 'Stacks[0].{updated: LastUpdatedTime, status: StackStatus}'
-
-Same for Staging and Prod. Plus a `curl /health` per stage. ~6 API calls
-total per refresh — ~1 second.
-
-### CloudWatch errors
-
-    aws logs filter-log-events \
-      --log-group-name /aws/lambda/DatasheetMiner-Prod-Api \
-      --start-time $(($(date +%s) - 86400))000 \
-      --filter-pattern ERROR \
-      --max-items 10
-
-Per stage. Render the message + timestamp; click expands to full event.
-
-## Files touched (MVP)
+## Files touched
 
 | File | Change |
 |---|---|
-| `app/backend/src/routes/godmode.ts` | **new** — three endpoints (`/gemini`, `/ingest`, `/db`) |
-| `app/backend/src/services/godmodeQueries.ts` | **new** — ingest_log aggregation + product health sampling |
-| `app/backend/src/index.ts` | mount `godmode` router under `/api/admin/godmode` with `adminOnly` |
-| `app/frontend/src/components/GodMode.tsx` | **new** — page + 3 panel components, fetches from above |
-| `app/frontend/src/components/GodMode.css` | **new** — match `AdminPanel.css` styling |
-| `app/frontend/src/App.tsx` | add `/godmode` route gated by admin auth |
-| `cli/godmode.py` | **new** — local snapshot generator (Option B) |
-| `cli/quickstart.py` | add `godmode` command dispatching to `cli/godmode.py` |
-| `specodex/llm.py` | log non-ingest Gemini calls under `LLM#*` PK so they count |
-| `specodex/ingest_log.py` | tiny extension — accept the new PK prefix |
+| `cli/godmode.py` | **new** — scan, analyse, diff, render |
+| `cli/quickstart.py` | add `godmode` subcommand dispatching to `cli/godmode.py` |
 | `Quickstart` | one-line passthrough (already a shim) |
-| `CLAUDE.md` | add `./Quickstart godmode` to the entry-point list |
+| `outputs/godmode/` | **new directory** — gitignore the whole thing |
+| `tests/unit/test_godmode.py` | **new** — analyse() against fixture rows; pure logic, fast |
+| `CLAUDE.md` | add `./Quickstart godmode` to the entry-point list with one-liner |
+| `.gitignore` | add `outputs/godmode/` |
+
+No backend/frontend changes. No Lambda. No new deps beyond what `cli/`
+already imports (`boto3`, stdlib).
 
 ## Estimated effort
 
-- Backend MVP (3 endpoints + service): **3 h**
-- Frontend MVP (3 panels + page shell): **2 h**
-- Local snapshot CLI (git + LOC + Claude transcripts + backlog): **2 h**
-- Non-ingest Gemini call logging: **30 min**
-- CSS + polish: **1 h**
+- `scan` + JSON snapshot: 45 min
+- Coverage matrix + string oddities: 2 h
+- Per-field distributions: 2 h
+- Cluster commonalities + range outliers: 1.5 h
+- Unit-family mismatches + per-manufacturer failure modes: 1.5 h
+- Quality-score distribution + drift: 1 h
+- HTML/CSS polish (mil-spec aesthetic, monospace, hairline tables, no
+  chart libs): 1 h
+- Tests against fixture data: 1 h
 
-About a day. Follow-ups (deploy panel, CloudWatch errors, orphan detection,
-sparkline charts) are each a clean ~1-2 h add.
+About **a day and a half** for the whole report. Each panel is
+independently shippable.
 
 ## Open questions
 
-1. **Authentication.** The deployed dashboard reuses `adminOnly`. That
-   middleware currently checks an `ADMIN_TOKEN` header. Confirm we want
-   the same gate for /godmode, or whether it should be its own token (in
-   case we ever expose limited godmode views to a teammate).
-2. **Cost constants.** Gemini Flash and Claude (Sonnet 4.6 / Opus 4.7)
-   pricing both pin in `cli/bench.py:PRICING` (or similar). Confirm we want
-   one canonical pricing module both bench and godmode read from — that's
-   probably the right factoring regardless of this doc.
-3. **DynamoDB scan budget.** Worst case: prod table grows to 50k products
-   × `Scan` per refresh = real money + real latency. MVP cap = 1000 rows
-   sampled randomly. If that's not acceptable, we precompute a daily
-   health snapshot row (`STATS#YYYY-MM-DD`) instead.
-4. **Local snapshot output format.** HTML opened in browser, or JSON
-   served by a one-shot `python -m http.server` Quickstart subcommand?
-   HTML is simpler; JSON is more reusable. Recommend HTML for MVP.
-5. **Claude usage scope.** Just this project's transcripts (matches repo
-   focus), or all projects (better answer to "how much am I spending on
-   Claude")? Easy to add a flag — confirm default.
-6. **Refresh cadence.** Manual button, or auto-refresh every 60 s?
-   Auto-refresh costs DynamoDB read units even when you're not looking.
-   Recommend manual for MVP.
+1. **Snapshot retention.** Daily `<ts>.json` accumulates ~50 KB/day at
+   current scale (3k rows × ~15 fields summary). Keep the last 90? 365?
+   All? Recommend 90, prune older with a tiny script.
+2. **Prod scan cost.** Worst case at 50k rows: one full Scan = ~$0.05
+   per refresh. Acceptable for an on-demand tool. If we ever auto-run
+   it, gate on `--stage prod` requiring `--confirm`.
+3. **Frontend access.** Skip for now (per non-goals), but: the static
+   HTML could be served at `/godmode/latest.html` from the existing
+   CloudFront distribution if we ever want a teammate to look. Trivial
+   to add later — don't pre-build for it.
+4. **Drift threshold.** Below what delta does a field's null-rate jump
+   count as "regression"? Recommend +5pp absolute or +50% relative,
+   whichever is larger. Tweak after we see real drift signal.
 
 ## Triggers
 
 Surface this doc when the current task touches any of:
 
-- "GOD mode", "godmode", "dashboard", "observability", "what's going on"
-- `app/backend/src/routes/admin.ts`, `app/backend/src/middleware/adminOnly.ts`,
-  `app/frontend/src/components/AdminPanel.tsx`
-- `specodex/ingest_log.py` schema changes (the dashboard reads
-  these fields — adding/renaming will break panels)
-- `specodex/llm.py` (the place to add non-ingest call logging)
-- `cli/ingest_report.py` (godmode's ingest panel reuses its grouping)
-- "Gemini cost", "token usage", "Claude usage", "how much am I spending"
+- `specodex/quality.py` (`is_placeholder`, `score`) — the dashboard is a
+  consumer; signature changes ripple
+- `specodex/models/common.py` (`ValueUnit`, `MinMaxUnit`, `UnitFamily`,
+  field-marker dataclasses) — the dashboard introspects these
+- `specodex/models/{motor,drive,gearhead,robot_arm,electric_cylinder,contactor,linear_actuator}.py`
+  — adding fields means the coverage matrix gets a new column
+- `cli/ingest_report.py` — overlapping concern (manufacturer-grouped
+  fail counts); decide whether to merge or keep separate
 - `outputs/godmode/`
-- `cli/bench.py:PRICING` — single source of truth for $/token; godmode
-  reads it
+- User mentions "data quality", "what's wrong with the catalog", "why
+  is `<field>` empty", "the LLM is hallucinating", "ingester drift",
+  "manufacturer outreach prioritisation"
+- Adding a new product type — the coverage matrix gets a new row, the
+  test fixture should add one example
