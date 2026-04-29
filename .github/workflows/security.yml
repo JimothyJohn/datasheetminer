@@ -1,0 +1,120 @@
+name: Security audit
+
+# Warn-only first (continue-on-error). Promote to blocking after one
+# cleanup cycle once the baseline is known and won't fail every run.
+# Per CICD.md item #6.
+on:
+  schedule:
+    - cron: "0 13 * * 1"   # Mondays 13:00 UTC — after the Sunday bench run
+  workflow_dispatch: {}
+  pull_request:
+    branches: [master]
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "app/**/package.json"
+      - "app/**/package-lock.json"
+      - ".github/workflows/security.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit (Python deps)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # warn-only — promote to blocking after baseline cleanup
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies
+        run: uv sync --quiet
+
+      # uv exports an installed-set requirements file with pinned versions
+      # that pip-audit can audit directly. --no-emit-project skips the
+      # local `-e .` line (pip-audit can't version an editable install);
+      # --skip-editable on pip-audit is a defense-in-depth.
+      - name: Export installed requirements
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt \
+            > /tmp/requirements.txt
+          wc -l /tmp/requirements.txt
+
+      - name: Run pip-audit
+        run: |
+          # `|| true` keeps the step from masking the actions/upload step
+          # downstream; the job-level continue-on-error already makes this
+          # warn-only, but exit-1 on a step kills later steps.
+          uv tool run pip-audit \
+            --requirement /tmp/requirements.txt \
+            --skip-editable \
+            --format columns 2>&1 | tee /tmp/pip-audit.txt || true
+          {
+            echo "## pip-audit"
+            echo '```'
+            cat /tmp/pip-audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  npm-audit:
+    name: npm audit (Node deps)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # warn-only — promote to blocking after baseline cleanup
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend, infrastructure]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install workspace dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: npm audit (--omit=dev)
+        working-directory: app/${{ matrix.workspace }}
+        run: |
+          # `npm audit --omit=dev` exits non-zero when vulnerabilities are
+          # found. Capture and surface the JSON summary, then `|| true` so
+          # the warn-only contract holds.
+          set +e
+          npm audit --omit=dev --json > /tmp/audit-${{ matrix.workspace }}.json
+          status=$?
+          set -e
+          {
+            echo "## npm audit (${{ matrix.workspace }})"
+            python3 - <<'PY'
+          import json, os, sys
+          ws = os.environ["WORKSPACE"]
+          path = f"/tmp/audit-{ws}.json"
+          try:
+              data = json.load(open(path))
+          except Exception as e:
+              print(f"- ⚠ failed to parse audit output: {e}")
+              sys.exit(0)
+          meta = data.get("metadata", {}).get("vulnerabilities", {})
+          total = sum(int(v) for v in meta.values()) if meta else 0
+          if total == 0:
+              print("- ✅ no production vulnerabilities")
+          else:
+              parts = ", ".join(f"{k}={v}" for k, v in meta.items() if int(v) > 0)
+              print(f"- ❌ {total} production vulnerabilities ({parts})")
+          PY
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        env:
+          WORKSPACE: ${{ matrix.workspace }}
