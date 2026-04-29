@@ -196,11 +196,16 @@ class TestPageRouting:
         """If caller supplies pages and the count is under
         MAX_PER_PAGE_CALLS, scraper extracts per-page (one LLM call per
         page chunk), not bundled."""
+        from specodex import scraper
         from specodex.scraper import process_datasheet
 
+        # PAGES_PER_CHUNK default is 4 — pages=[0,1,2] would coalesce to
+        # one chunk. BRIDGE_GAP default is 1 which also fills gaps. Force
+        # both to per-page so this test verifies what it says it does.
+        monkeypatch.setattr(scraper, "PAGES_PER_CHUNK", 1)
+        monkeypatch.setattr(scraper, "BRIDGE_GAP", 0)
+
         mock_get.return_value = _build_pdf([_spec_text(5)] * 4)
-        # PAGES_PER_CHUNK is read at module-import time; default is 1.
-        # With pages=[0,1,2] and chunk=1 we expect 3 LLM calls.
         with (
             patch("specodex.scraper.generate_content") as mock_gen,
             patch(
@@ -306,10 +311,20 @@ class TestPageRouting:
         _is_pdf: MagicMock,
         mock_get: MagicMock,
         db: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """pages=None and the heuristic finds 2 pages → scraper extracts
         per-page (2 LLM calls) without the caller specifying pages."""
+        from specodex import scraper
         from specodex.scraper import process_datasheet
+
+        # Disable the bridge so [0, 2] doesn't fill into [0, 1, 2] (one
+        # chunk = one LLM call). BRIDGE_GAP default is 1, intentionally
+        # designed to keep continuation pages with their parent — but
+        # this test wants to verify per-page routing of two distinct
+        # spec pages.
+        monkeypatch.setattr(scraper, "BRIDGE_GAP", 0)
+        monkeypatch.setattr(scraper, "PAGES_PER_CHUNK", 1)
 
         # Two spec pages, two filler pages — heuristic returns [0, 2].
         mock_get.return_value = _build_pdf(

@@ -58,12 +58,25 @@ def _motor_from_parse(
     manufacturer: str = "TestMfg",
     part_number: str = "ABC-123",
 ) -> Motor:
-    """Build a Motor the way parse_gemini_response would return it."""
+    """Build a Motor with enough spec fields to clear the 25% quality gate.
+
+    `specodex.quality.DEFAULT_MIN_QUALITY = 0.25` rejects products with
+    fewer than 25% of their spec fields populated. Motor has ~28 spec
+    fields, so we need ≥ 7 filled. Setting 8 below to give a margin.
+    """
     return Motor(
         product_type="motor",
         product_name=product_name,
         manufacturer=manufacturer,
         part_number=part_number,
+        rated_voltage={"value": 230.0, "unit": "V"},
+        rated_power={"value": 100.0, "unit": "W"},
+        rated_torque={"value": 0.5, "unit": "Nm"},
+        rated_speed={"value": 3000.0, "unit": "rpm"},
+        rated_current={"value": 1.0, "unit": "A"},
+        peak_torque={"value": 1.5, "unit": "Nm"},
+        peak_current={"value": 3.0, "unit": "A"},
+        weight={"value": 2.0, "unit": "kg"},
     )
 
 
@@ -82,6 +95,11 @@ def _fake_gemini_response(motors: List[Motor]) -> Mock:
 
 @pytest.mark.integration
 class TestPdfToDbPipeline:
+    # `find_spec_pages_by_text` and `_extract_bundled_pdf` both parse the
+    # PDF bytes — the fake bytes from `get_document` aren't a valid PDF,
+    # so we mock those steps too. Everything past Gemini stays real.
+    @patch("specodex.scraper.find_spec_pages_by_text", return_value=[1])
+    @patch("specodex.scraper._extract_bundled_pdf", return_value=b"fake page bytes")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     @patch("specodex.scraper.get_document", return_value=b"fake pdf")
     @patch("specodex.scraper.generate_content")
@@ -92,6 +110,8 @@ class TestPdfToDbPipeline:
         mock_gen: MagicMock,
         mock_doc: MagicMock,
         mock_is_pdf: MagicMock,
+        mock_extract_bundled: MagicMock,
+        mock_find_pages: MagicMock,
         pipeline_setup: DynamoDBClient,
     ) -> None:
         """PDF download -> Gemini -> parse -> Motor written to DB."""
@@ -189,6 +209,10 @@ class TestDuplicateSkipping:
 
 @pytest.mark.integration
 class TestBatchFromJson:
+    # Same mock chain as TestPdfToDbPipeline — the fake PDF bytes need
+    # find_spec_pages_by_text and _extract_bundled_pdf bypassed too.
+    @patch("specodex.scraper.find_spec_pages_by_text", return_value=[1])
+    @patch("specodex.scraper._extract_bundled_pdf", return_value=b"fake page bytes")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     @patch("specodex.scraper.get_document", return_value=b"fake pdf")
     @patch("specodex.scraper.generate_content")
@@ -199,6 +223,8 @@ class TestBatchFromJson:
         mock_gen: MagicMock,
         mock_doc: MagicMock,
         mock_is_pdf: MagicMock,
+        mock_extract_bundled: MagicMock,
+        mock_find_pages: MagicMock,
         pipeline_setup: DynamoDBClient,
         tmp_path: Path,
     ) -> None:
