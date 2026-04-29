@@ -20,6 +20,9 @@ Usage:
                                   (try: ./Quickstart price-enrich --help)
     ./Quickstart ingest-report    Group ingest-log quality-fails by manufacturer
                                   (try: ./Quickstart ingest-report --help)
+    ./Quickstart audit-dedupes    DEDUPE Phase 1 — scan dev DB for prefix-drift
+                                  duplicates. Read-only; writes JSON + MD review.
+                                  (try: ./Quickstart audit-dedupes --help)
     ./Quickstart godmode          Data-quality observatory — coverage, oddities,
                                   distributions, outliers, drift, etc.
                                   Writes outputs/godmode/<ts>.html for review.
@@ -844,6 +847,13 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "ingest-report":
         run(
             ["uv", "run", "python", "-m", "cli.ingest_report", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "audit-dedupes":
+        run(
+            ["uv", "run", "python", "-m", "cli.audit_dedupes", *sys.argv[2:]],
             cwd=ROOT,
         )
         return
