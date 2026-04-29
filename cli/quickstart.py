@@ -200,7 +200,7 @@ def install_node_deps() -> None:
 
 def health_check(url: str, retries: int = 30) -> bool:
     """Poll a health endpoint. Return True if it responds 200."""
-    for i in range(retries):
+    for _ in range(retries):
         try:
             req = Request(f"{url}/health")
             with urlopen(req, timeout=2) as resp:
@@ -210,6 +210,29 @@ def health_check(url: str, retries: int = 30) -> bool:
             pass
         time.sleep(1)
     return False
+
+
+def health_check_verbose(url: str, retries: int) -> tuple[bool, int]:
+    """Poll /health, returning (healthy, last_status_code).
+
+    Status code is 0 when every attempt failed at the network level. Used by
+    cmd_wait_health to emit a diagnostic line on failure (CI parses it).
+    """
+    last_code = 0
+    for _ in range(retries):
+        try:
+            req = Request(f"{url}/health")
+            with urlopen(req, timeout=2) as resp:
+                last_code = resp.status
+                if last_code == 200:
+                    return True, 200
+        except URLError as e:
+            inner = getattr(e, "reason", None)
+            last_code = getattr(inner, "code", 0) or 0
+        except OSError:
+            last_code = 0
+        time.sleep(1)
+    return False, last_code
 
 
 # ── Commands ───────────────────────────────────────────────────────
@@ -642,6 +665,26 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print()
 
 
+def cmd_wait_health(args: argparse.Namespace) -> None:
+    """Poll <url>/health until 200 or retries exhausted, exit 0/1.
+
+    Replaces the inline `for i in $(seq 1 N); do curl ... sleep 1` bash loop
+    in CI. Uses the same `health_check_verbose` helper that `cmd_smoke` uses,
+    so the local pre-deploy health gate and CI's wait-for-deploy gate agree
+    on what "healthy" means.
+    """
+    label = args.label or "Service"
+    info(f"Waiting for {label} {args.url}/health (timeout {args.retries}s)")
+    healthy, code = health_check_verbose(args.url, retries=args.retries)
+    if healthy:
+        info(f"{label} healthy")
+        return
+    fail(
+        f"{label} /health returned {code} after {args.retries}s "
+        f"(expected 200). URL: {args.url}/health"
+    )
+
+
 def cmd_smoke(args: argparse.Namespace) -> None:
     """Run post-deployment smoke tests."""
     url = args.url
@@ -779,6 +822,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="API base URL (default: localhost:3001)",
     )
 
+    # wait-health — used by CI to gate smoke jobs on the deploy actually
+    # being live. Single-source-of-truth for what "healthy" means.
+    p = sub.add_parser(
+        "wait-health",
+        help="Poll <url>/health until 200 or retries exhausted",
+    )
+    p.add_argument("url", help="Base URL (e.g. https://datasheets.advin.io)")
+    p.add_argument(
+        "--retries",
+        type=int,
+        default=60,
+        help="Max attempts at 1s intervals (default: 60)",
+    )
+    p.add_argument(
+        "--label",
+        help="Display label for log output (e.g. Staging, Production)",
+    )
+
     # process
     p = sub.add_parser("process", help="Process queued PDF uploads from S3")
     p.add_argument(
@@ -878,6 +939,7 @@ def main() -> None:
         "staging": cmd_staging,
         "deploy": cmd_deploy,
         "smoke": cmd_smoke,
+        "wait-health": cmd_wait_health,
         "process": cmd_process,
         "cdk-outputs": cmd_cdk_outputs,
     }
