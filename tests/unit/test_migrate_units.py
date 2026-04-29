@@ -86,6 +86,44 @@ class TestTryParseCompact:
         assert _try_parse_compact("not a unit;") is None
         assert _try_parse_compact("approx;5") is None
 
+    def test_tilde_as_range_separator(self) -> None:
+        # `-40~+100` is the LLM's range form when emitting from JP/KR catalogs.
+        result = _try_parse_compact("-40~+100;°C")
+        assert result == {"min": -40.0, "max": 100.0, "unit": "°C"}
+
+    def test_tilde_simple_range(self) -> None:
+        result = _try_parse_compact("0~50;°C")
+        assert result == {"min": 0.0, "max": 50.0, "unit": "°C"}
+
+    def test_thousands_separator_comma(self) -> None:
+        result = _try_parse_compact("30,000;hr")
+        assert result is not None
+        assert result["value"] == 30000.0
+        assert result["unit"] == "hr"
+
+    def test_le_prefix_max_only(self) -> None:
+        result = _try_parse_compact("≤3;arcmin")
+        assert result == {"min": None, "max": 3.0, "unit": "arcmin"}
+
+    def test_lte_ascii_prefix(self) -> None:
+        result = _try_parse_compact("<=65;dB")
+        assert result == {"min": None, "max": 65.0, "unit": "dB"}
+
+    def test_ge_prefix_min_only(self) -> None:
+        result = _try_parse_compact("≥10;V")
+        assert result == {"min": 10.0, "max": None, "unit": "V"}
+
+    def test_gte_ascii_prefix(self) -> None:
+        result = _try_parse_compact(">=100;Hz")
+        assert result == {"min": 100.0, "max": None, "unit": "Hz"}
+
+    def test_pm_left_alone(self) -> None:
+        # ± is intentionally NOT auto-fixed — semantically ambiguous between
+        # scalar tolerance (pose_repeatability: ±0.02 mm) and bilateral
+        # range (working_range: ±360°). Stays in review for human triage.
+        assert _try_parse_compact("±0.02;mm") is None
+        assert _try_parse_compact("±360;°") is None
+
 
 @pytest.mark.unit
 class TestWalkAndFix:

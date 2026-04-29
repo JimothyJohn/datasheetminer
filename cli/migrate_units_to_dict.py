@@ -88,8 +88,55 @@ def _looks_like_compact_unit(s: str) -> bool:
     return not any(c.isspace() for c in left) and not any(c.isspace() for c in right)
 
 
+def _rescue_rewrites(s: str) -> list[str]:
+    """Generate plausible string rewrites for compact strings the base parser rejects.
+
+    Each rewrite corrects a known LLM-emission quirk that produces strings
+    the regex layer dropped silently. Rewrites are independent — generate
+    one per quirk, try each, take the first that parses. Caller is
+    ``_try_parse_compact``.
+
+    Quirks handled here (string-level rewrites only):
+      - ``~`` between numbers used as range separator (``-40~+100;°C``)
+      - thousands-separator commas in the value (``30,000;hr``)
+
+    Quirks handled by ``_try_parse_compact`` directly (not rewrites):
+      - ``≤`` / ``<=`` / ``≥`` / ``>=`` prefix → half-open MinMaxUnit.
+
+    Deliberately NOT handled (left for human review):
+      - ``±X;unit`` — semantically ambiguous between scalar tolerance
+        (``pose_repeatability: ±0.02 mm`` is one number) and bilateral
+        range (``working_range: ±360°`` is -360..+360). The migration
+        script can't tell field types apart at this layer; auto-fixing
+        either way is wrong half the time.
+      - ``;null`` / ``;unknown`` literal sentinels — those are bad data
+        emitted by the LLM, not encoding artefacts; preserving them as
+        valid units would be silently corrupting the catalogue.
+    """
+    if ";" not in s:
+        return []
+    left, right = s.split(";", 1)
+    rewrites: list[str] = []
+
+    # ~ used as range separator. ``-40~+100`` → ``-40-100``.
+    if "~" in left:
+        cleaned = left.replace("~+", "-").replace("~", "-")
+        rewrites.append(f"{cleaned};{right}")
+
+    # Thousands-separator comma. ``30,000`` → ``30000``.
+    if "," in left:
+        rewrites.append(f"{left.replace(',', '')};{right}")
+
+    return rewrites
+
+
 def _try_parse_compact(s: str) -> dict | None:
-    """Try ValueUnit then MinMaxUnit. Returns the dict form or None."""
+    """Try ValueUnit, then MinMaxUnit, then quirk-rescue rewrites.
+
+    Returns the dict form or None. Order matters: the as-is parsers run
+    first so well-formed strings don't accidentally pick up rewrite-driven
+    interpretations.
+    """
     try:
         return ValueUnit.model_validate(s).model_dump()
     except Exception:
@@ -98,6 +145,44 @@ def _try_parse_compact(s: str) -> dict | None:
         return MinMaxUnit.model_validate(s).model_dump()
     except Exception:
         pass
+
+    # Structured rescues that can't be expressed as compact-string rewrites:
+    # ≤ / <= prefix → max-only MinMaxUnit dict.
+    if ";" in s:
+        left, right = s.split(";", 1)
+        for prefix in ("≤", "<="):
+            if left.startswith(prefix):
+                try:
+                    val = float(left[len(prefix) :].strip())
+                    return MinMaxUnit(
+                        min=None, max=val, unit=right.strip()
+                    ).model_dump()
+                except Exception:
+                    break
+        for prefix in ("≥", ">="):
+            if left.startswith(prefix):
+                try:
+                    val = float(left[len(prefix) :].strip())
+                    return MinMaxUnit(
+                        min=val, max=None, unit=right.strip()
+                    ).model_dump()
+                except Exception:
+                    break
+
+    # String-level rewrites for ~ range separator and comma-stripped numbers.
+    # ValueUnit first: a comma-stripped scalar like "30000;hr" parses as
+    # ValueUnit; trying MinMaxUnit first would coerce it to
+    # {min: 30000, max: None, unit: hr} via its scalar-input fallback,
+    # which is the wrong shape for a non-range field.
+    for candidate in _rescue_rewrites(s):
+        try:
+            return ValueUnit.model_validate(candidate).model_dump()
+        except Exception:
+            pass
+        try:
+            return MinMaxUnit.model_validate(candidate).model_dump()
+        except Exception:
+            pass
     return None
 
 
@@ -152,6 +237,29 @@ def _decimalize(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_decimalize(v) for v in obj]
     return obj
+
+
+def _expected_product_count(table: Any) -> int:
+    """Count PRODUCT#* rows via Select=COUNT before doing the data scan.
+
+    Lets the caller assert the data scan saw the same number of rows. The
+    first prod migration run on 2026-04-28 terminated after only 846 of
+    2593 rows on its first dry-run pass; a transient pagination quirk we
+    couldn't reproduce. This sanity check fails loudly if it recurs.
+    """
+    kwargs: dict[str, Any] = {
+        "FilterExpression": "begins_with(PK, :prefix)",
+        "ExpressionAttributeValues": {":prefix": "PRODUCT#"},
+        "Select": "COUNT",
+    }
+    total = 0
+    resp = table.scan(**kwargs)
+    total += resp.get("Count", 0)
+    while "LastEvaluatedKey" in resp:
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+        resp = table.scan(**kwargs)
+        total += resp.get("Count", 0)
+    return total
 
 
 def _scan_all_products(table: Any) -> Iterable[dict]:
@@ -233,8 +341,12 @@ def main() -> None:
     db = boto3.resource("dynamodb", region_name=args.region)
     table = db.Table(table_name)
 
+    expected_count = _expected_product_count(table)
     log.info(
-        "Scanning %s (stage=%s) for compact-unit string leaks", table_name, args.stage
+        "Scanning %s (stage=%s) for compact-unit string leaks; expecting %d PRODUCT# rows",
+        table_name,
+        args.stage,
+        expected_count,
     )
 
     scanned = 0
@@ -292,6 +404,14 @@ def main() -> None:
         except Exception as e:
             log.error("Failed to write %s/%s: %s", pk, sk, e)
 
+    if scanned != expected_count:
+        log.warning(
+            "Scan saw %d rows, expected %d (%+d). Re-run before trusting results.",
+            scanned,
+            expected_count,
+            scanned - expected_count,
+        )
+
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     review_path = OUTPUTS_DIR / f"units_migration_review_{args.stage}_{timestamp}.md"
     if review_entries:
@@ -302,7 +422,9 @@ def main() -> None:
         "stage": args.stage,
         "table": table_name,
         "dry_run": args.dry_run,
+        "expected_count": expected_count,
         "scanned": scanned,
+        "scan_complete": scanned == expected_count,
         "fixed_rows": fixed_rows if not args.dry_run else 0,
         "would_fix_rows": fixed_rows,
         "fixed_fields": fixed_fields if not args.dry_run else 0,

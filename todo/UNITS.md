@@ -1,16 +1,50 @@
 # Drop the `"value;unit"` compact string — go full JSON
 
-**Status (2026-04-28):** Phases 1–4 ✅ shipped in `a8f6162`, Phase 5 ✅
-script + tests landed (running against dev/staging/prod is the
-operator's job — `./Quickstart` integration deferred until first run
-proves out the workflow), Phase 6 ✅ docs updated. One Phase 4
-deviation: the frontend `String(value)` fallback in
-`ProductDetailModal.tsx:84` was kept — it's not just a unit fallback
-but the catch-all for bare-string scalars (`product_name`, etc.); the
-doc's "migrated data never has strings" was unit-specific reasoning
-mistakenly generalised. Once Phase 5's data backfill runs cleanly on
-prod, no compact-unit string will ever flow through that branch
-anyway.
+**Status (2026-04-28):** ✅ done end-to-end. Phases 1–4 shipped in
+`a8f6162` (structured `ValueUnit`/`MinMaxUnit` BaseModels, compact
+string layer deleted). Phases 5–6 shipped in `aac7050` (backfill
+script + docs). Data backfill ran the same day across all three
+DynamoDB tables:
+
+| Stage | Scanned | Fixed (rows) | Unparseable (review) |
+|---|---|---|---|
+| dev | 2877 | 273 (132 + 141 rescue-mode) | ~363 (legacy data quality) |
+| staging | 0 | — | empty table |
+| prod | 2593 | 10 | 10 (legacy data quality) |
+
+The original `rotor_inertia: "5.5e-5;kg·cm²"` UI bug from "Why now"
+below is fixed in prod.
+
+**Phase 5 follow-ups** (parser rescue + scan validation, landed
+post-initial-run):
+
+- `~` between numbers as range separator (`-40~+100;°C`) → `MinMaxUnit`
+- thousands-separator comma in numbers (`30,000;hr`) → `ValueUnit`
+- `≤`/`<=`/`≥`/`>=` prefix → half-open `MinMaxUnit`
+- `_expected_product_count` sanity check via `Select=COUNT` before the
+  data scan, warns on mismatch (the first prod dry-run terminated
+  after 846 of 2593 rows; the count-vs-scan diff makes any recurrence
+  loud).
+
+**Deliberately deferred** (left in review for human triage):
+
+- `±X;unit` — semantically ambiguous between scalar tolerance
+  (`pose_repeatability: ±0.02 mm` is one number) and bilateral range
+  (`working_range: ±360°` is -360..+360). The migration script can't
+  tell field types at the dict-walk layer; auto-fixing either way is
+  wrong half the time.
+- `;null` / `;unknown` literal sentinels (`±360°;null`,
+  `IP67;mH`-style mixed-up fields). These are bad LLM emissions, not
+  encoding artefacts; rescuing them would silently corrupt the
+  catalogue.
+
+**Phase 4 deviation kept on purpose:** the frontend `String(value)`
+fallback in `ProductDetailModal.tsx:84` is NOT just a unit fallback
+— it's the catch-all for bare-string scalars (`product_name` etc.).
+The doc's "migrated data never has strings" was unit-specific
+reasoning mistakenly generalised; deleting that line would break
+legitimate fields. After the prod backfill, no compact-unit string
+flows through it anyway, so the safety net is harmless.
 
 ## Goal
 
