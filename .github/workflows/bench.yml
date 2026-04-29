@@ -1,0 +1,70 @@
+name: Nightly bench (live LLM)
+
+# Schedule weekly first per CICD.md item #4 — Gemini cost is ~$1-5/run.
+# Promote to nightly if the weekly run catches drift in the first month.
+# Manual trigger always available via workflow_dispatch.
+on:
+  schedule:
+    - cron: "0 12 * * 0"   # Sundays 12:00 UTC
+  workflow_dispatch:
+    inputs:
+      max-drop-pp:
+        description: "Max precision/recall drop (pp) before failing"
+        required: false
+        default: "5.0"
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Bench (live)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python dependencies
+        run: uv sync --quiet
+
+      - name: Snapshot baseline (latest.json before this run)
+        run: |
+          mkdir -p outputs/benchmarks
+          if [ -f outputs/benchmarks/latest.json ]; then
+            cp outputs/benchmarks/latest.json /tmp/baseline.json
+            echo "Baseline timestamp:"
+            uv run python -c 'import json; print(json.load(open("/tmp/baseline.json"))["timestamp"])'
+          else
+            echo "No latest.json yet — first run, comparison will report all fixtures as new."
+            echo '{"timestamp": "none", "fixtures": []}' > /tmp/baseline.json
+          fi
+
+      - name: Run bench --live --update-cache
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: ./Quickstart bench --live --update-cache
+
+      - name: Compare against baseline
+        run: |
+          MAX_DROP="${{ github.event.inputs.max-drop-pp || '5.0' }}"
+          uv run python -m cli.bench_compare /tmp/baseline.json \
+            outputs/benchmarks/latest.json \
+            --max-drop "$MAX_DROP" \
+            --summary-md "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bench results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-results
+          path: |
+            outputs/benchmarks/*.json
+            tests/benchmark/cache/*.json
+          retention-days: 30
