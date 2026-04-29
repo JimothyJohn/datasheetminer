@@ -102,7 +102,93 @@ jobs:
                   print("\n</details>")
           PY
 
-  # ── Stage 1b: Backend unit tests ────────────────────────────────
+  # ── Stage 1b: Python integration tests ─────────────────────────
+  # Runs in parallel with test-python. Excludes `-m live` tests
+  # (those require a deployed AWS stack and run via a separate trigger).
+  # Uses moto-mocked AWS for the boto3 paths.
+  test-integration:
+    name: Test Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python dependencies
+        run: uv sync --quiet
+
+      # Some integration tests under TestBackendBuild / TestFrontendBuild
+      # shell out to `npx tsc` / `npx vite build` to verify the build
+      # pipeline works before a deploy. They need node + workspace
+      # dependencies installed. (Redundant with test-backend / test-frontend
+      # which run their own builds, but kept as a single-stop "deploy
+      # readiness" check.)
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install workspace dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Test integration (excluding live)
+        run: |
+          mkdir -p outputs/test-reports
+          uv run pytest tests/integration/ -m "not live" -v \
+            --junitxml=outputs/test-reports/python-integration.xml
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-integration-test-reports
+          path: outputs/test-reports/python-integration.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Summarise integration tests
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          path = "outputs/test-reports/python-integration.xml"
+          if not Path(path).exists():
+              print("## Integration tests\n- ⚠ no report file emitted")
+          else:
+              try:
+                  root = ET.parse(path).getroot()
+                  suites = list(root.iter("testsuite"))
+                  total = sum(int(s.get("tests", 0)) for s in suites)
+                  fail = sum(int(s.get("failures", 0)) for s in suites)
+                  err = sum(int(s.get("errors", 0)) for s in suites)
+                  skip = sum(int(s.get("skipped", 0)) for s in suites)
+                  passed = total - fail - err - skip
+                  status = "✅" if fail == 0 and err == 0 else "❌"
+                  print(f"## Integration tests\n- {status} {passed}/{total} passed, "
+                        f"{fail} failed, {err} errored, {skip} skipped")
+                  if fail or err:
+                      print("\n<details><summary>Failures</summary>\n")
+                      for case in root.iter("testcase"):
+                          for fail_el in list(case.iter("failure")) + list(case.iter("error")):
+                              name = f"{case.get('classname', '?')}::{case.get('name', '?')}"
+                              msg = (fail_el.get("message") or "").splitlines()[0][:200]
+                              print(f"- `{name}` — {msg}")
+                      print("\n</details>")
+              except ET.ParseError as e:
+                  print(f"## Integration tests\n- ❌ parse error: {e}")
+          PY
+
+  # ── Stage 1c: Backend unit tests ────────────────────────────────
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
@@ -123,7 +209,7 @@ jobs:
       - name: Verify (backend)
         run: ./Quickstart verify --only backend
 
-  # ── Stage 1c: Frontend unit tests ──────────────────────────────
+  # ── Stage 1d: Frontend unit tests ──────────────────────────────
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest
@@ -151,7 +237,7 @@ jobs:
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
-    needs: [test-python, test-backend, test-frontend]
+    needs: [test-python, test-integration, test-backend, test-frontend]
     if: github.ref == 'refs/heads/master'
     environment: staging
     outputs:
