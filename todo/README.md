@@ -1,26 +1,30 @@
-# Backlog index
+# Backlog
 
-Single source of truth for *planned but not immediately necessary* work. Every active or deferred initiative in this repo gets a doc in `todo/`; this file is the index and the call-sheet.
+**This file is the entry point.** Reading this gets you the full picture
+without opening each `todo/*.md`. Drill into the linked docs only when
+you're about to act on that work.
 
-**Workflow:** before starting non-trivial work, scan the **Trigger conditions** table below. If anything you're about to touch matches, read the linked doc first and surface the deferred item with the user — don't silently fold it in.
+## How to use it
 
-When deferring new work, add a doc here with a `## Triggers` section at the bottom and update this index. Pick triggers (file paths, topics) that future-you will plausibly mention, so the right doc auto-surfaces in future sessions.
+1. **Starting a session?** Skim **Active and deferred work** and **Suggested chronological order** below to know what's hot, what's blocked, and what's done.
+2. **About to touch a file?** Scan **Trigger conditions** at the bottom — if anything matches, the linked doc is queued and worth reading first.
+3. **Got an idle dev box overnight?** Pick from **Late Night** — curated tasks safe to run autonomously and easy to verify in the morning.
+4. **Deferring new work?** Add a `todo/<AREA>.md` with a `## Triggers` section, then add a row to the table here.
 
 ---
 
 ## Active and deferred work
 
-Ordered by **dependency-and-rework risk**, not by urgency or size. The
-goal is to avoid landing work that has to be redone once a downstream
-refactor reshapes its substrate. See the chronological-order section
-below for the reasoning per row.
+Ordered by **dependency-and-rework risk**, not urgency or size — the goal
+is to avoid landing work that has to be redone after a downstream refactor
+reshapes its substrate.
 
 | # | Doc | Status | Effort | One-line summary |
 |---|-----|--------|--------|------------------|
-| 1 | [CICD.md](CICD.md) | 🔴 prod-deploy red — `HOSTED_ZONE_ID` secret points at wrong zone (2026-04-28) | 🟢 small | Local↔CI gap closed (P0–P3 shipped). Prod CI deploys fail at SiteAliasRecord because the GitHub secret points at `bigcanyonboys.com.` zone instead of `advin.io.`. **No code change unblocks** — operator must `gh secret set HOSTED_ZONE_ID --body "Z039212425BG1MHVPYWDN"` then rerun the failed job. Gates REBRAND Phase 3c and any prod ship. |
-| 2 | [REBRAND.md](REBRAND.md) | 🚧 in progress (Stages 1+2 ✅ 2026-04-26) | 🟡 medium | Datasheetminer → Specodex. Staged: landing ✅ → app chrome ✅ → repo rename → DNS cutover. Domain registered 2026-04-26. |
+| 1 | [CICD.md](CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. `HOSTED_ZONE_ID` rotated, Phase 3c rebrand in prod. Followups (CDK `fromLookup`, action refresh, integration tests in CI, nightly bench, JUnit XML, security scans, `staging.yml` cleanup) are mine to land. **Operator queue: empty.** |
+| 2 | [REBRAND.md](REBRAND.md) | 🚧 Phase 3a–e ✅ shipped + deployed; Stage 4 (DNS cutover) pending | 🟡 medium | Datasheetminer → Specodex. Stages 1+2 chrome ✅, 3a (Python pkg) ✅, 3b (Node workspaces) ✅, 3c (CDK rename) ✅ deployed 2026-04-28, 3d (GH repo rename) ✅, 3e (docs sweep) ✅. Stage 4 (`specodex.com` DNS cutover + ACM cert + CloudFront alt-domain) waits on zone NS propagation. |
 | 3 | [UNITS.md](UNITS.md) | ✅ shipped 2026-04-28 — code `a8f6162` + `aac7050`, data backfill applied to dev (273 rows) + prod (10 rows) | 🟢 done | **Linchpin.** `ValueUnit`/`MinMaxUnit` carry `{value, unit}` end-to-end. `cli/migrate_units_to_dict.py` rescued `~`/`,`/`≤`/`≥` quirks; `±` and `;null`/`;unknown` left in review. Manual triage of ~373 dev + 10 prod review entries pending — pre-existing data quality, non-blocking. |
-| 4 | [DEDUPE.md](DEDUPE.md) | ⏸ deferred | 🟡 medium (high blast radius) | One-time cross-vendor sweep for prefix-drift duplicates left by `--force` re-ingests pre-family-aware-ID fix. Audit + safe-merge + human review. |
+| 4 | [DEDUPE.md](DEDUPE.md) | ⏸ deferred | 🟡 medium (high blast radius) | One-time cross-vendor sweep for prefix-drift duplicates left by `--force` re-ingests pre-family-aware-ID fix. Audit + safe-merge + human review. **Phase 1 audit is a Late Night candidate** — read-only on DB, output is JSON. |
 | 5 | [INTEGRATION.md](INTEGRATION.md) | 🚧 phases A+B shipped 2026-04-26 | 🟢 small | Motion-system builder — drive → motor → gearhead. Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only. |
 | 6 | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) | 📐 planned | 🟢 small (half-day, 8 phases) | Lock down "simple but crucial" frontend state — persistence keys, AppContext setters, ProductList type-switch resets, header toggles, FilterChip unit propagation. Catches L1–L12 spillover bestiary. |
 | 7 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
@@ -32,64 +36,82 @@ Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴
 
 ## Suggested chronological order
 
-Sequenced to minimize **rework after a downstream refactor reshapes
-the substrate**. UNITS is the linchpin — it touches Pydantic models,
-the DynamoDB serialization layer, and the frontend rendering path,
-which together are the substrate for DEDUPE (DB rows), INTEGRATION's
-spec rendering, FRONTEND_TESTING's assertions, and any GODMODE panel
-that displays specs. Land UNITS first and the rest of the queue
-operates on a stable shape; land it later and each of those four
-gets re-touched.
+UNITS was the linchpin (Pydantic + DynamoDB + frontend rendering substrate). Now done.
+With UNITS landed and CICD green, the remaining order:
 
-1. **CICD — close out.** Expected to go green on the next master push. Verify on the next deploy attempt and mark ✅ here. Don't start dependency-sensitive work until CI signal is trustworthy.
+1. **CICD followups.** Autonomous; `fromLookup`/action refresh/integration-tests-in-CI/nightly bench, in that order. Each is a separate small PR.
+2. **REBRAND Stage 4.** DNS cutover for `specodex.com` once registrar NS records propagate. Mechanical AWS plumbing — touches no Python/TS code, can interleave with anything else.
+3. **DEDUPE.** Operates on post-UNITS uniform data. Phase 1 audit is a Late Night candidate (read-only). Phase 2 auto-merge + Phase 3 human review queue follow.
+4. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
+5. **FRONTEND_TESTING.** Tests against canonical post-UNITS shape.
+6. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
 
-2. **REBRAND finish.** Already in flight, two of four stages done. Repo rename + DNS cutover for `specodex.com` is mechanical AWS + GitHub plumbing — touches no Python/TS code paths, so it's genuinely independent of UNITS. Close the thread before it goes stale, and so future docs/links stop referencing the old name.
+**Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue.
 
-3. **UNITS — landmine clearance.** Phases 1–4 ship as one PR series with no behavior change visible to users (same Gemini schema, same DynamoDB shape, same API responses). Phase 5 is the user-visible fix (rotor_inertia stops leaking semicolons). Phase 6 is housekeeping. Land this **before** anything that consumes spec values:
-   - DEDUPE compares fields across rows — much cleaner against uniform `{value, unit}` dicts than against a mix of dicts and regex-leaked strings.
-   - INTEGRATION's chain-review modal renders specs — if it ships first, devs may mirror the defensive `String(value)` fallback that UNITS phase 4 deletes.
-   - FRONTEND_TESTING locks down `FilterChip × unitSystem` and rendering paths — assertions baked against the current shape get rewritten when UNITS phase 4 lands.
-   - GODMODE panels that display specs would inherit the same risk.
+---
 
-4. **DEDUPE.** Operates on the post-UNITS uniform data. Auto-merge's "complementary fields" check is dict-vs-dict, no string-vs-dict edge cases. Still touches production DynamoDB rows and needs human review on conflicts — don't schedule alongside other data work.
+## Late Night
 
-5. **INTEGRATION next slice.** UI-only, chain-review modal + BOM copy + completion state. Lands on the cleaned-up frontend rendering path with no string fallback to mirror.
+Curated tasks safe to run autonomously overnight on dev. Each one meets four criteria:
 
-6. **FRONTEND_TESTING.** Tests get written against the canonical post-UNITS shape (`{value, unit}` everywhere, no string fallback). Doing this before UNITS means re-asserting every unit-handling test once UNITS reshapes the code paths.
+- **Bounded** — known finish line (queue size, fixture list, model count)
+- **Dev-only writes** — no infrastructure touch, no shared-state mutation, no prod
+- **Recoverable** — failure leaves dev DB consistent or rolls back cleanly
+- **Morning-checkable** — clear go/no-go signal in artifacts; if green, ship to prod via existing `./Quickstart admin promote` flow
 
-7. **GODMODE last.** Biggest surface area (Gemini + Claude usage telemetry, ingest log analytics, DynamoDB health, repo activity, deploy state). Planned but cold — no one's blocking on it. Lands on a stable substrate so panels don't get retouched.
+### Tier 1 — read-only or local-only (zero cost)
 
-**Soft parallelism.** REBRAND and UNITS don't overlap in code paths
-(REBRAND = DNS + git remote; UNITS = Python/TS code + data) so they
-can interleave if you have a window blocked on AWS propagation.
-Everything from #4 down should run in series — they all touch
-overlapping frontend or DB surface area.
+| Task | Command | Output to check |
+|---|---|---|
+| Bench (offline) | `./Quickstart bench` | `outputs/benchmarks/<ts>.json` — diff precision/recall vs `latest.json` |
+| Ingest-report | `./Quickstart ingest-report --email-template` | `outputs/ingest_report_*.md` — quality fails grouped by manufacturer |
+| UNITS review triage | parse `outputs/units_migration_review_dev_*.md`, group by pattern (pre-existing rescue groups: `±`, `;null`, `;unknown`, `IP##;<wrong>`), emit triage list with row counts | `outputs/units_triage_<ts>.md` |
+| Integration test sweep | `./Quickstart verify --integration` | exit code; stale tests surface as failures |
+| DEDUPE Phase 1 audit | write `cli/audit_dedupes.py` (no DB writes), then run against dev | `outputs/dedupe_audit_<ts>.json` + `outputs/dedupe_review_<ts>.md` |
 
-**Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue. The order above is for self-directed work, not interrupts.
+### Tier 2 — small Gemini cost, dev DB writes only
+
+| Task | Command | Cost | Output to check |
+|---|---|---|---|
+| Schemagen on stockpiled PDFs | `./Quickstart schemagen <pdf>... --type <name>` | ~$0.10–0.50/PDF | `<type>.py` + `<type>.md` (ADR) per cluster |
+| Price-enrich (dev) | `./Quickstart price-enrich --stage dev` | scraping + occasional Gemini | DynamoDB row counts before/after; spot-check 5–10 enriched rows in UI |
+
+### Tier 3 — bounded but expensive (run weekly, not nightly)
+
+| Task | Command | Cost | Output to check |
+|---|---|---|---|
+| Bench (live) | `./Quickstart bench --live --update-cache` | ~$1–5/run | precision/recall delta + cache delta — catches LLM-pipeline drift offline-bench can't see |
+| Process upload queue | `./Quickstart process --stage dev` | unbounded — only run if queue size is known | products created in dev; smoke-check via `/api/v1/search` |
+
+### Morning checklist (before promoting)
+
+1. **Logs.** `tail -100 .logs/*.log` — no unhandled exceptions, no rate-limit spirals.
+2. **Bench delta.** `diff outputs/benchmarks/latest.json outputs/benchmarks/<ts>.json` (or `jq` the precision/recall fields). Drop > 5pp on any fixture is a stop signal.
+3. **Endpoint shape.** Hit dev `/health`, `/api/products/categories`, `/api/v1/search?type=motor&limit=5`. All should 200 with expected shape per CLAUDE.md "canonical endpoints".
+4. **Newly-proposed types.** If schemagen ran: read each `<type>.md` ADR. Reject anything that hardcodes one vendor's quirks.
+5. **DB sample.** UI walkthrough on http://localhost:5173: pick the new type, confirm filter chips + table columns render. Spot-check 5–10 newly-written / enriched rows.
+6. **If green:** `./Quickstart admin promote --stage staging --since <ts>`, smoke staging, then `--stage prod`.
+7. **If red or surprising:** damage is dev-only. `./Quickstart admin purge --stage dev --since <ts>` rolls back, then triage.
+
+### Not Late Night material
+
+- Anything touching `app/infrastructure/` (CDK) or `.github/workflows/` — needs human review.
+- Any prod write or `./Quickstart admin promote --stage prod` — gated on morning checklist.
+- REBRAND Stage 4 DNS cutover — needs zone NS propagation + manual smoke.
+- INTEGRATION UI changes — visual review required.
 
 ---
 
 ## Trigger conditions — when to surface which doc
 
-If your current task matches any "trigger" entry, the linked doc is queued and worth raising before you go further.
+If your current task matches any "trigger" entry, the linked doc is queued and worth raising before you go further. When multiple match, mention all. Surfacing once is cheap; silently shipping work that conflicts with a deferred plan is expensive.
 
 | Trigger (files / topics in your current task) | Surface |
 |---|---|
-| `.github/workflows/`, `tests/unit/test_admin.py`, `cli/quickstart.py`, push to master, deploy attempt, "CI red" | [CICD.md](CICD.md) |
-| `cli/admin.py:purge`/`promote`, `specodex/ids.py:compute_product_id` or `_strip_family_prefix`, new vendor catalog with prefix-form drift (Mitsubishi MR-J5, Yaskawa Σ-7, Siemens 1FK); user mentions "duplicate", "dedupe", "merge rows", "same product twice", "two part numbers for one motor"; promotion to staging/prod | [DEDUPE.md](DEDUPE.md) |
-| `app/backend/src/routes/admin.ts`, `app/backend/src/middleware/adminOnly.ts`, `AdminPanel.tsx`, `specodex/ingest_log.py`, `specodex/llm.py`, `cli/bench.py:PRICING`, "godmode/dashboard/observability/Gemini cost/Claude usage/what's going on" | [GODMODE.md](GODMODE.md) |
-| `specodex/integration/{ports,adapters,compat}.py`, `app/backend/src/services/compat.ts`, `app/backend/src/routes/compat.ts`, `app/frontend/src/utils/compat.ts`, `BuildTray.tsx`, `CompatChecker.tsx`, `tests/unit/test_integration.py`; user mentions "compat", "compatibility", "pairing", "matching", "build", "BOM", "system", "chain", "compatible parts" | [INTEGRATION.md](INTEGRATION.md) |
-| `app/frontend/src/` styling/theme/palette/fonts; landing page or App.tsx routes; "datasheetminer" in user-facing copy; ACM cert / Route 53 / CloudFront alt-domain for `specodex.com`; CDK Frontend stack viewer cert; repo rename | [REBRAND.md](REBRAND.md) |
-| `app/frontend/src/utils/localStorage.ts`; `app/frontend/src/context/AppContext.tsx` (new persisted key); `ProductList.tsx` type-switch effect; `FilterChip.tsx` × `unitSystem`; `BuildTray.tsx`; `*.test.{ts,tsx}` under `app/frontend/`; user mentions "spillover", "state leak", "stale filter", "stuck on page", "wrong unit", "frontend tests", "vitest" | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) |
-| `specodex/models/common.py` (`ValueUnit`/`MinMaxUnit`/`handle_*_input`/`validate_*_str`); product model field annotations or hardcoded `"X;unit"` defaults; `specodex/units.py:normalize_value_unit`/`_COMPACT_RE`; `specodex/db/dynamo.py:_parse_compact_units`; `app/backend/src/db/dynamodb.ts:parseCompactUnits`; `specodex/models/llm_schema.py:to_gemini_schema`; `specodex/schemagen/renderer.py`; user mentions "semicolon in UI", "value;unit", "rotor inertia displayed wrong", "compact string", "scientific notation in specs" | [UNITS.md](UNITS.md) |
-
-When multiple docs match, mention all of them. Surfacing once is cheap; silently shipping work that conflicts with a deferred plan is expensive.
-
----
-
-## How this index is kept honest
-
-- Every `todo/*.md` ends with its own `## Triggers` section. This index aggregates them.
-- When a doc's work is fully shipped, mark it ✅ here and either delete the doc or leave it as historical record (caller's call).
-- When a new initiative starts that won't ship in the current session, write a `todo/<area>.md` with a Triggers section *before* leaving the session. Otherwise the deferred work has no surface.
-- The matching memory pointer is `~/.claude/projects/-Users-nick-github-specodex/memory/project_todo_backlog.md` (claude-code's auto-memory) — that's what makes this discoverable in future sessions without the user having to say "check todo/".
+| `.github/workflows/`, `tests/unit/test_admin.py`, `cli/quickstart.py`, push to master, deploy attempt, "CI red", `HOSTED_ZONE_ID`, `gh-deploy-datasheetminer` | [CICD.md](CICD.md) |
+| `cli/admin.py:purge`/`promote`, `specodex/ids.py:compute_product_id` or `_strip_family_prefix`, new vendor catalog with prefix-form drift; user mentions "duplicate", "dedupe", "merge rows", "same product twice", "two part numbers for one motor"; promotion to staging/prod | [DEDUPE.md](DEDUPE.md) |
+| `app/backend/src/routes/admin.ts`, `AdminPanel.tsx`, `specodex/ingest_log.py`, `specodex/llm.py`, `cli/bench.py:PRICING`, "godmode/dashboard/observability/Gemini cost/Claude usage" | [GODMODE.md](GODMODE.md) |
+| `specodex/integration/{ports,adapters,compat}.py`, `app/backend/src/services/compat.ts`, `BuildTray.tsx`, `CompatChecker.tsx`; user mentions "compat", "pairing", "BOM", "system", "chain" | [INTEGRATION.md](INTEGRATION.md) |
+| `app/frontend/src/` styling/theme/palette/fonts; landing or `App.tsx` routes; "datasheetminer" in user-facing copy; ACM cert / Route 53 / CloudFront alt-domain for `specodex.com`; CDK Frontend stack viewer cert; repo rename | [REBRAND.md](REBRAND.md) |
+| `app/frontend/src/utils/localStorage.ts`; `AppContext.tsx` (new persisted key); `ProductList.tsx` type-switch effect; `FilterChip.tsx` × `unitSystem`; `*.test.{ts,tsx}` under `app/frontend/`; user mentions "spillover", "state leak", "stale filter", "wrong unit", "frontend tests", "vitest" | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) |
+| `specodex/models/common.py` (`ValueUnit`/`MinMaxUnit`), product model field annotations; `specodex/units.py`; `specodex/db/dynamo.py`; `app/backend/src/db/dynamodb.ts`; `specodex/models/llm_schema.py:to_gemini_schema`; `specodex/schemagen/renderer.py`; user mentions "semicolon in UI", "value;unit", "rotor inertia displayed wrong", "compact string", "scientific notation in specs" | [UNITS.md](UNITS.md) |

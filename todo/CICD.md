@@ -1,265 +1,258 @@
-# CI/CD: tighten the dev loop, make it agent-friendly
+# CI/CD
+
+**Status (2026-04-29):** Healthy. Full chain green Test → Deploy Staging
+→ Smoke Staging → Deploy Prod → Smoke Prod for the first time since
+2026-03-30. Phase 3c rebrand is in prod (`specodex-api-prod` Lambda,
+`Project=Specodex` tag, `Specodex-prod-*` exports).
+`https://datasheets.advin.io/health` returns 200 with `mode: "public"`.
 
-## 2026-04-28 (PM): Smoke Prod red — secret-derived job output stripped between jobs ✅ fixed
+The chain crossed three latent bugs to get here: OIDC trust policy
+(REBRAND Phase 3d ripple), `??`-vs-`||` env-var fallback, wrong
+`HOSTED_ZONE_ID` zone, and one new bug (secret-derived job outputs
+stripped between jobs). All resolved. See **Postmortem archive** for
+the chronology.
 
-After the operator set `HOSTED_ZONE_ID` correctly (`Z039212425BG1MHVPYWDN`) and re-ran `25031648467`, **Deploy Prod went green** — Phase 3c rebrand landed in prod (`specodex-api-prod` Lambda, `Project=Specodex` tag, `Specodex-prod-*` exports; `https://datasheets.advin.io/health` returns 200 with `mode: "public"`). Smoke Prod failed at the `Wait for /health to go 200` step with `URL rejected: No host part in the URL` and `Production /health returned 000`.
+---
 
-Root cause: `Extract stack outputs` was running `./Quickstart cdk-outputs --key SiteUrl --key CloudFrontUrl`. Prod has the `SiteUrl` output (`https://${DOMAIN_NAME}` ≈ `https://datasheets.advin.io`), and that string contains the `DOMAIN_NAME` secret value. **GitHub Actions strips secret-derived values from job outputs** — the consuming `smoke-prod` job sees `needs.deploy-prod.outputs.url` as empty. In the deploy job's own log it shows up as `Production URL: https://***`, which is the masking that gives the bug away. Staging was unaffected because staging only emits `CloudFrontUrl` (the `*.cloudfront.net` domain — not secret-derived).
+## What you need to do next (manual)
 
-Fix: swap the priority so `CloudFrontUrl` always wins for prod. The CloudFront URL serves identical content (the custom domain is a Route53 alias to that same distribution), passes between jobs cleanly, and was already what staging uses. Loss: smoke-prod no longer exercises the user-facing custom-domain path — but the SiteAliasRecord CFN resource and stack-status verify already prove DNS is wired correctly. Trade is fine.
+**Nothing urgent.** This section is the operator queue — it's empty
+right now. Refill it when CI surfaces something only you can resolve
+(secret rotation, environment approval, IAM policy review).
 
-```yaml
-# .github/workflows/ci.yml — deploy-prod / Extract stack outputs
-URL=$(./Quickstart cdk-outputs --key CloudFrontUrl)
-```
+The one residual risk worth being aware of: the `HOSTED_ZONE_ID`
+secret is currently correct (`Z039212425BG1MHVPYWDN`), but it's still
+a manually-managed secret tied to a specific zone. Followup #1 below
+removes it as a class of bug entirely.
 
-Why this hadn't surfaced: this was the first time Smoke Prod ever ran. Every prior CI prod-deploy attempt failed at Deploy Prod (originally OIDC trust policy, then `??` vs `||`, then wrong-zone secret), so smoke was always skipped. Three layers of bugs deep, and only the green deploy let us see this one.
+---
 
-Lesson: be wary of `secrets.*` flowing through job outputs. Any `${{ steps.foo.outputs.x }}` value derived from a secret will silently be empty in downstream `needs.<job>.outputs.x`. Audit other workflow paths if you add more cross-job output passing.
+## What I'll do after (autonomous followups)
 
-## 2026-04-28: Prod deploy red — `HOSTED_ZONE_ID` secret points at wrong zone
+Ordered by impact. Each is bounded, branch-isolated, no shared-state
+side effects beyond a normal PR.
 
-After the `||` fallback shipped (`c3a89fb`) and the deterministic Lambda bundle landed (`12829d8`), CI run `25031648467` advanced through Test → Deploy Staging → Smoke Staging cleanly, then **failed at Deploy Prod / Frontend / SiteAliasRecord** with:
+### 1. Eliminate `HOSTED_ZONE_ID` as a secret entirely
 
-```
-[RRSet with DNS name ***. is not permitted in zone bigcanyonboys.com.]
-```
+Replace `HostedZone.fromHostedZoneAttributes({ hostedZoneId, zoneName })`
+in `app/infrastructure/lib/frontend-stack.ts` with
+`HostedZone.fromLookup({ domainName: hostedZoneName })`. The zone
+resolves by name from `DOMAIN_NAME` — no manual ID, no mismatch class
+possible. Cost: deploy role's `CdkDeploy` inline policy needs
+`route53:ListHostedZonesByName` + `route53:GetHostedZone`;
+`cdk.context.json` becomes a committed artifact (CDK already expects).
 
-Stack rolled back cleanly to `UPDATE_ROLLBACK_COMPLETE`.
+After this lands and one prod deploy proves it: `gh secret delete
+HOSTED_ZONE_ID` and remove the env-export from the workflow.
 
-Diagnosis: the GitHub secret `HOSTED_ZONE_ID` is currently set to `Z02805013L9EPXCI8U7ZD` — the zone for `bigcanyonboys.com.` (an unrelated personal domain in the same AWS account). It should be `Z039212425BG1MHVPYWDN` (zone `advin.io.`). Verified by inspecting Route53:
+### 2. Refresh GitHub Actions versions
 
-| Zone Id | Name | Has `datasheets` record? |
-|---|---|---|
-| `Z039212425BG1MHVPYWDN` | `advin.io.` | ✅ yes (`datasheets.advin.io.` A) |
-| `Z02805013L9EPXCI8U7ZD` | `bigcanyonboys.com.` | ❌ none |
+Bump `actions/checkout`, `actions/setup-node`, `astral-sh/setup-uv` to
+current at ship time, SHA-pinned per convention. Resolves the Node 20
+deprecation warning emitting on every run. Single-PR cleanup.
 
-So the prior manual prod deploys (2026-04-06, -18, -24) succeeded because the operator's local shell exported the correct `HOSTED_ZONE_ID`. CI's secret has been wrong since OIDC migration unlocked CI prod-deploys (P4) — it just took the `||` fix to make the deploy reach the SiteAliasRecord step where the wrong zone surfaces.
+### 3. Wire `tests/integration/` into CI
+
+8 files exist (`test_pipeline.py`, `test_db_integration.py`,
+`test_intake_guards_end_to_end.py`, `test_scraper_degraded_inputs.py`,
+etc.) and **none** run in CI. New integration tests in any branch rot
+silently. Fix: a `test-integration` job running `pytest tests/integration/
+-m "not live"` with moto-mocked AWS; gate `live`-marked tests behind
+a separate nightly trigger.
+
+Also include `tests/test_cli.py` (top-level) in the unit pass — it's
+currently excluded by the `tests/unit/` glob.
 
-### 2026-04-28 second failure — same root cause, secret still unset
-
-Run `25031648467` (commit `12829d8`) failed identically. Confirmed via `gh secret list` that `HOSTED_ZONE_ID.updatedAt = 2026-03-29T17:38:56Z` — the secret has not been touched since the OIDC migration. An agent attempt to run `gh secret set HOSTED_ZONE_ID --body "Z039212425BG1MHVPYWDN"` was correctly blocked by a session permission rule (shared CI/CD config change requires explicit user authorization). **Action remains pending and must be performed by the operator.**
-
-Action required:
-
-```bash
-gh secret set HOSTED_ZONE_ID --body "Z039212425BG1MHVPYWDN"
-gh run rerun 25031648467 --failed   # retrigger Deploy Prod + Smoke Prod only
-```
-
-No code change needed — the `||` fix is doing its job.
-
-### Lessons worth lifting
-
-1. **Synth-time zone check (deferred to P2/P4).** When an account holds multiple Route53 zones, secret values tied to a specific zone are easy to mis-paste. A CDK-side fix would replace `HostedZone.fromHostedZoneAttributes` with `HostedZone.fromLookup({ domainName: hostedZoneName })`, eliminating `HOSTED_ZONE_ID` as a secret entirely — the zone is resolved by name from `DOMAIN_NAME`, no mismatch class possible. Cost: deploy role needs `route53:ListHostedZonesByName` + `route53:GetHostedZone` added to the `CdkDeploy` inline policy; `cdk.context.json` becomes a committed artifact. Defer to a future CI hardening pass; not blocking once the secret is corrected.
-2. **Permission-rule respect.** Today's session permission denial on `gh secret set` worked exactly as intended — a deploy-time secret change is shared production state and should require an authorization step. Leave the rule as-is.
-
-## 2026-04-27: Prod deploy red — `??` vs `||` in config.ts
-
-First prod CI deploy after the OIDC + verify shipfest failed in `Frontend` with `DomainLabelEmpty (Domain label is empty) encountered with 'datasheets.advin.io.'` from Route53. Stack rolled back cleanly (`UPDATE_ROLLBACK_COMPLETE`).
-
-Root cause: GitHub repo has no `HOSTED_ZONE_NAME` secret (`gh secret list` shows only `AWS_*`, `DOMAIN_NAME`, `CERTIFICATE_ARN`, `HOSTED_ZONE_ID`). The workflow references `${{ secrets.HOSTED_ZONE_NAME }}` which resolves to empty string when unset, and the deploy step exports it as `HOSTED_ZONE_NAME=`. In `app/infrastructure/lib/config.ts`, the fallback used `??` — which only triggers on `null`/`undefined`, not empty string — so `hostedZoneName = ""`. CDK then renders `recordName = "datasheets.advin.io"` against a zone with `zoneName = ""` and produces `Name: datasheets.advin.io..` (double dot, empty label). Route53 rejects.
-
-Fixed in commit `c3a89fb`: `??` → `||` so empty strings also fall back. Verified by re-running `cdk synth` with `HOSTED_ZONE_NAME=""` — now produces the correct single-dot FQDN.
-
-Why this hadn't surfaced: the previous prod deploys (2026-04-06, -18, -24) were manual from a shell where `HOSTED_ZONE_NAME` was either unset (so `process.env.HOSTED_ZONE_NAME` was `undefined` and `??` fell back) or set correctly. CI's empty-string-from-missing-secret semantics is the new failure mode unlocked by P4's OIDC migration making CI prod-deploys actually execute.
-
-Lesson worth lifting into the project doc: in any TS env-var read with a fallback, prefer `||` over `??` — Bash-set env vars are always strings, and missing/unset bash vars surface as `""`, not `undefined`. `??` is the wrong default for shell-fed config.
-
-## Current state — full deploy chain green for the first time since 2026-03-30 (2026-04-26 PM)
-
-**Run [`24972771362`](https://github.com/JimothyJohn/specodex/actions/runs/24972771362) on commit `5274945` (after `bb5913d` + `5274945`):** all gates green through Smoke Staging.
-
-| Job | Result | Time |
-|---|---|---|
-| Test Python / Backend / Frontend | ✅ | 22s / 44s / 44s |
-| Deploy Staging | ✅ | 1m42s |
-| Smoke Staging | ✅ | 20s |
-| Deploy Prod | ⏸ environment approval gate |
-| Smoke Prod | (downstream of Deploy Prod) |
-
-Took three commits to get here from the 2026-03-30 red gate: `2371798` (P0+P1 — tests green), `bb5913d` (P2 — OIDC trust policy + IAM permissions + workflow SSM skip), `5274945` (P2.1 — URL-encode the smoke `where=` query). Prod deploy is the next click; it'll be the first prod CI deploy in ~3 weeks.
-
-### ✅ OIDC trust policy + role permissions fixed (2026-04-26 PM)
-
-`Deploy Staging` failed run `24965057525` with `Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`. Root cause: REBRAND Phase 3d (GitHub repo rename `JimothyJohn/datasheetminer` → `JimothyJohn/specodex`) shipped, so GitHub's OIDC token now carries `sub: repo:JimothyJohn/specodex:environment:staging`. The IAM role's trust policy was authored for the old repo name and only allowed `repo:JimothyJohn/datasheetminer:*` — tokens never matched.
-
-Applied:
-
-```bash
-aws iam update-assume-role-policy \
-  --role-name gh-deploy-datasheetminer \
-  --policy-document file:///tmp/trust-policy.json
-```
-
-…with the four `sub` patterns rewritten from `JimothyJohn/datasheetminer:*` to `JimothyJohn/specodex:*`. Verified via `aws iam get-role --role-name gh-deploy-datasheetminer`.
-
-The first rerun cleared OIDC (assumed-role line in logs confirms) but exposed a second gap: the workflow's `Provision staging SSM params` step and the post-deploy `cloudfront create-invalidation` step run *outside* CDK with the deploy role's identity, and the inline `CdkDeploy` policy didn't grant `ssm:PutParameter` or `cloudfront:CreateInvalidation`. Expanded the policy with two new statements:
-
-- `ProvisionStageSsmParams`: `ssm:{Put,Get,Delete}Parameter` on `parameter/{datasheetminer,specodex}/{staging,prod}/*` (both prefixes so Phase 3c is a no-op for IAM).
-- `InvalidateCloudFront`: `cloudfront:{Create,Get}Invalidation` on `*` (CloudFront actions don't accept resource-level scoping for these).
-
-Verified via `aws iam get-role-policy --role-name gh-deploy-datasheetminer --policy-name CdkDeploy`. Five Sids now: `AssumeCdkBootstrapRoles`, `ReadCloudFormationStateForCdkCli`, `ReadCdkBootstrapSsmParam`, `ProvisionStageSsmParams`, `InvalidateCloudFront`.
-
-The role *name* (`gh-deploy-datasheetminer`) still references the legacy slug — that's REBRAND Phase 3c (AWS resource cosmetics) and intentionally deferred. The role name doesn't appear in OIDC claims; only the `sub` does.
-
-### Other AWS-side rebrand state (2026-04-26 audit)
-
-All other AWS resources still carry the legacy names — and intentionally so per REBRAND.md Phase 3c posture (rename = delete+recreate, no user benefit, deferred until 3a/3b soak):
-
-| Resource | Current name | Plan |
-|---|---|---|
-| Lambda functions | `datasheetminer-api-{dev,staging,prod}` | Phase 3c rename |
-| S3 frontend buckets | `datasheetminer-{stage}-fronten-frontendbucket…` | Phase 3c rename |
-| S3 upload buckets | `datasheetminer-uploads-{stage}-403059190476` | **Leave** (data; rename = recreate) |
-| CFN stacks | `DatasheetMiner-{Dev,Staging,Prod}-{Database,Api,Frontend}` × 9 | **Leave** (per REBRAND.md decision) |
-| CDK-generated IAM roles | `DatasheetMiner-…-ApiHandlerServiceRole…` etc. | Re-created on next deploy as side-effect |
-| SSM prefix `/datasheetminer/{stage}` | configured in `lib/config.ts` + CI env | Currently empty (no params under either prefix); harmless until consumers exist |
-| Inline CdkDeploy permissions policy | delegates to `cdk-hnb659fds-*-role` via `sts:AssumeRole` | No change needed; modern CDK pattern |
-
-So: no other AWS-side fix required to unblock CI. The trust policy was the single landmine.
-
-### Cross-stage hazard to record in REBRAND.md
-
-REBRAND Phase 3d (repo rename) silently breaks any IAM role whose trust policy hardcodes the old repo name in `token.actions.githubusercontent.com:sub` patterns. Future repo-rename runbooks should: (a) audit IAM trust policies for the old name *before* renaming, OR (b) add an alternative pattern entry for the new name and remove the old one only after CI is green. Currently REBRAND.md Phase 3d's contingency list mentions submodules and webhooks but not OIDC. Add it.
-
-### After the OIDC fix, what's left in the deploy chain
-
-Even with the trust policy fixed, the `Deploy Staging` job still has untested surfaces from the OIDC migration commit (`9f054a4`):
-
-- The role's *permissions policy* (not trust policy) needs to allow `cdk deploy`'s API calls — CloudFormation, IAM PassRole, S3, Lambda, API Gateway, CloudFront, DynamoDB, ACM, Route 53 (for the custom domain). If it's missing any, CDK will fail mid-deploy. The error will be specific (e.g. `User: ... is not authorized to perform: lambda:CreateFunction`).
-- `./Quickstart deploy --stage staging` will then run on the renamed `specodex/` Python package for the first time end-to-end. If CDK packaging implicitly relied on the old package directory name anywhere in `app/infrastructure/`, that surfaces here.
-- Smoke Staging runs `tests/staging/` + `tests/post_deploy/` against the deployed URL. These call the API endpoints listed in CLAUDE.md — should pass if Deploy Staging completed cleanly.
-
-### Untouched items (still open)
-
-- Production has not been deployed by CI in three+ weeks. Whatever is in prod got there by hand or is stale. After staging is green, the `deploy-prod` job (gated on `environment: production` approval) will be the first prod CI deploy in a long time.
-- `staging.yml` workflow still exists; still duplicates what `smoke-staging` already does (P5 item).
-- `tests/integration/` still not wired into CI (P3).
-- 11 backend `tsc --noEmit` errors are pre-existing in `tests/` and excluded from `npm run build`'s `tsconfig.json` `include`. Not blocking. Worth a separate cleanup pass eventually but out of scope for CI hygiene.
-- Node 20 deprecation warning still emitted by every action — refresh action versions when convenient (P2).
-
-## What's in place today
-
-| Stage | Where | Notes |
-|-------|-------|-------|
-| Unit (Python) | `.github/workflows/ci.yml:16` | `pytest tests/unit/ -m "not slow"` |
-| Unit (backend) | `ci.yml:34` | lint + jest + tsc |
-| Unit (frontend) | `ci.yml:62` | lint + vitest + tsc + vite build |
-| Deploy staging | `ci.yml:93` | `./Quickstart deploy --stage staging` (delegates to single source of truth — good) |
-| Smoke staging | `ci.yml:172` | `tests/staging/` + `tests/post_deploy/` |
-| Deploy prod | `ci.yml:215` | gated on staging smoke + `environment: production` approval |
-| Smoke prod | `ci.yml:317` | `tests/post_deploy/` |
-| `staging.yml` | manual `workflow_dispatch` | Duplicates what `smoke-staging` already does. Probably dead. |
-
-`./Quickstart test` (`cli/quickstart.py:260`) runs only Python unit + backend jest + frontend vitest. **No lint, no tsc, no integration tests, no build.**
-
-`tests/integration/` (8 files including new `test_intake_guards_end_to_end.py`, `test_scraper_degraded_inputs.py`) is **not wired into CI or Quickstart anywhere**. It might as well not exist.
-
-## Pain points, grouped by who feels them
-
-### The agent / dev loop (highest leverage)
-
-1. **Drift between `./Quickstart test` and CI.** Local green ≠ CI green because Quickstart skips lint and build. Agents push, CI fails on lint, agents iterate from a red gate.
-2. **No pre-push verification command.** There is no `./Quickstart verify` (or `./Quickstart ci`) that runs *exactly* what CI runs. Each agent rediscovers the gap.
-3. **No path filtering.** A README edit triggers Python tests, backend tests, frontend tests, and a staging deploy. Slow feedback + wasted deploys.
-4. **No concurrency cancellation.** Two pushes in quick succession deploy concurrently → CDK race + CloudFront double-invalidation.
-5. **Brittle JSON parsing in YAML.** `ci.yml:142-157` and `:283-300` inline `python3 -c '…json.load…'` to read `cdk-outputs.json`. Silently prints empty string if the key shape changes (e.g., `SiteUrl` vs `CloudFrontUrl` precedence varies between staging/prod). Belongs in `Quickstart`.
-6. **Pytest output is the only failure signal.** No JUnit XML, no test-report summary in the PR. Agents have to re-run `gh run view --log-failed` and grep.
-7. **Long-lived AWS access keys.** `ci.yml:118` uses `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. OIDC + role assumption is the modern norm, removes secret rotation, and scopes per-stage.
-8. **No deploy dry-run / `cdk diff` step.** PRs don't surface the infra delta, so reviewers (human or agent) approve blind.
-9. **No deps caching.** Every job re-installs `uv` deps and `npm` deps from scratch (~30-60s each, 3 jobs = wasted ~2 min/run).
-10. **Health-check polling is divergent.** CI waits 60s (`ci.yml:191`), `Quickstart smoke` waits 5s (`cli/quickstart.py:488`). Same code path, different verdicts.
-
-### Coverage gaps
-
-11. **Integration tests don't run anywhere.** `tests/integration/test_pipeline.py`, `test_db_integration.py`, `test_intake_guards_end_to_end.py`, `test_scraper_degraded_inputs.py` — none of these are in CI or Quickstart. New files added in this branch will rot the same way.
-12. **`tests/test_cli.py` (top-level) isn't picked up by `tests/unit/` glob.** `pytest tests/unit/` excludes it.
-13. **No regression guardrail on the LLM pipeline.** `./Quickstart bench` runs only on demand. A keyword-matcher refactor in `page_finder.py` could silently cut recall in half and we'd find out by user complaint.
-14. **No dependency audit.** No `uv pip audit` / `npm audit` / `pip-audit` step. CVEs land silently.
-15. **No security scan.** A `/security-review` skill exists but is human-triggered. CodeQL or Semgrep would catch obvious stuff per-PR.
-16. **Smoke tests don't verify CloudFormation stack status.** `/health` 200 doesn't mean the stack converged cleanly — a partial UPDATE_ROLLBACK_COMPLETE can still serve traffic from old Lambda code.
-
-### Operational
-
-17. **`staging.yml` is duplicative legacy.** Same checkout + `pytest tests/staging/` as `smoke-staging`. Either repurpose for cross-environment ad-hoc testing or delete.
-18. **No nightly bench.** Quality regressions surface late.
-19. **No artifact upload on failure.** When `cdk deploy` fails, the CDK template, `cdk.out/`, and `cdk-outputs.json` are gone with the runner.
-20. **Node.js 20 actions deprecation warning** in CI logs. Action versions need a refresh pass before June 2026.
-
-## Plan
-
-Ordered by leverage. Steps 1–3 are blocking (everything else is moot while CI is red).
-
-### P0 — unblock the gate
-
-- [x] **Fix `tests/unit/test_admin.py`** (2026-04-26). Real cause was the `.gitignore admin/` pattern; module is now tracked. 26/26 tests pass.
-- [x] **Fix Frontend Vitest unhandled rejections** (2026-04-26). Async-handler race in 3 retry tests; rewrote to attach the rejection handler synchronously. 243/243 vitest pass with 0 unhandled errors. (Not in the original P0 plan — surfaced once Test Python was unblocked.)
-- [ ] **Add a CI sanity test that `Quickstart test` exits 0 on a clean checkout.** Trivial job, but it forces local/CI parity for the test command. *(Folds into the P1 `./Quickstart verify` work — handle there.)*
-- [ ] **Confirm prod is in the state we think it is.** `aws cloudformation describe-stacks --stack-name DatasheetMiner-Prod-*` for each stack, sanity-check `LastUpdatedTime`. If prod has drifted, decide whether to redeploy from `master` HEAD once CI is green.
-
-### P1 — close the local↔CI loop ✅ shipped 2026-04-26
-
-- [x] **`./Quickstart verify` (alias: `./Quickstart ci`)** lands in `cli/quickstart.py:cmd_verify`. Stages: ruff check + ruff format --check + pytest tests/unit/ for Python; `npm run lint && npm test && npm run build` for backend and frontend. `--only python|backend|frontend` runs a single stage; `--integration` adds `tests/integration/` to the Python stage. Skips `npm install` and `uv sync` — assumes those ran upstream (CI's `npm ci` / `uv sync --quiet` steps; locally the user's existing dev env). Fails fast with a hint if `app/node_modules` is missing.
-- [x] **CI calls verify.** Each `test-*` job in `.github/workflows/ci.yml` is now `./Quickstart verify --only <stage>` instead of inline run blocks. Single source of truth for what "tested" means. Note: CI keeps its own `actions/setup-uv` + `uv sync` and `actions/setup-node` + `npm ci` setup steps — verify doesn't reinvent those.
-- [x] **Pre-existing 22 ruff errors cleaned up** so the new `verify` gate doesn't false-red on day one. 17 autofix (unused imports, f-strings without placeholders), 5 manual (one `once_flag` deadcode in `quickstart.py`, one `__all__` in `specodex/models/__init__.py`, one `l → line` rename in `page_finder.py`, two unused locals in tests). 1050 unit tests still green.
-- [x] **`./Quickstart test` kept lean** (just tests, no lint/build) for fast dev-loop feedback; help text now explicitly directs pre-push users to `verify`. Folding `test` into `verify` would have lost the fast inner loop.
-- [x] **CLAUDE.md updated.** Entry-point section advertises both `test` (fast) and `verify` (gate). Smoke-testing-a-new-type checklist now says "step 1: `./Quickstart verify`" instead of the old `(cd app/{backend,frontend} && npx tsc --noEmit)` pair, since verify covers tsc via the build stage.
-
-### P2 — make CI faster, more honest, and more diagnosable
-
-- [x] **`concurrency:` block** (2026-04-26) keyed by `${{ github.workflow }}-${{ github.ref }}`. `cancel-in-progress` is true for non-master refs (PRs cancel on push) and false on master so an in-flight deploy chain isn't aborted by a follow-up commit. The `environment: production` approval gate remains the dominant safeguard for prod.
-- [x] **Cache `uv` and `npm` deps** (2026-04-26). `actions/setup-node` now has `cache: npm` + `cache-dependency-path: app/package-lock.json` on all 4 callsites; `astral-sh/setup-uv` has `enable-cache: true` + `cache-dependency-glob: uv.lock` on all 5. First post-deploy run is the cache-miss baseline; subsequent runs should shave ~30-60s/job on installs.
-- [x] **Fix prod SSM-put empty-string bug** (2026-04-26). Same skip-when-unset guard as staging — was missed in the earlier `replace_all` because the prod step lacked the leading comment block. Would have failed prod deploy with `ValidationException` whenever `STRIPE_LAMBDA_URL` is unset (which is the default).
-- [ ] **`paths-ignore` and `paths` filters** on workflow triggers. Doc-only changes (`*.md`, `todo/**`, `outputs/**`) skip the deploy chain. Per-job filters: backend changes don't trigger frontend tests. *Deferred — interacts with branch protection's required-status-checks list. Need to confirm what's required before skipping the workflow entirely.*
-- [x] **Move JSON-parsing logic out of YAML** (2026-04-26). `./Quickstart cdk-outputs --key <substring>` lives in `cli/quickstart.py:cmd_cdk_outputs`; `--key` is repeatable so prod's `--key SiteUrl --key CloudFrontUrl` falls back when the custom-domain output isn't there yet. CI's `Extract stack outputs` steps in `deploy-staging` and `deploy-prod` are now two shell lines instead of two python heredocs each.
-- [ ] **Unify the `/health` poll.** One helper in `quickstart.py` (already exists at `:159`), parameterized by retries, called from both `cmd_smoke` and CI. CI invokes `./Quickstart smoke "$URL" --wait 60`.
-- [ ] **`--junitxml` on every pytest run + `actions/upload-artifact@v4`** for the XML and `cdk-outputs.json`. Add a job summary step (`echo "..." >> $GITHUB_STEP_SUMMARY`) listing pass/fail counts.
-- [ ] **Refresh action versions.** `actions/checkout@v5`, `actions/setup-node@v5`, `astral-sh/setup-uv@v6` (whatever's current at ship time). Keeps SHA-pinning convention. Resolves the Node 20 deprecation warning. *Deferred — pinned-SHA convention means each bump needs the actual latest SHA looked up; fold into a separate "actions refresh" PR in May.*
-
-### P3 — wire up the missing test surface
-
-- [ ] **Run `tests/integration/` on PR.** Needs a job with mocked AWS (moto is already a dev dep). Skip the ones that need real LLM credentials, or gate them behind a `live` marker that runs nightly only.
-- [ ] **Include `tests/test_cli.py`** in the unit pass — change CI to `pytest tests/unit/ tests/test_cli.py` or move the file under `tests/unit/`.
-- [ ] **Nightly `./Quickstart bench` workflow** with `--update-cache` disabled, comparing against `outputs/benchmarks/latest.json`. Post a comment to a tracking issue if precision/recall drops > 5pp on any fixture. Costs real money — make it weekly first, see what it catches.
-- [x] **Stack-status smoke check** (2026-04-26). Each deploy job now has a "Verify {stage} stack status" step that walks the 3 stacks for that stage and fails CI unless `StackStatus ∈ {CREATE_COMPLETE, UPDATE_COMPLETE}` — `cdk deploy` exits 0 on `UPDATE_ROLLBACK_COMPLETE` (the rollback succeeded, the deploy didn't), and the original `/health` poll catches a Lambda that's serving traffic but is silently the previous version. Permission already granted via `CdkDeploy.ReadCloudFormationStateForCdkCli`.
-
-### P4 — secret hygiene & supply chain
-
-- [x] **Migrate to GitHub OIDC for AWS** (2026-04-26, commit `9f054a4`). Workflow now has `permissions: id-token: write` and both staging + prod deploy jobs use `role-to-assume: arn:aws:iam::403059190476:role/gh-deploy-datasheetminer`. Single role for now (not per-stage); the role name still uses the legacy `datasheetminer` slug — Phase 3c of REBRAND will rename it. **Not yet validated end-to-end** because the deploy jobs were skipped while Test Python was red; first real exercise is the next CI run after the P0 fixes ship.
-- [ ] **`pip-audit` and `npm audit --omit=dev`** in CI as a non-blocking job (warn, don't fail). Promote to blocking after one cycle of cleanup.
-- [ ] **CodeQL workflow** (Python + JavaScript). GitHub provides a starter; ~5-min job. Catches obvious injection / unsafe patterns.
-
-### P5 — operational tidying
-
-- [ ] **Delete `staging.yml`** unless it's used by something I missed. `gh workflow list` shows it's active but it duplicates `smoke-staging`. If kept, repurpose for "smoke an arbitrary URL" with `workflow_dispatch`.
-- [ ] **Add a `cdk-diff` job on PR** that runs `npx cdk diff --all` against the staging account and posts the diff as a PR comment. Reviewers see infra delta before approval.
-- [ ] **Upload `cdk.out/` on deploy failure** so post-mortem doesn't require re-running.
-
-## Success criteria
-
-The loop is "agent-friendly" when, for an agent making a code change, the following sequence holds:
-
-1. Agent runs `./Quickstart verify` locally → green.
-2. Agent pushes → CI green within ~5 min for the unit jobs, ~15 min for the full deploy chain.
-3. If CI fails, the failure is in `$GITHUB_STEP_SUMMARY` (not buried in `--log-failed`), and reproduces locally with one command.
-4. A green merge to `master` deploys to staging, smoke-tests, deploys to prod (with environment approval), and posts the prod URL — all without human intervention beyond the approval click.
-5. New product types, new CLI subcommands, and new integration tests all run by default — no separate registration step that someone might forget.
-
-## Notes / open questions
-
-- Is the staging account separate from prod, or same account different stacks? OIDC role design depends on this.
-- Does anyone read `outputs/benchmarks/latest.json`? If not, the nightly bench needs an actual notification path (email? GH issue comment?) or it's just more noise.
-- `tests/integration/test_intake_guards_end_to_end.py` is uncommitted on this branch — confirm whether it's meant to ship before wiring the integration job to it.
+### 4. Nightly `./Quickstart bench` workflow
+
+Catches LLM-pipeline regressions before users see them. Schedule
+weekly first (Gemini cost ~$1-5/run); promote to nightly if the weekly
+catches anything in the first month. Compare against
+`outputs/benchmarks/latest.json`; post to a tracking issue if
+precision/recall drops > 5pp on any fixture.
+
+### 5. CI hygiene (one PR, low-risk)
+
+- **JUnit XML + step summary.** `--junitxml` on every pytest call,
+  `actions/upload-artifact@v4` for the XML and `cdk-outputs.json`,
+  job-summary step listing pass/fail counts. Failure cause becomes
+  visible on the run page instead of buried in `--log-failed`.
+- **`paths-ignore` filters.** Doc-only changes (`*.md`, `todo/**`,
+  `outputs/**`) skip the deploy chain. **Caveat:** interacts with
+  branch protection's required-status-checks list — confirm what's
+  required before merging.
+- **Unify `/health` poll.** CI waits 60s, `Quickstart smoke` waits 5s.
+  Single helper in `cli/quickstart.py:159`, parameterized; both
+  callsites converge.
+- **Upload `cdk.out/` on deploy failure.** Post-mortem doesn't require
+  re-running.
+- **`cdk diff` PR comment.** New job runs `npx cdk diff --all` against
+  staging, posts the diff. Reviewers see infra delta before approval.
+
+### 6. Security scans (warn-only first)
+
+- **`pip-audit` + `npm audit --omit=dev`** as non-blocking jobs.
+  Promote to blocking after one cleanup cycle.
+- **CodeQL workflow** (Python + JavaScript). Standard GitHub starter,
+  ~5-min job per language.
+
+### 7. Operational tidying
+
+- **Delete `staging.yml`** — duplicates `smoke-staging`. Confirm via
+  `gh workflow list` first; if anything triggers it on
+  `workflow_dispatch` for ad-hoc cross-env smoke, repurpose with a
+  `URL` input parameter instead of deleting.
+
+---
+
+## Success criteria (unchanged from prior plan)
+
+The loop is "agent-friendly" when, for an agent making a code change:
+
+1. `./Quickstart verify` locally → green.
+2. Push → CI green within ~5 min for unit jobs, ~15 min for full deploy chain.
+3. CI failure surfaces in `$GITHUB_STEP_SUMMARY`, reproduces locally with one command.
+4. Green merge to `master` → staging → smoke → prod (with environment approval) → prod URL posted, no human intervention beyond approval.
+5. New product types, CLI subcommands, integration tests all run by default — no separate registration step.
+
+Items 1, 2, 4 (unit + full chain), and 5 (auto-discovery) are done.
+The followups above close items 3 and the "no separate registration"
+half of 5.
+
+---
+
+## Postmortem archive
+
+Read-only history. Don't act on these — the issue is resolved. Kept for
+future tripwire diagnosis.
+
+### 2026-04-28 PM: Smoke Prod red — secret-derived job output stripped
+
+After `HOSTED_ZONE_ID` was rotated and the rerun went green through
+Deploy Prod, Smoke Prod failed at `Wait for /health to go 200` with
+`URL rejected: No host part in the URL` and `Production /health
+returned 000`.
+
+Root cause: `Extract stack outputs` ran `./Quickstart cdk-outputs --key
+SiteUrl --key CloudFrontUrl`. Prod has the `SiteUrl` output
+(`https://${DOMAIN_NAME}` ≈ `https://datasheets.advin.io`) — string
+contains the `DOMAIN_NAME` secret value. **GitHub Actions strips
+secret-derived values from job outputs**, so the consuming `smoke-prod`
+job saw `needs.deploy-prod.outputs.url` as empty. In the deploy job's
+own log it shows up as `Production URL: https://***`. Staging was
+unaffected — staging only emits `CloudFrontUrl` (`*.cloudfront.net`,
+not secret-derived).
+
+**Fix:** swap priority so `CloudFrontUrl` always wins for prod. The
+CloudFront URL serves identical content (custom domain is a Route53
+alias to that same distribution), passes between jobs cleanly, and was
+already what staging used. Loss: smoke-prod no longer exercises the
+custom-domain path — but `SiteAliasRecord` CFN resource + stack-status
+verify already prove DNS is wired correctly. Trade is fine.
+
+This was the **first time Smoke Prod ever ran**. Every prior CI prod-
+deploy attempt failed at Deploy Prod (OIDC, then `??` vs `||`, then
+wrong-zone secret), so smoke was always skipped. Three layers deep,
+only the green deploy let us see this one.
+
+**Lesson lifted into `~/.claude/CLAUDE.md`:** `secrets.*` flowing
+through job outputs is a silent data-loss pattern. Audit other
+workflow paths if you add cross-job output passing.
+
+### 2026-04-28: Prod deploy red — `HOSTED_ZONE_ID` points at wrong zone
+
+Run `25031648467` failed at `Deploy Prod / Frontend / SiteAliasRecord`
+with `RRSet with DNS name ***. is not permitted in zone
+bigcanyonboys.com.`. Stack rolled back cleanly to
+`UPDATE_ROLLBACK_COMPLETE`.
+
+Diagnosis: secret held `Z02805013L9EPXCI8U7ZD` (zone
+`bigcanyonboys.com.`, an unrelated personal domain in the same AWS
+account) instead of `Z039212425BG1MHVPYWDN` (zone `advin.io.`). Prior
+manual prod deploys (2026-04-06, -18, -24) succeeded because the
+operator's local shell exported the correct value. CI's secret had
+been wrong since OIDC migration unlocked CI prod-deploys (P4).
+
+**Resolved by:** operator running `gh secret set HOSTED_ZONE_ID --body
+"Z039212425BG1MHVPYWDN"` and rerunning the failed job.
+
+**Permanently eliminated by:** followup #1 above (`fromLookup`).
+
+### 2026-04-27: Prod deploy red — `??` vs `||` in `config.ts`
+
+First post-OIDC prod CI deploy failed with `DomainLabelEmpty` from
+Route53. `HOSTED_ZONE_NAME` secret unset → workflow exports empty
+string → `process.env.HOSTED_ZONE_NAME ?? "advin.io"` kept `""`
+because `??` only triggers on `null`/`undefined`. CDK rendered
+`Name: datasheets.advin.io..` (double dot). Fixed in `c3a89fb`:
+`??` → `||`.
+
+**Lesson lifted into `~/.claude/CLAUDE.md`:** in TS env-var reads with
+a fallback, prefer `||` over `??`. Bash-set vars are always strings;
+missing ones surface as `""`, not `undefined`.
+
+### 2026-04-26 PM: OIDC trust policy fixed after REBRAND Phase 3d
+
+`Deploy Staging` failed with `Could not assume role with OIDC: Not
+authorized to perform sts:AssumeRoleWithWebIdentity` after the GitHub
+repo rename. Trust policy hardcoded `repo:JimothyJohn/datasheetminer:*`
+patterns; renamed to `JimothyJohn/specodex:*` via `aws iam
+update-assume-role-policy`. Also expanded the inline `CdkDeploy` policy
+with `ProvisionStageSsmParams` and `InvalidateCloudFront` Sids
+(needed for SSM put + CloudFront invalidation steps that run outside
+CDK).
+
+The role *name* (`gh-deploy-datasheetminer`) still uses the legacy
+slug — role name doesn't appear in OIDC claims; only `sub` does, and
+that's been rewritten.
+
+**Lesson lifted into REBRAND.md Phase 3d contingency list:** repo
+rename silently breaks IAM trust policies whose `sub` claims hardcode
+the old name.
+
+### Done milestones (P0–P4 full list)
+
+P0 ✅ — `tests/unit/test_admin.py` import (`.gitignore admin/` pattern);
+Frontend Vitest unhandled rejections (async-handler race in 3 retry
+tests).
+
+P1 ✅ — `./Quickstart verify` (alias `ci`); CI calls `verify --only
+<stage>`; 22 ruff errors cleaned; CLAUDE.md entry-point section
+advertises both `test` (fast) and `verify` (gate); smoke-testing-a-new-
+type checklist points at `verify`.
+
+P2 ✅ (most) — concurrency block (`cancel-in-progress: false` on
+master); deps caching (`uv` + `npm`); prod SSM-put empty-string guard;
+JSON parsing moved to `./Quickstart cdk-outputs --key`. Deferred:
+paths-ignore (branch protection interaction), unified /health poll,
+JUnit XML, action refresh.
+
+P3 ✅ — Stack-status smoke check (each deploy job verifies
+`StackStatus ∈ {CREATE_COMPLETE, UPDATE_COMPLETE}`). Deferred:
+integration tests in CI, nightly bench, `tests/test_cli.py` inclusion.
+
+P4 ✅ — OIDC migration (`9f054a4`); `permissions: id-token: write`;
+`role-to-assume` on staging + prod jobs. Deferred: pip-audit, CodeQL.
+
+P5 deferred — `staging.yml` cleanup, `cdk diff` PR comment, `cdk.out/`
+artifact upload on failure.
+
+---
 
 ## Triggers
 
 Surface this doc when the current task touches any of:
 
 - Any file under `.github/workflows/`
-- `tests/unit/test_admin.py` (the import bug blocking CI today)
-- `cli/quickstart.py` (especially `cmd_test`, `cmd_deploy`, `cmd_smoke`, or adding new subcommands)
-- Pushing to `master`, opening a PR, or any deploy attempt
-- User mentions "CI red", "deploy stuck", "broken pipeline", "branch protection", or asks "is this in prod?"
+- `cli/quickstart.py` (especially `cmd_test`, `cmd_deploy`, `cmd_smoke`,
+  `cmd_verify`, `cmd_cdk_outputs`, or adding new subcommands)
+- `app/infrastructure/lib/{api,frontend,database}-stack.ts` or
+  `bin/app.ts` — they all interact with the deploy chain
+- Pushing to `master`, opening a PR, any deploy attempt
+- User mentions "CI red", "deploy stuck", "broken pipeline", "branch
+  protection", or asks "is this in prod?"
 - AWS credentials / OIDC / GitHub Actions secrets
-- Once Quickstart `verify`/`ci` lands, also closes part of [MANUAL_UPDATES.md](MANUAL_UPDATES.md) item 4.
+- `HOSTED_ZONE_ID`, `HOSTED_ZONE_NAME`, `DOMAIN_NAME`, `CERTIFICATE_ARN`
+- IAM trust policy or `gh-deploy-datasheetminer` mentions
+- Cross-job output passing (`steps.foo.outputs.x` → `needs.<job>.outputs.x`)
+  with values that might be secret-derived
