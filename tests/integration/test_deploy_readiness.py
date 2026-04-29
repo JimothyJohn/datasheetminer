@@ -101,10 +101,24 @@ class TestConfigConsistency:
     """Environment and configuration files are consistent across layers."""
 
     def test_backend_config_has_all_product_types(self):
-        """productTypes.ts must list all supported types."""
+        """productTypes.ts must list every user-facing product type.
+
+        ``datasheet`` and ``factory`` are backend-internal partition types
+        — they have a ``PK = "PRODUCT#DATASHEET"`` row but aren't shown in
+        the catalog dropdown, so they're intentionally excluded from the
+        TS allowlist that drives ``getCategories()``.
+        """
         config_file = BACKEND / "src" / "config" / "productTypes.ts"
         content = config_file.read_text()
-        for t in ["motor", "drive", "gearhead", "robot_arm", "datasheet"]:
+        for t in [
+            "motor",
+            "drive",
+            "gearhead",
+            "robot_arm",
+            "contactor",
+            "electric_cylinder",
+            "linear_actuator",
+        ]:
             assert f"'{t}'" in content, f"Missing product type '{t}' in productTypes.ts"
 
     def test_search_schema_accepts_all_hardware_types(self):
@@ -133,12 +147,22 @@ class TestConfigConsistency:
         for t in ["motor", "drive", "robot_arm", "gearhead", "datasheet"]:
             assert f"'{t}'" in content, f"Filters missing type '{t}'"
 
-    def test_cdk_config_validates_stages(self):
-        """CDK config must accept dev, staging, and prod."""
+    def test_cdk_config_reads_stage_from_env(self):
+        """CDK config derives the stage dynamically from STAGE env var.
+
+        Earlier versions of this test asserted that ``'dev'``, ``'staging'``,
+        and ``'prod'`` literals appear in ``config.ts`` directly — but the
+        config has been dynamic since the OIDC migration: ``getConfig()``
+        reads ``process.env.STAGE`` and falls back to ``'dev'``. The contract
+        is that the config consumes STAGE, not that it enumerates stages.
+        """
         config_file = INFRA / "lib" / "config.ts"
         content = config_file.read_text()
-        for stage in ["dev", "staging", "prod"]:
-            assert f"'{stage}'" in content, f"CDK config missing stage '{stage}'"
+        assert "process.env.STAGE" in content, (
+            "CDK config must read stage from process.env.STAGE"
+        )
+        # Default fallback should be 'dev' — keeps local/quick-deploy ergonomics.
+        assert "'dev'" in content, "CDK config should default stage to 'dev'"
 
     def test_dynamodb_table_name_derived_from_stage(self):
         """Backend and CDK agree on table naming convention."""
