@@ -21,7 +21,7 @@ reshapes its substrate.
 
 | # | Doc | Status | Effort | One-line summary |
 |---|-----|--------|--------|------------------|
-| 1 | [CICD.md](CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. `HOSTED_ZONE_ID` rotated, Phase 3c rebrand in prod. Followups (CDK `fromLookup`, action refresh, integration tests in CI, nightly bench, JUnit XML, security scans, `staging.yml` cleanup) are mine to land. **Operator queue: empty.** |
+| 1 | [CICD.md](CICD.md) | 🟢 healthy — chain green; 5 followup PRs code-ready | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. Action refresh, integration tests, JUnit XML already shipped. 5 followup branches code-ready: `cicd-followup-{fromlookup, ci-hygiene, nightly-bench, security-scans, staging-yml-cleanup}`. `fromlookup` is gated on adding `route53:ListHostedZonesByName` + `route53:GetHostedZone` to the deploy role; the rest can merge in any order. |
 | 2 | [REBRAND.md](REBRAND.md) | 🚧 Phase 3a–e ✅ shipped + deployed; Stage 4 (DNS cutover) pending | 🟡 medium | Datasheetminer → Specodex. Stages 1+2 chrome ✅, 3a (Python pkg) ✅, 3b (Node workspaces) ✅, 3c (CDK rename) ✅ deployed 2026-04-28, 3d (GH repo rename) ✅, 3e (docs sweep) ✅. Stage 4 (`specodex.com` DNS cutover + ACM cert + CloudFront alt-domain) waits on zone NS propagation. |
 | 3 | [UNITS.md](UNITS.md) | ✅ shipped 2026-04-28 — code `a8f6162` + `aac7050`, data backfill applied to dev (273 rows) + prod (10 rows) | 🟢 done | **Linchpin.** `ValueUnit`/`MinMaxUnit` carry `{value, unit}` end-to-end. `cli/migrate_units_to_dict.py` rescued `~`/`,`/`≤`/`≥` quirks; `±` and `;null`/`;unknown` left in review. Manual triage of ~373 dev + 10 prod review entries pending — pre-existing data quality, non-blocking. |
 | 4 | [DEDUPE.md](DEDUPE.md) | ⏸ deferred | 🟡 medium (high blast radius) | One-time cross-vendor sweep for prefix-drift duplicates left by `--force` re-ingests pre-family-aware-ID fix. Audit + safe-merge + human review. **Phase 1 audit is a Late Night candidate** — read-only on DB, output is JSON. |
@@ -39,7 +39,7 @@ Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴
 UNITS was the linchpin (Pydantic + DynamoDB + frontend rendering substrate). Now done.
 With UNITS landed and CICD green, the remaining order:
 
-1. **CICD followups.** Autonomous; `fromLookup`/action refresh/integration-tests-in-CI/nightly bench, in that order. Each is a separate small PR.
+1. **CICD followups.** 5 branches code-ready; merge in the order listed in `CICD.md` "What you need to do next". Branch 1 (`cicd-followup-fromlookup`) is gated on a one-shot Route53 IAM permission update; branches 2–5 can merge in any order. Plus `late-night-dedupe-audit` (DEDUPE Phase 1 read-only audit script) is also code-ready, separate from the CICD chain.
 2. **REBRAND Stage 4.** DNS cutover for `specodex.com` once registrar NS records propagate. Mechanical AWS plumbing — touches no Python/TS code, can interleave with anything else.
 3. **DEDUPE.** Operates on post-UNITS uniform data. Phase 1 audit is a Late Night candidate (read-only). Phase 2 auto-merge + Phase 3 human review queue follow.
 4. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
@@ -65,9 +65,9 @@ Curated tasks safe to run autonomously overnight on dev. Each one meets four cri
 |---|---|---|
 | Bench (offline) | `./Quickstart bench` | `outputs/benchmarks/<ts>.json` — diff precision/recall vs `latest.json` |
 | Ingest-report | `./Quickstart ingest-report --email-template` | `outputs/ingest_report_*.md` — quality fails grouped by manufacturer |
-| UNITS review triage | parse `outputs/units_migration_review_dev_*.md`, group by pattern (pre-existing rescue groups: `±`, `;null`, `;unknown`, `IP##;<wrong>`), emit triage list with row counts | `outputs/units_triage_<ts>.md` |
+| UNITS review triage | `./Quickstart units-triage outputs/units_migration_review_dev_*.md` (script lives on branch `late-night-units-triage`) | `outputs/units_triage_<stage>_<source-ts>_triaged_<run-ts>.md` — pattern groups + suggested action per group |
 | Integration test sweep | `./Quickstart verify --integration` | exit code; stale tests surface as failures |
-| DEDUPE Phase 1 audit | write `cli/audit_dedupes.py` (no DB writes), then run against dev | `outputs/dedupe_audit_<ts>.json` + `outputs/dedupe_review_<ts>.md` |
+| DEDUPE Phase 1 audit | `./Quickstart audit-dedupes --stage dev` (script lives on branch `late-night-dedupe-audit` — read-only on dev DB) | `outputs/dedupe_audit_dev_<ts>.json` + `outputs/dedupe_review_dev_<ts>.md` |
 
 ### Tier 2 — small Gemini cost, dev DB writes only
 

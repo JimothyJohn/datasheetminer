@@ -16,14 +16,28 @@ the chronology.
 
 ## What you need to do next (manual)
 
-**Nothing urgent.** This section is the operator queue — it's empty
-right now. Refill it when CI surfaces something only you can resolve
-(secret rotation, environment approval, IAM policy review).
+**Six branches off master, code-ready, awaiting review/merge.** All
+are bounded, branch-isolated, and pass local lint + unit suite (1119
+passing). Suggested merge order — the first one is gated on an IAM
+update; the rest can land in any order.
 
-The one residual risk worth being aware of: the `HOSTED_ZONE_ID`
-secret is currently correct (`Z039212425BG1MHVPYWDN`), but it's still
-a manually-managed secret tied to a specific zone. Followup #1 below
-removes it as a class of bug entirely.
+| # | Branch | What it does | Gate |
+|---|---|---|---|
+| 1 | `cicd-followup-fromlookup` | Eliminate `HOSTED_ZONE_ID` secret via `HostedZone.fromLookup` | Add `route53:ListHostedZonesByName` + `route53:GetHostedZone` to `gh-deploy-datasheetminer`'s `CdkDeploy` inline policy first. |
+| 2 | `cicd-followup-ci-hygiene` | `cdk.out/` artifact on deploy fail + unify `/health` poll via `./Quickstart wait-health` | None |
+| 3 | `cicd-followup-nightly-bench` | Weekly `./Quickstart bench --live` workflow + `cli.bench_compare` regression gate (>5pp drop fails the run) | `GEMINI_API_KEY` secret needs to exist (already does) |
+| 4 | `cicd-followup-security-scans` | pip-audit + npm audit + CodeQL, all warn-only first | Pin CodeQL action SHA before merging — see TODO comment in `codeql.yml` (declined to fabricate one). |
+| 5 | `cicd-followup-staging-yml-cleanup` | Refresh `staging.yml` action versions, clarify it's *not* a duplicate of `smoke-staging` | None |
+| 6 | `late-night-dedupe-audit` | DEDUPE Phase 1 read-only audit script (`./Quickstart audit-dedupes --stage dev`) | None — read-only on dev DB |
+
+After branch 1 lands and one prod deploy proves fromLookup works in
+CI: `gh secret delete HOSTED_ZONE_ID`. The workflow no longer
+references it; the value is dead weight.
+
+`gh secret set/delete` is correctly rejected by session permission
+rules — deploy-time secret changes are shared production state and
+require explicit operator authorization. Don't relax the rule; the
+friction is doing its job.
 
 ---
 
@@ -32,94 +46,83 @@ removes it as a class of bug entirely.
 Ordered by impact. Each is bounded, branch-isolated, no shared-state
 side effects beyond a normal PR.
 
-### 1. Eliminate `HOSTED_ZONE_ID` as a secret entirely
+### 1. Eliminate `HOSTED_ZONE_ID` as a secret entirely ✅ code-ready
 
-Replace `HostedZone.fromHostedZoneAttributes({ hostedZoneId, zoneName })`
-in `app/infrastructure/lib/frontend-stack.ts` with
-`HostedZone.fromLookup({ domainName: hostedZoneName })`. The zone
-resolves by name from `DOMAIN_NAME` — no manual ID, no mismatch class
-possible. Cost: deploy role's `CdkDeploy` inline policy needs
-`route53:ListHostedZonesByName` + `route53:GetHostedZone`;
-`cdk.context.json` becomes a committed artifact (CDK already expects).
+Branch `cicd-followup-fromlookup`. Drops `hostedZoneId` from
+`DomainConfig`, switches `frontend-stack.ts` to
+`HostedZone.fromLookup({ domainName: hostedZoneName })`, removes
+HOSTED_ZONE_ID from `quickstart.py` required keys + CI prod env,
+un-gitignores `app/infrastructure/cdk.context.json` (now a committed
+artifact caching the lookup result → `Z039212425BG1MHVPYWDN`).
 
-After this lands and one prod deploy proves it: `gh secret delete
-HOSTED_ZONE_ID` and remove the env-export from the workflow.
+Local `cdk diff DatasheetMiner-Prod-Frontend` confirms zero change to
+the live `SiteAliasRecord` — fromLookup produces the same Route53
+zone reference as the manual hostedZoneId did, so the deploy is a
+no-op for that resource.
 
-### 2. Refresh GitHub Actions versions
+### 2. Refresh GitHub Actions versions ✅ shipped
 
-Bump `actions/checkout`, `actions/setup-node`, `astral-sh/setup-uv` to
-current at ship time, SHA-pinned per convention. Resolves the Node 20
-deprecation warning emitting on every run. Single-PR cleanup.
+Landed in `9346c66` ("CICD followup: bump action versions to current
+majors"). actions/checkout@v6.0.2, setup-uv@v8.1.0, etc.
 
-### 3. Wire `tests/integration/` into CI
+### 3. Wire `tests/integration/` into CI ✅ shipped
 
-**Status:** Pre-work cleanup landed (commit `<TBD>` after this PR). The
-`tests/integration/` tree had two dead files removed (stale AI-generated
-`tests/test_cli.py`, stale SAM-template `tests/integration/test_api_gateway.py`)
-and a `live` marker added to `pytest.ini`. **Wiring CI to run the suite
-is still gated on triaging 7 real test bugs:**
+Landed in `e834acc` ("CICD followup #3: wire tests/integration/ into
+CI"), preceded by `186347c` (drop dead tests, add `live` marker), then
+the triage commits `cd33052` and `02efea7` fixing 7 stale test bugs so
+the new gate goes green. New `test-integration` job runs
+`pytest tests/integration/ -m "not live"`; `live`-marked tests stay
+deferred to a separate nightly trigger.
 
-- `test_deploy_readiness.py` × 2 — `productTypes.ts` allowlist drift
-  (Python `ProductType` literal includes `"datasheet"` and `"linear_actuator"`
-  but TS doesn't; cross-language drift the CLAUDE.md "Adding a new product
-  type" checklist warns about).
-- `test_pipeline.py` × 3 — mock chain in `TestPdfToDbPipeline` /
-  `TestHtmlToDbPipeline` / `TestBatchFromJson` doesn't cover an internal
-  PDF-parse step; `pikepdf`/`PyPDF2` is being called on the fake bytes
-  and failing with "Failed to open stream".
-- `test_scraper_degraded_inputs.py` × 2 — `TestPageRouting`
-  `test_explicit_pages_routes_to_per_page` and
-  `test_text_heuristic_drives_per_page_when_pages_none`. Same mock-chain
-  class of failure.
+### 4. Nightly `./Quickstart bench` workflow ✅ code-ready
 
-These are real bugs in either the tests or the SUT, not "test needs
-moto." Each needs a focused look. Until they're triaged, wiring CI
-would make the gate red — violates CLAUDE.md "never skip a failing test
-to clear CI."
-
-**Wire-up plan once triaged:** new `test-integration` job running
-`pytest tests/integration/ -m "not live"` with moto-mocked AWS;
-`live`-marked tests stay deferred to a separate nightly trigger.
-
-### 4. Nightly `./Quickstart bench` workflow
-
-Catches LLM-pipeline regressions before users see them. Schedule
-weekly first (Gemini cost ~$1-5/run); promote to nightly if the weekly
-catches anything in the first month. Compare against
-`outputs/benchmarks/latest.json`; post to a tracking issue if
-precision/recall drops > 5pp on any fixture.
+Branch `cicd-followup-nightly-bench`. New `.github/workflows/bench.yml`
+schedules the live bench weekly (Sundays 12:00 UTC) +
+workflow_dispatch. Snapshots `outputs/benchmarks/latest.json` to
+`/tmp/baseline.json`, runs the bench, then runs `cli.bench_compare`
+(new, 14 tests) which fails the run on any fixture's precision or
+recall dropping > 5pp. Bench cache + JSON uploaded as a 30-day
+artifact for postmortem.
 
 ### 5. CI hygiene (one PR, low-risk)
 
-- **JUnit XML + step summary.** `--junitxml` on every pytest call,
-  `actions/upload-artifact@v4` for the XML and `cdk-outputs.json`,
-  job-summary step listing pass/fail counts. Failure cause becomes
-  visible on the run page instead of buried in `--log-failed`.
-- **`paths-ignore` filters.** Doc-only changes (`*.md`, `todo/**`,
-  `outputs/**`) skip the deploy chain. **Caveat:** interacts with
-  branch protection's required-status-checks list — confirm what's
-  required before merging.
-- **Unify `/health` poll.** CI waits 60s, `Quickstart smoke` waits 5s.
-  Single helper in `cli/quickstart.py:159`, parameterized; both
-  callsites converge.
-- **Upload `cdk.out/` on deploy failure.** Post-mortem doesn't require
-  re-running.
-- **`cdk diff` PR comment.** New job runs `npx cdk diff --all` against
-  staging, posts the diff. Reviewers see infra delta before approval.
+- **JUnit XML + step summary.** ✅ shipped in `b32a63f`. Backend +
+  frontend test jobs still don't emit JUnit XML — backlog candidate,
+  low priority.
+- **Upload `cdk.out/` on deploy failure.** ✅ code-ready on branch
+  `cicd-followup-ci-hygiene`. `if: failure()` gate on both deploy
+  jobs; 7-day retention.
+- **Unify `/health` poll.** ✅ code-ready on the same branch. New
+  `./Quickstart wait-health <url> --retries N --label <stage>`
+  subcommand replaces the inline bash loops in `smoke-staging` and
+  `smoke-prod`. CI and local pre-deploy gate now share one definition
+  of "healthy".
+- **`paths-ignore` filters.** Deferred — interacts with branch
+  protection's required-status-checks list, needs a confirm-before-
+  merging step.
+- **`cdk diff` PR comment.** Deferred — needs `pull-requests: write`
+  permission and PR number resolution; cleaner as a separate PR.
 
-### 6. Security scans (warn-only first)
+### 6. Security scans (warn-only first) ✅ code-ready
 
-- **`pip-audit` + `npm audit --omit=dev`** as non-blocking jobs.
-  Promote to blocking after one cleanup cycle.
-- **CodeQL workflow** (Python + JavaScript). Standard GitHub starter,
-  ~5-min job per language.
+Branch `cicd-followup-security-scans`. Two new workflows:
 
-### 7. Operational tidying
+- `.github/workflows/security.yml` — pip-audit (uv-export →
+  pip-audit on the locked dep set) + npm audit (matrix over
+  backend/frontend/infrastructure workspaces). Both
+  `continue-on-error: true` (warn-only). Triggers: schedule (Mondays
+  13:00 UTC), workflow_dispatch, and PRs that touch dep manifests.
+- `.github/workflows/codeql.yml` — Python + JavaScript-TypeScript,
+  security-and-quality query suite. SHA-pinning TODO in the workflow
+  for the operator (declined to fabricate the SHA).
 
-- **Delete `staging.yml`** — duplicates `smoke-staging`. Confirm via
-  `gh workflow list` first; if anything triggers it on
-  `workflow_dispatch` for ad-hoc cross-env smoke, repurpose with a
-  `URL` input parameter instead of deleting.
+### 7. Operational tidying ✅ code-ready
+
+Branch `cicd-followup-staging-yml-cleanup`. `staging.yml` has the
+URL input parameter the doc was asking for, so it's not a duplicate
+of `smoke-staging` — it's the manual-trigger ad-hoc smoke for
+arbitrary URLs. Refreshed action versions to match `ci.yml` + added
+a header comment spelling out the distinction.
 
 ---
 
