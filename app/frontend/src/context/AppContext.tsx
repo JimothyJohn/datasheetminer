@@ -35,12 +35,22 @@ export type Build = Partial<Record<BuildSlot, Product>>;
 const isBuildSlot = (s: unknown): s is BuildSlot =>
   typeof s === 'string' && (BUILD_SLOTS as readonly string[]).includes(s);
 
-const isBuild = (v: unknown): v is Build => {
-  if (!v || typeof v !== 'object') return false;
+export const isBuild = (v: unknown): v is Build => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
   return Object.entries(v as Record<string, unknown>).every(([k, val]) =>
     isBuildSlot(k) && (val === undefined || (typeof val === 'object' && val !== null)),
   );
 };
+
+export type RowDensity = 'compact' | 'comfy';
+
+export const isUnitSystem = (v: string): v is UnitSystem =>
+  v === 'metric' || v === 'imperial';
+
+export const isRowDensity = (v: string): v is RowDensity =>
+  v === 'compact' || v === 'comfy';
+
+export const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';
 
 /**
  * Product category interface
@@ -111,8 +121,8 @@ interface AppContextType extends AppState {
   // the table both read/write the same value. Persisted in localStorage
   // under 'productListRowDensity' (key preserved from when this lived in
   // ProductList so existing user prefs carry over).
-  rowDensity: 'compact' | 'comfy';
-  setRowDensity: (d: 'compact' | 'comfy') => void;
+  rowDensity: RowDensity;
+  setRowDensity: (d: RowDensity) => void;
 }
 
 /**
@@ -141,11 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // so a malformed value falls back to the metric default rather than
   // crashing the app at startup.
   const [unitSystem, setUnitSystemState] = useState<UnitSystem>(() =>
-    safeLoadString<UnitSystem>(
-      'unitSystem',
-      (v): v is UnitSystem => v === 'metric' || v === 'imperial',
-      'metric',
-    ),
+    safeLoadString<UnitSystem>('unitSystem', isUnitSystem, 'metric'),
   );
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,7 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearBuild = useCallback(() => setBuildState({}), []);
 
   const [compatibleOnly, setCompatibleOnlyState] = useState<boolean>(() =>
-    safeLoad('specodex.compatibleOnly', (v): v is boolean => typeof v === 'boolean', true),
+    safeLoad('specodex.compatibleOnly', isBoolean, true),
   );
   useEffect(() => {
     safeSave('specodex.compatibleOnly', compatibleOnly);
@@ -185,12 +191,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setCompatibleOnly = useCallback((v: boolean) => setCompatibleOnlyState(v), []);
 
   // Results-table row density.
-  const [rowDensity, setRowDensityState] = useState<'compact' | 'comfy'>(() =>
-    safeLoadString(
-      'productListRowDensity',
-      (v): v is 'compact' | 'comfy' => v === 'compact' || v === 'comfy',
-      'compact',
-    ),
+  const [rowDensity, setRowDensityState] = useState<RowDensity>(() =>
+    safeLoadString('productListRowDensity', isRowDensity, 'compact'),
   );
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -200,7 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // best-effort
     }
   }, [rowDensity]);
-  const setRowDensity = useCallback((d: 'compact' | 'comfy') => setRowDensityState(d), []);
+  const setRowDensity = useCallback((d: RowDensity) => setRowDensityState(d), []);
 
   // ========== Caching Infrastructure ==========
   /**

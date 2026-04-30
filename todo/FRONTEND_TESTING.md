@@ -2,12 +2,13 @@
 
 ## Why this exists
 
-The frontend has 14 test files (260 passing, 2 currently failing) covering
-filters, sanitize, formatting, unit conversion, localStorage, theme, network
-status, attribute icons, and a couple of components. What it does *not* cover
-is the class of bug that has bitten this app most often: **state spilling
-across product-type switches, persisted state surviving a schema change in a
-broken shape, and toggles that look like they work but don't propagate**.
+The frontend has 14 test files (284 passing, 1 documentation skip) covering
+filters, sanitize, formatting, unit conversion, localStorage (helper +
+per-key contract), theme, network status, attribute icons, and a couple of
+components. What it does *not* cover is the class of bug that has bitten
+this app most often: **state spilling across product-type switches,
+persisted state surviving a schema change in a broken shape, and toggles
+that look like they work but don't propagate**.
 
 Goal: lock down every "simple, obvious, easy to break" feature with a unit or
 component test so a refactor in a year can't silently regress it. Scope is
@@ -15,17 +16,11 @@ component test so a refactor in a year can't silently regress it. Scope is
 naming each failure mode that would be embarrassing in prod and writing the
 test that catches it.
 
-## Pre-req — fix the 2 currently failing tests
+## Pre-req — ✅ resolved 2026-04-30
 
-`./Quickstart verify --only frontend` is red right now:
-
-    src/components/AttributeSelector.test.tsx
-      ✗ shows "no attributes found" message for a filter typed against an empty list (line 137)
-      ✗ (companion case)
-
-These need to pass before adding new tests, otherwise CI red noise hides
-anything new this plan introduces. Likely a stale assertion against pre-rebrand
-copy or pre-categorised attribute layout. Fix before shipping anything below.
+The two failing AttributeSelector cases this plan was originally gated on
+are no longer present. `npx vitest run src/components/AttributeSelector.test.tsx`
+shows 8/8 pass. Suite is green; new tests can land without red-noise cover.
 
 ## What "simple but crucial" means here
 
@@ -63,28 +58,26 @@ back to one of these.
 
 ## Test plan — by surface
 
-### Phase 1: persistence keys (cheapest, highest value) — 1 file
+### Phase 1: persistence keys (cheapest, highest value) — ✅ shipped 2026-04-30
 
-**`src/utils/localStorage.persistence.test.ts`** (new) — table-driven.
-For every persisted key in the app, assert: (a) default when key is absent,
-(b) default when JSON is malformed, (c) default when shape is wrong type,
-(d) round-trip when shape is valid.
+`src/utils/localStorage.persistence.test.ts` covers all six `safeLoad`/
+`safeLoadString` keys (`unitSystem`, `productListRowDensity`,
+`specodex.compatibleOnly`, `specodex.build`, `productListHiddenColumns`,
+`productListRestoredColumns`) with 4 scenarios each: missing,
+malformed/off-schema, wrong-shape, round-trip. The `theme` key (raw
+`getItem` in `ThemeToggle.tsx`) is intentionally deferred to Phase 4
+where the ThemeToggle test already lives — the persistence file marks
+that as a `.skip` documentation row so a future "add a new persisted
+key" PR knows to add it here too.
 
-Keys to cover (one row per key):
+Side effect: extracted the inline validators (`isBuild`, `isUnitSystem`,
+`isRowDensity`, `isBoolean`, `RowDensity`) from `AppContext.tsx` to
+named exports so the test can import them. Caught and fixed an existing
+L6 instance — `isBuild` accepted `[]` because `Object.entries([])` is
+empty and `.every(...)` is vacuously true. Added an `Array.isArray(v)`
+guard.
 
-| Key | Validator location | Default | Spillover # |
-|---|---|---|---|
-| `theme` | `ThemeToggle.tsx` (raw `getItem`) | `'dark'` | L11 |
-| `unitSystem` | `AppContext.tsx:144` `safeLoadString` | `'metric'` | L7 |
-| `productListRowDensity` | `AppContext.tsx:189` `safeLoadString` | `'compact'` | L8 |
-| `specodex.build` | `AppContext.tsx:161` `safeLoad(isBuild)` | `{}` | L6, L9 |
-| `specodex.compatibleOnly` | `AppContext.tsx:180` `safeLoad` | `true` | L10 |
-| `productListHiddenColumns` | `ProductList.tsx:53` `safeLoad(isStringArray)` | `[]` | L5, L12 |
-| `productListRestoredColumns` | `ProductList.tsx:60` `safeLoad(isStringArray)` | `[]` | L5, L12 |
-
-Each key gets four cases. `theme` is the only one not going through `safeLoad`,
-so it gets its own targeted test that also asserts the DOM `data-theme`
-attribute is set on mount (catches L11).
+26 new tests + 1 documentation skip; suite is now 14 files, 284 passing.
 
 ### Phase 2: AppContext as a black box — 1 file
 
@@ -185,11 +178,10 @@ that catches "I broke the imports" before CI does.
 
 ## Order to implement
 
-1. **Fix the 2 failing AttributeSelector tests.** Get the suite green.
-2. Phase 1 (`localStorage.persistence.test.ts`). Catches the most embarrassing
-   class of bug for the least effort. ~1h.
+1. ✅ Pre-req cleared (no failing tests).
+2. ✅ Phase 1 shipped 2026-04-30.
 3. Phase 2 (`AppContext.test.tsx`). Locks in the build/unit/density semantics
-   the rest of the app depends on. ~2h.
+   the rest of the app depends on. ~2h. **Next.**
 4. Phase 3 (`ProductList.typeSwitch.test.tsx`). Highest user-visible payoff —
    the spillover bugs L1–L4 are the ones a user notices. ~2h.
 5. Phase 4 (header toggles). Quick wins, ~1h total.
@@ -197,8 +189,7 @@ that catches "I broke the imports" before CI does.
 7. Phase 6 (BuildTray). ~1h.
 8. Phase 7 (ErrorBoundary), Phase 8 (smoke-render). ~1h together.
 
-Total estimate: ~half-day of focused work. Each phase is independently
-shippable; don't try to land all 8 in one PR.
+Each phase is independently shippable; don't try to land all in one PR.
 
 ## Conventions for the new tests
 
