@@ -517,8 +517,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         ),
     }
     # Domain config: os.environ > stage env file. HOSTED_ZONE_NAME is
-    # optional — the CDK defaults to the parent of DOMAIN_NAME.
-    required_domain_keys = ("DOMAIN_NAME", "CERTIFICATE_ARN", "HOSTED_ZONE_ID")
+    # optional — the CDK defaults to the parent of DOMAIN_NAME and resolves
+    # the zone via Route53 ListHostedZonesByName at synth time.
+    required_domain_keys = ("DOMAIN_NAME", "CERTIFICATE_ARN")
     optional_domain_keys = ("HOSTED_ZONE_NAME",)
     for key in required_domain_keys + optional_domain_keys:
         val = os.environ.get(key) or stage_env.get(key)

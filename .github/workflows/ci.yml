@@ -401,9 +401,11 @@ jobs:
       - name: Validate prod deploy-time secrets
         # Fail fast if required domain config is missing — Quickstart would
         # refuse anyway, but catching it here surfaces it before asset builds.
+        # HOSTED_ZONE_ID is intentionally not in this list — the CDK now
+        # uses HostedZone.fromLookup which resolves the zone by name.
         run: |
           missing=()
-          for s in AWS_ACCOUNT_ID DOMAIN_NAME CERTIFICATE_ARN HOSTED_ZONE_ID; do
+          for s in AWS_ACCOUNT_ID DOMAIN_NAME CERTIFICATE_ARN; do
             eval "val=\${$s:-}"
             [ -z "$val" ] && missing+=("$s")
           done
@@ -415,7 +417,6 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
-          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
 
       - name: Provision prod SSM params
         env:
@@ -436,7 +437,6 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
-          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
           HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
         run: ./Quickstart deploy --stage prod
 

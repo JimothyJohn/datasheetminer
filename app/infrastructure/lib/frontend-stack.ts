@@ -98,10 +98,14 @@ export class FrontendStack extends cdk.Stack {
     });
 
     // Route53 A record: datasheets.advin.io → CloudFront
+    //
+    // fromLookup resolves the zone by name at synth time and caches the
+    // result in cdk.context.json (committed to the repo). No HOSTED_ZONE_ID
+    // secret to keep in sync, no class of "wrong-zone" bug. Requires the
+    // deploy role to have route53:ListHostedZonesByName + route53:GetHostedZone.
     if (config.domain) {
-      const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
-        hostedZoneId: config.domain.hostedZoneId,
-        zoneName: config.domain.hostedZoneName,
+      const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+        domainName: config.domain.hostedZoneName,
       });
 
       new route53.ARecord(this, 'SiteAliasRecord', {

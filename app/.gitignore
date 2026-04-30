@@ -30,7 +30,8 @@ dist/
 # CDK
 infrastructure/cdk.out/
 infrastructure/.cdk.staging/
-infrastructure/cdk.context.json
+# cdk.context.json IS committed — it caches fromLookup results so synths are
+# deterministic across machines and don't require route53/etc. SDK calls.
 
 # TypeScript
 *.tsbuildinfo
