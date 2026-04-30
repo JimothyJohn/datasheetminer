@@ -1,10 +1,19 @@
 # Auth plan: login + register for Specodex
 
-Status: 📐 planned. No auth in the app today. The site is read-only in
-public mode (`APP_MODE=public`) and fully open in admin mode
-(`APP_MODE=admin`); there is no user concept on the frontend and only a
-trust-the-header `x-user-id` placeholder on the backend's Stripe
-middleware.
+Status: 🔨 **Phases 1–4 in flight on the `feat-auth-phase1` worktree
+(`/Users/nick/github/specodex-auth`).** Cognito stack scaffolded and
+wired into `bin/app.ts`; backend middleware + Cognito proxy routes
+shipped (414 tests pass); frontend `AuthContext` + `AuthModal` +
+`AccountMenu` shipped (280 tests pass); Stripe routes + admin gating
+swapped to Cognito-group with `scripts/promote-admin.sh` bootstrap.
+**Not deployed, not merged to `master`.** On `master`, the site is
+still read-only in public mode (`APP_MODE=public`) and fully open in
+admin mode (`APP_MODE=admin`); the unverified `x-user-id` placeholder
+still lives in `middleware/subscription.ts:11`.
+
+**Next up:** Deploy ordering — see [Phase 4 deploy ordering](#deploy-ordering--read-this-before-pushing)
+below. Phases 5+ (production hardening, stretch) follow once the
+cutover is soaked.
 
 This doc is the **how** for adding email/password login, registration,
 and session management. It does not cover OAuth providers (deferred —
@@ -67,6 +76,12 @@ gate it; otherwise leave it open.
 
 ## Phase 1 — Cognito user pool (CDK)
 
+**Status:** ✅ shipped on `feat-auth-phase1` (commits `0a8298d`,
+`4d7004e`). `app/infrastructure/lib/auth/auth-stack.ts` defines the
+pool, web client, `admin` group, SSM params (`${ssmPrefix}/cognito/*`),
+and outputs. Wired in `bin/app.ts` as a dependency of `ApiStack`. Synth
+clean; not yet deployed to any stage.
+
 **Deliverable:** a deployed user pool + app client, IDs surfaced via
 SSM parameters and stack outputs.
 
@@ -110,6 +125,15 @@ is empty.
 ---
 
 ## Phase 2 — Backend auth middleware
+
+**Status:** ✅ shipped on `feat-auth-phase1` (commit `6a494d6`).
+`aws-jwt-verify`-backed `requireAuth` / `optionalAuth` / `requireGroup`
+in `middleware/auth.ts`. Cognito proxy routes for register / confirm /
+resend / login / refresh / forgot / reset / me in `routes/auth.ts`.
+`requireSubscription` reads `req.user.sub`. `readonlyGuard` exempts
+`/auth/*` so login POSTs work in public mode. 408 backend tests pass.
+Note: `adminOnly` middleware still env-gated — that retirement is
+Phase 4.
 
 **Deliverable:** verified JWT on every protected endpoint; unverified
 header trust removed from `requireSubscription`.
@@ -181,6 +205,21 @@ curl localhost:3001/api/auth/me -H "authorization: Bearer <id_token>"
 
 ## Phase 3 — Frontend auth UI
 
+**Status:** ✅ shipped on `feat-auth-phase1` (commit `f45ae0b`).
+`AuthContext` provides login / register / confirm / forgot / reset
+with token persistence under `specodex.auth.tokens` and an auto-refresh
+scheduled ~60s before id-token `exp`. `AuthModal` hosts all five flows
+in a single modal with carry-over email between steps; Esc and
+click-outside both close. `AccountMenu` swaps "Sign in" for the user's
+email + an `ADMIN` pill when the Cognito group is present. The admin
+nav is OR-gated: env-mode admin OR Cognito admin group → admin powers
+(env retirement is Phase 4). 280 frontend tests pass.
+
+**Tradeoff taken:** modal-with-step-state instead of router. Cheaper to
+land, matches the rest of the SPA's single-page state pattern; we lose
+deep-linkable `/login` URLs, which is fine because we don't link to
+auth pages from anywhere external.
+
 **Deliverable:** Login / Register / Forgot Password pages, persistent
 session, "Sign in" → "Account" header swap.
 
@@ -238,70 +277,272 @@ network tab — Authorization header present, 200 OK.
 
 ## Phase 4 — Wire Stripe and admin to the authed user
 
+**Status:** ✅ shipped on `feat-auth-phase1` (commits `c94fb5e`,
+`c3ed0d9`, `75054cd`). Backend: subscription routes auth-gated,
+identity from `req.user.sub`; `adminOnly` is pure Cognito group;
+`/health` reports group membership. Frontend: env-OR arm dropped from
+admin nav, lazy admin chunks ship in every build (~38KB on disk,
+code-split, fetched only for admins); client-side `requireAdmin`
+preflight removed. `scripts/promote-admin.sh` lands the SSM-based
+bootstrap. 414 backend + 280 frontend tests pass; verify gate green.
+**Deploy ordering still applies — read it before merging.**
+
+**One deviation from the original plan:** the doc said to wire
+`scripts/promote-admin.sh` into `./Quickstart admin promote <stage>
+<email>`. The existing `cli/admin.py` already has a `promote`
+subcommand for dev→prod data movement, so reusing the word would
+conflate two operations. The script is invoked directly instead;
+the deploy-ordering steps below reference it that way.
+
 **Deliverable:** Stripe checkout uses the authed `sub`; `APP_MODE` env
 variable is replaced (or made a fallback) by the Cognito `admin`
 group.
 
-Files:
+### Backend changes
 
 - `app/backend/src/routes/subscription.ts:41` — drop the `user_id`
-  field from the checkout request body. Pull from `req.user.sub`
-  after stacking `requireAuth`. Frontend no longer sends a user_id;
-  it just sends the auth header.
-- `app/backend/src/services/stripe.ts` — same swap on the
-  `reportUsage` call. The `user_id` parameter still exists on the
-  Stripe Lambda's API; we keep passing the value, it just comes from
-  the JWT now.
-- `app/backend/src/middleware/adminOnly.ts` — drop the
-  `config.appMode` check. Sole gate is `req.user.groups.includes(
-  'admin')`. Update the docstring.
-- `app/backend/src/config/index.ts` — `appMode` is no longer load-
-  bearing for auth. Either remove it, or keep it as a feature flag
-  for "show admin UI by default" on the local dev box (cheaper than
-  promoting your dev account to the admin group every fresh deploy).
-- `app/backend/src/index.ts` — the `readonlyGuard` mount on
-  `/api` (line 39) becomes redundant once auth is in place: a write
-  endpoint is gated by `requireAuth + requireAdmin`, which already
-  rejects unauthenticated requests. Leave the guard in place during
-  the soak — it's a belt for the suspenders — and remove in a
-  followup branch once we're confident every write route has the
-  middleware stack.
+  field from the checkout request body schema. Pull from `req.user.sub`
+  after stacking `requireAuth`. Same for `GET /status/:userId` at
+  line 16 — drop the path param and read `req.user.sub`.
+- `app/backend/src/services/stripe.ts` — `createCheckoutSession`,
+  `getSubscriptionStatus`, `isSubscriptionActive`, and `reportUsage`
+  all take a `userId` argument today (lines 38, 52, 69, 91). They keep
+  the parameter — the Stripe Lambda's wire format still uses
+  `user_id` — but every caller now passes `req.user.sub` from the
+  middleware.
+- `app/backend/src/middleware/adminOnly.ts:14` — drop the
+  `config.appMode !== 'admin'` check. Sole gate is
+  `req.user?.groups?.includes('admin')`. Stack `requireAuth` before
+  it on every admin route. Update the file-top docstring (currently
+  says "403 unless APP_MODE === 'admin'").
+- `app/backend/src/config/index.ts` — `appMode` is no longer
+  load-bearing for auth. Keep it as a *local-dev convenience flag*:
+  when `APP_MODE=admin` on `localhost`, auto-render the AdminPanel
+  without requiring a real Cognito session. Remove the production
+  code paths that read it.
+- `app/backend/src/index.ts:33,38,49,138` — the four `config.appMode`
+  references. Logging line at 33 stays (still useful as a debug
+  string). The `readonlyGuard` mount at line 38–46 stays through the
+  soak — it's redundant once every write route has
+  `requireAuth + requireAdmin`, but it's a belt for the suspenders.
+  Drop in a follow-up branch once we've audited every `POST`/`PUT`/
+  `DELETE` and confirmed the middleware stack. Health-check `mode`
+  field at line 49 should report Cognito group membership when an
+  authed call hits it, otherwise `"public"`.
+- `app/backend/tests/subscription.test.ts` — refresh fixtures to send
+  `Authorization: Bearer <mock-jwt>` instead of body `user_id`.
 
-**CDK:** Add a `bootstrapAdmin` script (`scripts/promote-admin.sh`)
-that takes an email and adds the user to the `admin` Cognito group
-via `aws cognito-idp admin-add-user-to-group`. This is how Nick gets
-admin powers on a fresh stack without `APP_MODE=admin` shortcuts.
+### Frontend changes
 
-**Verify:** Two browsers — one logged in as admin (sees AdminPanel,
-can write), one as regular user (clean read-only UI). Same backend
-URL, same `APP_MODE=public` env.
+- `app/frontend/src/api/client.ts:483,496` — `getSubscriptionStatus`
+  and `createCheckoutSession` currently take `userId: string` and
+  embed it in the URL / body. Drop the parameter; the
+  `Authorization: Bearer` header (set via `apiClient.setAuthToken`
+  in Phase 3) supplies identity server-side. **No callers exist
+  today** — these methods are defined but unused, so the swap is
+  zero-risk. The Subscribe button that will eventually call them
+  ships post-Phase 4.
+- Components currently OR-gated on `APP_MODE` (touched in Phase 3:
+  `App.tsx`, `AdminPanel`, `BuildTray`, `ProductManagement`, etc.) —
+  drop the env arm of the OR. Sole condition becomes
+  `user?.groups.includes('admin')`. Grep for the OR pattern; Phase 3
+  introduced it in a known set of files.
+
+### Bootstrap script
+
+`scripts/promote-admin.sh` — new, run once per fresh stack to give
+Nick admin powers on a public deployment:
+
+```bash
+#!/usr/bin/env bash
+# Usage: ./scripts/promote-admin.sh <stage> <email>
+# Adds the Cognito user identified by <email> to the 'admin' group on the
+# user pool for <stage>. Prereq: user must already be registered + confirmed.
+set -euo pipefail
+STAGE="${1:?stage required (Dev|Staging|Prod)}"
+EMAIL="${2:?email required}"
+
+POOL_ID=$(aws ssm get-parameter \
+  --name "/datasheetminer/${STAGE,,}/cognito/user-pool-id" \
+  --query 'Parameter.Value' --output text)
+
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id "$POOL_ID" \
+  --username "$EMAIL" \
+  --group-name admin
+
+aws cognito-idp admin-list-groups-for-user \
+  --user-pool-id "$POOL_ID" \
+  --username "$EMAIL" \
+  --query 'Groups[].GroupName'
+```
+
+Wire the script as `./Quickstart admin promote <stage> <email>` —
+fits the existing `cli/admin.py` pattern alongside `blacklist`,
+`movement`, `purge`.
+
+### Deploy ordering — read this before pushing
+
+The cutover is **not** atomic. There's a window where the env arm is
+gone but no one is in the admin group yet, and admin endpoints will
+403 until you bootstrap. Order:
+
+1. Merge Phases 1–3 to `master`. Deploy. AuthStack creates the user
+   pool; backend routes accept tokens; frontend modal works. **Admin
+   gating is still on `APP_MODE=admin` env arm — nothing breaks.**
+2. Register `nick@advin.io` via the production modal. Confirm via
+   email.
+3. Run `./scripts/promote-admin.sh prod nick@advin.io`. The script
+   verifies group membership at the end via
+   `aws cognito-idp admin-list-groups-for-user`.
+4. Log in, confirm the `ADMIN` pill renders and AdminPanel is visible
+   (this works through the OR-gate Phase 3 introduced).
+5. *Now* merge Phase 4 (drops the env arm). Deploy. Admin gating is
+   pure Cognito group; AdminPanel still renders for me, vanishes for
+   everyone else.
+6. Stage env vars: keep `APP_MODE=admin` on local dev only; remove
+   from `app/.env.dev`, `app/.env.prod` deploy configs. The variable
+   becomes a localhost convenience.
+
+Doing 5 before 3 strands you out of the AdminPanel on prod. Doing 5
+before 1 is a deploy of code that imports a `req.user` that doesn't
+exist yet — backend tests catch this, but don't rely on luck.
+
+### Verify
+
+- **Two browsers test.** Logged in as admin → sees AdminPanel, can
+  POST to a write endpoint. Logged out / regular user → clean
+  read-only UI, write endpoints 401. Same backend URL, same
+  `APP_MODE=public` env.
+- **Stripe smoke** (when the Subscribe button ships): hit
+  `POST /api/subscription/checkout` with no body, just the auth
+  header → 200 with a checkout URL whose `client_reference_id` is the
+  authed `sub`.
+- **Negative test:** old-style `POST /api/subscription/checkout`
+  with `{"user_id": "abc"}` and no auth header → 401, not 200. (The
+  zod schema should reject the body field outright; double-check.)
 
 ---
 
 ## Phase 5 — Production hardening
 
-These are the items that turn the working system into a deployable
-one. Defer until Phase 1–4 are green locally.
+**Status:** 📐 planned. Defer until Phase 1–4 are green and soaked.
+These are independent items; ship as small follow-up branches rather
+than one mega-PR.
 
-- **SES verified identity for verification emails.** Default Cognito
-  email comes from `no-reply@verificationemail.com` and is
-  sandbox-rate-limited. Move to a verified `noreply@specodex.com`
-  identity (Route53 records + SES verification) and configure the
-  user pool's `EmailConfiguration` to use it.
-- **CSP headers** on the API Gateway response and on the CloudFront
-  distribution serving the SPA. Reduces the blast radius of an XSS
-  on a localStorage token. `script-src 'self'` is the load-bearing
-  directive.
-- **CORS tighten.** Drop `origin: '*'` once the SPA origin is known
-  (`https://www.specodex.com`). Required if we ever switch to cookie
-  auth.
-- **Refresh-token revocation on logout.** `RevokeToken` API call so a
-  stolen refresh token can't be reused.
-- **Lockout policy.** Cognito has it built-in but it's off by default
-  in the CDK construct — set `advancedSecurityMode` to ENFORCED for
-  prod (incurs $0.05/MAU; off for dev/staging).
-- **Audit logging.** Funnel `/api/auth/*` requests through CloudWatch
-  with a structured logger so failed-login spikes show up in alarms.
+### SES verified identity for verification emails
+
+Default Cognito email comes from `no-reply@verificationemail.com` and
+is hard-capped at **50 emails/day** in the AWS sandbox. That cap is
+hit by ~10 real users hitting "forgot password" twice each, so this is
+not optional past beta.
+
+Concrete steps:
+
+1. `aws ses verify-domain-identity --domain specodex.com` and add the
+   returned DKIM CNAMEs to Route53. Wait for verification.
+2. `aws ses verify-email-identity --email-address noreply@specodex.com`
+   (or use the domain identity directly).
+3. Move out of SES sandbox via support ticket — required to email
+   non-verified addresses.
+4. In `auth-stack.ts`, set
+   `email: cognito.UserPoolEmail.withSES({ fromEmail: 'noreply@specodex.com', ... })`.
+5. Customize the verification message templates (currently default
+   Cognito copy) — set `userVerification.emailSubject` and
+   `emailBody` on the `UserPool` props.
+
+### CSP headers
+
+Currently no `responseHeadersPolicy` on either the SPA or `/api/*`
+behaviors in `app/infrastructure/lib/frontend-stack.ts`. Add a
+CloudFront `ResponseHeadersPolicy` and attach to both behaviors.
+
+Minimum directives for a localStorage-token SPA:
+
+```typescript
+const securityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'SecHeaders', {
+  securityHeadersBehavior: {
+    contentSecurityPolicy: {
+      contentSecurityPolicy: [
+        "default-src 'self'",
+        "script-src 'self'",                   // load-bearing — blocks injected scripts
+        "style-src 'self' 'unsafe-inline'",    // Vite + inline component styles
+        "img-src 'self' data: https:",
+        "connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+      ].join('; '),
+      override: true,
+    },
+    strictTransportSecurity: { accessControlMaxAge: Duration.days(365), includeSubdomains: true, override: true },
+    contentTypeOptions: { override: true },
+    frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+    referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN, override: true },
+  },
+});
+```
+
+`unsafe-inline` for styles is required because of inline component
+styles in the React tree; tightening that needs a refactor pass
+elsewhere. Keep in scope for a later "CSP tighten" follow-up, not
+this phase.
+
+### CORS tighten
+
+`app/backend/src/index.ts:27` mounts `cors(config.cors)`. Today
+`config.cors` is `{ origin: '*' }` (verify in
+`app/backend/src/config/index.ts`). Replace with stage-aware allowlist:
+
+- `prod` → `['https://datasheets.advin.io', 'https://www.specodex.com']`
+- `staging` → CloudFront URL from
+  `aws cloudformation describe-stacks --stack-name DatasheetMiner-Staging-Frontend ...`
+- `dev` / local → `['http://localhost:5173', 'http://localhost:3001']`
+
+Wire via env (`CORS_ORIGINS=...,...`) read in
+`config/index.ts`. Required before any switch to cookie auth, and
+table-stakes hardening regardless.
+
+### Refresh-token revocation on logout
+
+Phase 3 `AuthContext.logout()` clears localStorage but doesn't tell
+Cognito. Steal the refresh token now, you can mint id-tokens for 30d.
+
+Add:
+
+- `POST /api/auth/logout` in `routes/auth.ts` — calls
+  `RevokeToken` on the SDK with the refresh token from the request
+  body. `requireAuth`-gated so only the rightful owner can revoke.
+- `AuthContext.logout()` — `await apiClient.authLogout(refreshToken)`
+  before clearing local state. Best-effort: if the call fails (e.g.
+  token already expired), proceed with local clear anyway.
+
+### Lockout / threat detection
+
+Note: `advancedSecurityMode` is **deprecated** as of late 2025 in
+favor of "Cognito user pool feature plans" (`Essentials` / `Plus`).
+The Plus plan ($0.05/MAU) gets you adaptive auth, compromised-creds
+detection, and configurable lockout. CDK `aws-cdk-lib@2.173.4`
+(current pin) still uses the old `advancedSecurityMode` enum; check
+whether the version we're on at hardening time has migrated to
+`featurePlan`.
+
+For now: enable basic lockout via a custom Lambda trigger
+(`PreAuthentication`) that counts failed attempts in DynamoDB —
+overkill for our scale, so this item probably resolves to "wait until
+CDK exposes feature plans, then flip the prod pool to Plus."
+
+### Audit logging
+
+Failed-login spikes are the canary for credential stuffing. Plumb:
+
+- Structured logger in `routes/auth.ts` — emit
+  `{ event, email, sub, ip, userAgent, success, errorCode }` on every
+  auth attempt. Use the existing logger pattern; don't introduce
+  Winston/pino just for this.
+- CloudWatch metric filter on log group: count of
+  `event=login success=false` per minute, alarm on >20/min for 5min.
+- Never log the password or the JWT itself. The `email` field is fine
+  (it's the username); hash for higher sensitivity if we ever go B2C.
 
 ---
 
@@ -338,7 +579,8 @@ Order roughly by user value, not effort:
 - **Migrating existing test users.** None today (zero auth means
   zero accounts). Whenever you test admin-only endpoints in
   staging post-Phase 4, you'll need to register + promote yourself
-  once per stage. The `scripts/promote-admin.sh` helper covers this.
+  once per stage. Run `./scripts/promote-admin.sh <stage> <email>`
+  after registering through the AuthModal.
 - **Lock-in.** Cognito tokens are JWTs and the user attributes are
   trivially exportable, so a migration to Auth0 / Supabase / WorkOS
   later is bounded effort. Not worth optimizing for now.
