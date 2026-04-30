@@ -79,26 +79,25 @@ guard.
 
 26 new tests + 1 documentation skip; suite is now 14 files, 284 passing.
 
-### Phase 2: AppContext as a black box — 1 file
+### Phase 2: AppContext as a black box — ✅ shipped 2026-04-30
 
-**`src/context/AppContext.test.tsx`** (new) — render `<AppProvider>` with a
-test consumer that exercises each setter through `useApp()`. Don't test
-data-fetching here (that's `api/client.test.ts`); test state transitions.
+`src/context/AppContext.test.tsx` covers the documented setter contract
+via `renderHook(() => useApp(), { wrapper: AppProvider })` with `apiClient`
+mocked at module level (any accidental call rejects loudly):
 
-Cases:
+- Defaults hydration: `metric`, `compact`, `compatibleOnly=true`, `build={}`.
+- `setUnitSystem('imperial')` → context + `localStorage.unitSystem === 'imperial'`; round-trip across re-mount; off-schema falls back to metric (L7).
+- `setRowDensity('comfy')` → context + persistence + re-mount round-trip (L8).
+- `setCompatibleOnly(false)` → context + JSON-encoded persistence + re-mount round-trip (L10).
+- `addToBuild(motorA)` then `addToBuild(motorB)` replaces the slot (not array growth, asserts `Array.isArray(build) === false`) (L9).
+- `addToBuild(driveA)` after a motor places into independent slots.
+- `addToBuild(robotArm)` is a no-op when `product_type` ∉ `BUILD_SLOTS`.
+- `removeFromBuild('motor')` deletes the key entirely (`'motor' in build === false`).
+- `clearBuild()` empties; persisted `{}` survives unmount/remount.
+- Stale `specodex.build` hydration: object-with-string-slot, array, unknown-slot-name all fall back to `{}` without throwing (L6).
+- A valid prefilled build round-trips on mount.
 
-- `setUnitSystem('imperial')` → `useApp().unitSystem === 'imperial'` and
-  `localStorage.unitSystem === 'imperial'` (L7).
-- `setRowDensity('comfy')` → context updates and `localStorage.productListRowDensity` updates (L8).
-- `addToBuild(motor)` populates the `motor` slot; calling again with a different
-  motor *replaces* the slot (no array growth, no stale entry) (L9).
-- `addToBuild(p)` where `p.product_type` is not in `BUILD_SLOTS` is a no-op
-  (the slot rejection path).
-- `removeFromBuild('motor')` deletes the key entirely (not just sets to undefined).
-- `clearBuild()` empties everything; subsequent reload re-reads `{}`.
-- `setCompatibleOnly(false)` persists; round-trip across a re-mount.
-- Stale `specodex.build` shape (e.g. `{ motor: 'string-not-product' }`) falls
-  back to `{}` on init without throwing (L6).
+19 new tests; suite is now 15 files, 303 passing.
 
 ### Phase 3: ProductList type-switch reset — 1 file
 
@@ -180,10 +179,9 @@ that catches "I broke the imports" before CI does.
 
 1. ✅ Pre-req cleared (no failing tests).
 2. ✅ Phase 1 shipped 2026-04-30.
-3. Phase 2 (`AppContext.test.tsx`). Locks in the build/unit/density semantics
-   the rest of the app depends on. ~2h. **Next.**
+3. ✅ Phase 2 shipped 2026-04-30.
 4. Phase 3 (`ProductList.typeSwitch.test.tsx`). Highest user-visible payoff —
-   the spillover bugs L1–L4 are the ones a user notices. ~2h.
+   the spillover bugs L1–L4 are the ones a user notices. ~2h. **Next.**
 5. Phase 4 (header toggles). Quick wins, ~1h total.
 6. Phase 5 (FilterChip unit system). Locks in L7. ~1h.
 7. Phase 6 (BuildTray). ~1h.
