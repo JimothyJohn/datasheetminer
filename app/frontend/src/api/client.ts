@@ -81,6 +81,11 @@ interface ApiResponse<T> {
  */
 class ApiClient {
   private baseUrl: string;
+  // Bearer token, set by AuthContext on login/refresh and cleared on
+  // logout. Undefined means no auth header is sent. Kept on the
+  // singleton (not in React state) so the request layer doesn't have
+  // to thread it through every call site.
+  private authToken: string | null = null;
 
   /**
    * Create new API client instance
@@ -89,6 +94,15 @@ class ApiClient {
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
     console.log(`[ApiClient] Initialized with base URL: ${this.baseUrl}`);
+  }
+
+  /**
+   * Set the bearer token attached to all outgoing requests. Pass null
+   * to clear (logout). AuthContext owns the lifecycle; the client is
+   * a passive consumer.
+   */
+  setAuthToken(token: string | null): void {
+    this.authToken = token;
   }
 
   /**
@@ -145,6 +159,7 @@ class ApiClient {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
           ...options?.headers,
         },
         signal: controller.signal,
@@ -519,6 +534,89 @@ class ApiClient {
     await this.request(endpoint, {
       method: 'DELETE',
     });
+  }
+
+  // ========== Auth Methods (Cognito proxy) ==========
+
+  async authRegister(email: string, password: string): Promise<{ next: string }> {
+    const response = await this.request<{ next: string; message: string }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.data) throw new Error('Registration failed');
+    return response.data;
+  }
+
+  async authConfirm(email: string, code: string): Promise<void> {
+    await this.request('/api/auth/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    });
+  }
+
+  async authResendCode(email: string): Promise<void> {
+    await this.request('/api/auth/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async authLogin(email: string, password: string): Promise<{
+    id_token: string;
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  }> {
+    const response = await this.request<{
+      id_token: string;
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.data) throw new Error('Login failed');
+    return response.data;
+  }
+
+  async authRefresh(refresh_token: string): Promise<{
+    id_token: string;
+    access_token: string;
+    expires_in: number;
+  }> {
+    const response = await this.request<{
+      id_token: string;
+      access_token: string;
+      expires_in: number;
+    }>('/api/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token }),
+    });
+    if (!response.data) throw new Error('Refresh failed');
+    return response.data;
+  }
+
+  async authForgotPassword(email: string): Promise<void> {
+    await this.request('/api/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async authResetPassword(email: string, code: string, password: string): Promise<void> {
+    await this.request('/api/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, password }),
+    });
+  }
+
+  async authMe(): Promise<{ sub: string; email: string; groups: string[] }> {
+    const response = await this.request<{ sub: string; email: string; groups: string[] }>(
+      '/api/auth/me',
+    );
+    if (!response.data) throw new Error('Failed to fetch profile');
+    return response.data;
   }
 
 }

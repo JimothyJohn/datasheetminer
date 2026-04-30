@@ -25,6 +25,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ThemeToggle from './components/ThemeToggle';
 import GitHubLink from './components/GitHubLink';
 import UnitToggle from './components/UnitToggle';
@@ -32,6 +33,7 @@ import DensityToggle from './components/DensityToggle';
 import NetworkStatus from './components/NetworkStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import BuildTray from './components/BuildTray';
+import AccountMenu from './components/AccountMenu';
 import './App.css';
 
 // ========== App Mode ==========
@@ -92,6 +94,12 @@ function AppShell() {
   // and shouldn't sit underneath the existing "Product Search" header.
   const { pathname } = useLocation();
   const isLanding = pathname === '/welcome';
+  // The env-var APP_MODE still gates admin component imports (lazy
+  // bundles) for now; Cognito group lets a signed-in admin see admin
+  // nav on a public deployment in addition to the env-mode case. The
+  // full env-mode → group-only swap is Phase 4 in todo/AUTH.md.
+  const { isAdmin: authIsAdmin } = useAuth();
+  const showAdminNav = isAdmin || authIsAdmin;
 
   return (
     <>
@@ -109,12 +117,12 @@ function AppShell() {
                 </NavLink>
               </h1>
               <GitHubLink />
-              {isAdmin && (
+              {showAdminNav && (
                 <nav className="nav-inline">
                   <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
-                  <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
-                  <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
-                  <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>
+                  {DatasheetsPage && <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>}
+                  {ProductManagement && <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>}
+                  {AdminPanel && <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>}
                 </nav>
               )}
             </div>
@@ -123,6 +131,7 @@ function AppShell() {
               <UnitToggle />
               <DensityToggle />
               <ThemeToggle />
+              <AccountMenu />
             </div>
           </header>
         )}
@@ -157,11 +166,13 @@ function App() {
   console.log('[App] Rendering application');
 
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </AppProvider>
+    </AuthProvider>
   );
 }
 
