@@ -16,6 +16,7 @@ import searchRouter from './routes/search';
 import compatRouter from './routes/compat';
 import docsRouter from './routes/docs';
 import adminRouter from './routes/admin';
+import authRouter from './routes/auth';
 
 const app: Application = express();
 
@@ -51,6 +52,10 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Upload route — available in both public and admin mode (queues only, no data mutation)
 app.use('/api/upload', uploadRouter);
+
+// Auth routes — register/login/etc. need POST in public mode. The
+// readonly guard exempts /auth/* paths (see middleware/readonly.ts).
+app.use('/api/auth', authRouter);
 
 // API routes
 app.use('/api/products', productsRouter);

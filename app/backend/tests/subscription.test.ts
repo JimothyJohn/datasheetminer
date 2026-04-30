@@ -99,8 +99,14 @@ describe('requireSubscription middleware', () => {
   let nextCalled: boolean;
   const next: NextFunction = () => { nextCalled = true; };
 
-  function mockReq(headers: Record<string, string> = {}, query: Record<string, string> = {}): Partial<Request> {
-    return { headers, query } as any;
+  // requireSubscription now reads `req.user.sub` (populated by
+  // requireAuth) instead of trusting an unverified header. The
+  // header-based path was removed because it allowed any caller to
+  // impersonate any user — see middleware/subscription.ts header
+  // comment for the migration note.
+  function reqWithUser(sub: string | null): Partial<Request> {
+    if (sub === null) return {} as Partial<Request>;
+    return { user: { sub, email: `${sub}@example.com`, groups: [] } } as Partial<Request>;
   }
 
   function mockRes(): any {
@@ -118,38 +124,19 @@ describe('requireSubscription middleware', () => {
     jest.clearAllMocks();
   });
 
-  it('returns 401 when no user ID provided', async () => {
-    const req = mockReq();
+  it('returns 401 when req.user is not set (auth middleware skipped)', async () => {
+    const req = reqWithUser(null);
     const res = mockRes();
 
     await requireSubscription(req as Request, res as Response, next);
     expect(res._status).toBe(401);
+    expect(res._body.error).toContain('Authentication required');
     expect(nextCalled).toBe(false);
-  });
-
-  it('accepts user ID from x-user-id header', async () => {
-    (stripeService.isSubscriptionActive as jest.Mock).mockResolvedValue(true);
-    const req = mockReq({ 'x-user-id': 'user-123' });
-    const res = mockRes();
-
-    await requireSubscription(req as Request, res as Response, next);
-    expect(nextCalled).toBe(true);
-    expect((req as any).userId).toBe('user-123');
-  });
-
-  it('accepts user ID from query parameter', async () => {
-    (stripeService.isSubscriptionActive as jest.Mock).mockResolvedValue(true);
-    const req = mockReq({}, { user_id: 'user-456' });
-    const res = mockRes();
-
-    await requireSubscription(req as Request, res as Response, next);
-    expect(nextCalled).toBe(true);
-    expect((req as any).userId).toBe('user-456');
   });
 
   it('returns 403 when subscription is not active', async () => {
     (stripeService.isSubscriptionActive as jest.Mock).mockResolvedValue(false);
-    const req = mockReq({ 'x-user-id': 'user-123' });
+    const req = reqWithUser('user-123');
     const res = mockRes();
 
     await requireSubscription(req as Request, res as Response, next);
@@ -158,13 +145,14 @@ describe('requireSubscription middleware', () => {
     expect(nextCalled).toBe(false);
   });
 
-  it('passes through when subscription is active', async () => {
+  it('passes through when subscription is active and user is authed', async () => {
     (stripeService.isSubscriptionActive as jest.Mock).mockResolvedValue(true);
-    const req = mockReq({ 'x-user-id': 'user-123' });
+    const req = reqWithUser('user-123');
     const res = mockRes();
 
     await requireSubscription(req as Request, res as Response, next);
     expect(nextCalled).toBe(true);
+    expect(stripeService.isSubscriptionActive).toHaveBeenCalledWith('user-123');
   });
 });
 
