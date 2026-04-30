@@ -190,3 +190,28 @@ After `./Quickstart deploy --stage <stage>` returns, confirm the stack is actual
 - `.env` at repo root — `GEMINI_API_KEY`, `DYNAMODB_TABLE_NAME`, `AWS_REGION`
 - `app/.env` — frontend/backend config
 - Stage-specific: `app/.env.dev`, `app/.env.prod`
+
+### AWS auth paths (two of them — don't mix them up)
+
+This account has two GitHub-Actions auth principals with overlapping but **non-identical** permissions:
+
+- **OIDC role `gh-deploy-datasheetminer`** — what `.github/workflows/ci.yml` actually uses (`role-to-assume:` at lines 266, 398). Inline policy is `CdkDeploy`. This is the one CI deploys with.
+- **IAM user `datasheetminer-github`** — static-creds principal with managed policy `datasheetminer-cicd` attached. Not referenced by any current workflow, but its policy is broader and easy to mistake for "the deploy policy."
+
+When adding a deploy permission, attach it to the **role's `CdkDeploy` inline policy** (or as a managed policy attached to the role). Adding it only to `datasheetminer-cicd` does nothing for CI — that's a foot-gun we hit on 2026-04-29 with the `Route53Lookup` perm for `HostedZone.fromLookup`. Verify with:
+
+    aws iam get-role-policy --role-name gh-deploy-datasheetminer --policy-name CdkDeploy \
+      --query 'PolicyDocument.Statement[?Sid==`<your-sid>`]'
+
+### Pushing from a Claude session
+
+SSH keys aren't loaded in the session, so `git push` over `git@github.com:...` fails. Use one of:
+
+- **HTTPS via `gh` credential helper:** `git -c credential.helper='!gh auth git-credential' push https://github.com/JimothyJohn/specodex.git <branch>`
+- **User pushes manually** from their own terminal (always works)
+
+Caveat: `gh`'s default token usually has `repo` but **not `workflow` scope**, so any push that touches `.github/workflows/*` will be rejected by GitHub even after auth succeeds. Either run `gh auth refresh -s workflow` first (interactive, needs `! gh auth refresh -s workflow` in the prompt), or have the user push from their terminal.
+
+### Continuing a prior session's plan
+
+If a session resumes from a previous one's task list, **re-verify each "completed" step before trusting it.** Prior sessions can show "Apply IAM perm: completed" when the apply call actually never finished, or "branch X merged" when only the merge command was queued. The cheapest way to avoid an hour of confusion is to spend 30 seconds confirming state with the underlying tool (`aws iam get-role-policy`, `git log master..<branch>`, etc.) before continuing.
