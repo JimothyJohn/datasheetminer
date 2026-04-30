@@ -4,13 +4,17 @@
 of what's left without opening each `todo/*.md`. Drill into the linked
 docs only when you're about to act on that work.
 
-> **Recently shipped (2026-04-29).** REBRAND Stage 4 cutover ✅
-> `www.specodex.com` is live, `datasheets.advin.io` NXDOMAIN'd.
+> **Recently shipped (2026-04-28 / 2026-04-29).** REBRAND Stage 4 cutover
+> ✅ `www.specodex.com` is live, `datasheets.advin.io` NXDOMAIN'd.
 > All 5 CICD followups merged (`fromlookup`, `ci-hygiene`,
 > `nightly-bench`, `staging-yml-cleanup`, `late-night-dedupe-audit`).
 > Frontend visual iteration ✅ (App.css palette, Welcome rework,
 > ProductList refinements, FilterChip refactor + tests, sitemap.xml).
-> UNITS shipped 2026-04-28; eligible for `done/` move.
+> UNITS ✅ (`ValueUnit` / `MinMaxUnit` end-to-end + data backfill).
+>
+> Historical plans for REBRAND and UNITS were deleted from `todo/` on
+> 2026-04-29 — see `git log --diff-filter=D --follow -- todo/REBRAND.md
+> todo/UNITS.md` if you need the design rationale.
 
 ## How to use it
 
@@ -47,18 +51,6 @@ Ordered by **dependency-and-rework risk**, not urgency or size.
 
 Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · 📐 planned
 Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴 multi-week or high blast radius
-
-## Done (eligible for `done/` move)
-
-- **[REBRAND.md](REBRAND.md)** — all stages ✅ shipped through 2026-04-29.
-  `www.specodex.com` live, old domain NXDOMAIN'd. Stage 4e decommission
-  effectively auto-done since `datasheets.advin.io` no longer resolves.
-  Doc kept until the rebrand has soaked for ~2 weeks; then move to
-  `done/REBRAND.md` for historical reference.
-- **[UNITS.md](UNITS.md)** — shipped 2026-04-28 (code `a8f6162` +
-  `aac7050`, data backfill applied to dev 273 rows + prod 10 rows).
-  Manual triage of ~373 dev + 10 prod review entries is pre-existing
-  data quality, non-blocking. Move to `done/UNITS.md` next sweep.
 
 ---
 
@@ -141,6 +133,4 @@ If your current task matches any "trigger" entry, the linked doc is queued and w
 | `cli/admin.py:purge`/`promote`, `specodex/ids.py:compute_product_id` or `_strip_family_prefix`, new vendor catalog with prefix-form drift; user mentions "duplicate", "dedupe", "merge rows", "same product twice", "two part numbers for one motor"; promotion to staging/prod | [DEDUPE.md](DEDUPE.md) |
 | `app/backend/src/routes/admin.ts`, `AdminPanel.tsx`, `specodex/ingest_log.py`, `specodex/llm.py`, `cli/bench.py:PRICING`, "godmode/dashboard/observability/Gemini cost/Claude usage" | [GODMODE.md](GODMODE.md) |
 | `specodex/integration/{ports,adapters,compat}.py`, `app/backend/src/services/compat.ts`, `BuildTray.tsx`, `CompatChecker.tsx`; user mentions "compat", "pairing", "BOM", "system", "chain" | [INTEGRATION.md](INTEGRATION.md) |
-| `app/frontend/src/` styling/theme/palette/fonts; landing or `App.tsx` routes; "datasheetminer" in user-facing copy; ACM cert / Route 53 / CloudFront alt-domain for `specodex.com`; CDK Frontend stack viewer cert; repo rename | [REBRAND.md](REBRAND.md) |
 | `app/frontend/src/utils/localStorage.ts`; `AppContext.tsx` (new persisted key); `ProductList.tsx` type-switch effect; `FilterChip.tsx` × `unitSystem`; `*.test.{ts,tsx}` under `app/frontend/`; user mentions "spillover", "state leak", "stale filter", "wrong unit", "frontend tests", "vitest" | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) |
-| `specodex/models/common.py` (`ValueUnit`/`MinMaxUnit`), product model field annotations; `specodex/units.py`; `specodex/db/dynamo.py`; `app/backend/src/db/dynamodb.ts`; `specodex/models/llm_schema.py:to_gemini_schema`; `specodex/schemagen/renderer.py`; user mentions "semicolon in UI", "value;unit", "rotor inertia displayed wrong", "compact string", "scientific notation in specs" | [UNITS.md](UNITS.md) |
