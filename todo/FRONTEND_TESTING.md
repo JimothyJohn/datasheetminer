@@ -121,19 +121,26 @@ Then assert what *does not* reset across type switch (intentional persistence):
   before writing the test.
 - `unitSystem`, `rowDensity` — header toggles persist across type switches.
 
-### Phase 4: header toggles — 3 small files (or one combined)
+### Phase 4: header toggles — ✅ shipped 2026-04-30
 
-Existing: `ThemeToggle.test.tsx`, `NetworkStatus.test.tsx`.
+Three new component tests covering the three header chips:
 
-Add:
+- **`UnitToggle.test.tsx`** (7 tests) — both default and compact variants.
+  Defaults SI; clicking flips to imperial + persists to
+  `localStorage.unitSystem`; aria-label tracks the *next* state ("Switch
+  to metric units" when on imperial — catches the "looks like it worked
+  but didn't" case from L7); hydrates from imperial in storage. Compact
+  variant: SI + IMP pills with `.active` class on the current one;
+  active class moves on click; UNITS caption is `aria-hidden`.
+- **`DensityToggle.test.tsx`** (5 tests) — defaults compact;
+  `aria-pressed` reflects "currently compact"; click flips to comfy +
+  persists `productListRowDensity`; hydrates from comfy; SVG icon flips
+  from 3 lines to 2 bars on click (visual feedback wired correctly, L8).
+- **`GitHubLink.test.tsx`** (3 tests) — href pinned to canonical
+  `JimothyJohn/specodex`; opens in new tab with `rel` containing
+  `noopener` + `noreferrer`; aria-label + title both "Source on GitHub".
 
-- **`UnitToggle.test.tsx`** — clicking flips `useApp().unitSystem`; the rendered
-  label matches the *next* unit system (covers the "looks like it worked but
-  didn't" case); compact mode renders smaller markup; persists to `localStorage.unitSystem`.
-- **`DensityToggle.test.tsx`** — clicking flips `rowDensity`; persists; the
-  toggle's `aria-pressed` reflects current state.
-- **`GitHubLink.test.tsx`** (3 lines) — renders with correct href, target,
-  rel, aria-label. Trivial but locks the URL in case it gets rewritten.
+15 new tests; suite is now 18 files, 318 passing.
 
 ### Phase 5: FilterChip × unit system — 1 file extension
 
@@ -182,7 +189,10 @@ that catches "I broke the imports" before CI does.
 3. ✅ Phase 2 shipped 2026-04-30.
 4. Phase 3 (`ProductList.typeSwitch.test.tsx`). Highest user-visible payoff —
    the spillover bugs L1–L4 are the ones a user notices. ~2h. **Next.**
-5. Phase 4 (header toggles). Quick wins, ~1h total.
+   Note: my read of `handleProductTypeChange` in ProductList.tsx is that
+   it *does not* call `setSelectedProduct(null)` — L1 is a real bug
+   waiting for this phase to expose it.
+5. ✅ Phase 4 shipped 2026-04-30.
 6. Phase 5 (FilterChip unit system). Locks in L7. ~1h.
 7. Phase 6 (BuildTray). ~1h.
 8. Phase 7 (ErrorBoundary), Phase 8 (smoke-render). ~1h together.
