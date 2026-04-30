@@ -28,13 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # github/codeql-action steps below use floating @v3 tags. SHA-pinning
-      # is the convention elsewhere in this repo — pin before merging:
-      #   gh api repos/github/codeql-action/git/refs/tags/v3 \
-      #     --jq '.object.sha'
-      # then replace `@v3` with `@<sha> # v3.X.Y`.
+      # github/codeql-action pinned to the tip of releases/v3 (v3.35.2
+      # backport, 2026-04-15). Refresh: `gh api
+      # repos/github/codeql-action/git/refs/tags/v3 --jq '.object.sha'`,
+      # then dereference the annotated tag with `gh api
+      # repos/github/codeql-action/git/tags/<sha> --jq '.object.sha'` to
+      # get the commit SHA.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3.35.2
         with:
           languages: ${{ matrix.language }}
           # Use security-and-quality queries for slightly higher signal
@@ -43,9 +44,9 @@ jobs:
           queries: security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3.35.2
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3.35.2
         with:
           category: "/language:${{ matrix.language }}"

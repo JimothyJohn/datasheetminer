@@ -103,9 +103,9 @@ artifact for postmortem.
 - **`cdk diff` PR comment.** Deferred — needs `pull-requests: write`
   permission and PR number resolution; cleaner as a separate PR.
 
-### 6. Security scans (warn-only first) ✅ code-ready
+### 6. Security scans (warn-only first) ✅ shipped (codeql SHA pinned 2026-04-30)
 
-Branch `cicd-followup-security-scans`. Two new workflows:
+Two workflows:
 
 - `.github/workflows/security.yml` — pip-audit (uv-export →
   pip-audit on the locked dep set) + npm audit (matrix over
@@ -113,8 +113,10 @@ Branch `cicd-followup-security-scans`. Two new workflows:
   `continue-on-error: true` (warn-only). Triggers: schedule (Mondays
   13:00 UTC), workflow_dispatch, and PRs that touch dep manifests.
 - `.github/workflows/codeql.yml` — Python + JavaScript-TypeScript,
-  security-and-quality query suite. SHA-pinning TODO in the workflow
-  for the operator (declined to fabricate the SHA).
+  security-and-quality query suite. All three
+  `github/codeql-action/{init,autobuild,analyze}` steps pinned to
+  commit `ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a` (v3.35.2 backport,
+  2026-04-15). Refresh recipe lives in the workflow header.
 
 ### 7. Operational tidying ✅ code-ready
 
