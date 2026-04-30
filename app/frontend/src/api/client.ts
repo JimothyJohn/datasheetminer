@@ -35,18 +35,6 @@ import { CompatibilityReport } from '../types/compat';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 /**
- * App mode: 'public' (read-only cloud) or 'admin' (local toolset)
- * Write methods throw in public mode instead of hitting 403s.
- */
-const APP_MODE = import.meta.env.VITE_APP_MODE || 'admin';
-
-function requireAdmin(operation: string): void {
-  if (APP_MODE === 'public') {
-    throw new Error(`${operation} is not available in public mode. Use the local admin toolset.`);
-  }
-}
-
-/**
  * Default request timeout in milliseconds
  * Prevents requests from hanging indefinitely on slow connections
  */
@@ -371,7 +359,6 @@ class ApiClient {
    * Note: AppContext will refresh data after successful creation to get generated ID
    */
   async createProduct(product: Partial<Product>): Promise<void> {
-    requireAdmin('createProduct');
     console.log('[ApiClient] Creating single product:', product.part_number || 'unnamed');
 
     await this.request('/api/products', {
@@ -398,7 +385,6 @@ class ApiClient {
    * Note: Backend automatically detects array vs single object
    */
   async createProducts(products: Partial<Product>[]): Promise<void> {
-    requireAdmin('createProducts');
     console.log(`[ApiClient] Creating ${products.length} products in batch`);
 
     await this.request('/api/products', {
@@ -413,7 +399,6 @@ class ApiClient {
    * Backend Endpoint: POST /api/datasheets
    */
   async createDatasheet(datasheet: Partial<DatasheetEntry>): Promise<void> {
-    requireAdmin('createDatasheet');
     console.log('[ApiClient] Creating datasheet:', (datasheet as any).product_name || 'unnamed');
     await this.request('/api/datasheets', {
       method: 'POST',
@@ -425,7 +410,6 @@ class ApiClient {
    * Update a datasheet
    */
   async updateDatasheet(id: string, updates: Partial<DatasheetEntry>): Promise<void> {
-    requireAdmin('updateDatasheet');
     await this.request(`/api/datasheets/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
@@ -438,7 +422,6 @@ class ApiClient {
    * Backend Endpoint: PUT /api/products/:id?type=X
    */
   async updateProduct(id: string, updates: Partial<Product>, type: Exclude<ProductType, null>): Promise<void> {
-    requireAdmin('updateProduct');
     console.log(`[ApiClient] Updating product: ${id} (type: ${type})`);
     await this.request(`/api/products/${id}?type=${type}`, {
       method: 'PUT',
@@ -478,25 +461,27 @@ class ApiClient {
   }
 
   /**
-   * Get subscription status for a user
+   * Get subscription status for the authed user. Identity comes from
+   * the Authorization header (set via setAuthToken); no userId param.
    */
-  async getSubscriptionStatus(userId: string): Promise<{
+  async getSubscriptionStatus(): Promise<{
     subscription_status: string;
     billing_enabled?: boolean;
     stripe_customer_id?: string;
   }> {
-    const response = await this.request<any>(`/api/subscription/status/${userId}`);
+    const response = await this.request<any>('/api/subscription/status');
     if (!response.data) throw new Error('No subscription data received');
     return response.data;
   }
 
   /**
-   * Create a Stripe checkout session and return the checkout URL
+   * Create a Stripe checkout session for the authed user and return
+   * the checkout URL. Identity comes from the Authorization header.
    */
-  async createCheckoutSession(userId: string): Promise<string> {
+  async createCheckoutSession(): Promise<string> {
     const response = await this.request<{ checkout_url: string }>('/api/subscription/checkout', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({}),
     });
     if (!response.data?.checkout_url) throw new Error('No checkout URL received');
     return response.data.checkout_url;
@@ -520,7 +505,6 @@ class ApiClient {
    * Warning: This operation is irreversible!
    */
   async deleteProduct(id: string, type: Exclude<ProductType, null>, componentType?: string): Promise<void> {
-    requireAdmin('deleteProduct');
     console.log(`[ApiClient] Deleting product: ${id} (type: ${type}, componentType: ${componentType})`);
 
     // If deleting a datasheet, we need to pass the actual component type (e.g. 'motor')
