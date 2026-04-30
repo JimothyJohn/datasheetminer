@@ -34,8 +34,11 @@ export default function UnitToggle({ compact = false }: UnitToggleProps) {
         aria-label={isImperial ? 'Switch to metric units' : 'Switch to imperial units'}
         title={title}
       >
-        <span className={`unit-toggle-compact-pill${!isImperial ? ' active' : ''}`}>SI</span>
-        <span className={`unit-toggle-compact-pill${isImperial ? ' active' : ''}`}>IMP</span>
+        <span className="unit-toggle-compact-pills">
+          <span className={`unit-toggle-compact-pill${!isImperial ? ' active' : ''}`}>SI</span>
+          <span className={`unit-toggle-compact-pill${isImperial ? ' active' : ''}`}>IMP</span>
+        </span>
+        <span className="unit-toggle-compact-caption" aria-hidden="true">UNITS</span>
       </button>
     );
   }

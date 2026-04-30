@@ -136,7 +136,10 @@
 .specodex-main {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 3.5rem 1.5rem 4rem;
+  /* Top padding clears the band + watermark, then leaves a tight gap so
+   * the tagline sits high on the page. The CTA's absolute `top` (below)
+   * tracks this — keep them in sync if you tune one. */
+  padding: 6rem 1.5rem 4rem;
 }
 
 .specodex-hero {
@@ -184,13 +187,6 @@
 }
 
 /* ===== CTAs — square, bordered, no rounded corners or shadows ===== */
-.specodex-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-
 .specodex-cta {
   display: inline-flex;
   align-items: center;
@@ -218,6 +214,42 @@
   outline: none;
 }
 
+/* CTA pinned to the right side of the page, well below the headline so it
+ * doesn't compete with the title for the top-of-page spot. Width still
+ * matches the catalog's 500px filter sidebar so the button reads as a
+ * preview of where the user is about to land — but the vertical position
+ * has been moved off the dropdown's exact y-coordinate (was top: ~80px).
+ * Click-then-pick is no longer pixel-perfect; the visual hierarchy wins. */
+/* Parent-scoped to outrank the `.specodex-landing > *:not(.specodex-grain)`
+ * rule above, which would otherwise force position: relative. */
+.specodex-landing > .specodex-cta-anchor {
+  position: absolute;
+  top: 12rem;                             /* top edge ~aligned with the hero title */
+  right: 1.25rem;                         /* still aligned to sidebar's right edge */
+  width: calc(500px - 2.5rem);            /* matches sidebar inner width */
+  padding: 0.95rem 1.4rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.22em;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Below 1024px the catalog stacks its filter pane on top instead of using
+ * the right sidebar, so anchoring to the right edge is meaningless — drop
+ * the CTA back into normal flow under the band, which is exactly where the
+ * mobile filter toggle sits on the catalog. */
+@media (max-width: 1023px) {
+  .specodex-landing > .specodex-cta-anchor {
+    position: static;
+    width: auto;
+    display: inline-flex;
+    margin: 1.25rem 1.5rem 0;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+  }
+}
+
 .specodex-cta-ghost {
   background-color: transparent;
   color: var(--ink);
@@ -228,6 +260,146 @@
   background-color: var(--ink);
   color: var(--paper);
   outline: none;
+}
+
+/* ===== Mark studies — single-motif logo drafts ===== */
+.specodex-marks {
+  margin-top: 3rem;
+  padding-top: 3rem;
+  border-top: 1px solid var(--ink);
+}
+
+.specodex-marks-header {
+  margin-bottom: 1.8rem;
+}
+
+.specodex-marks-title {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin: 0 0 0.6rem;
+}
+
+.specodex-marks-sub {
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 70ch;
+}
+
+.specodex-marks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.specodex-mark {
+  margin: 0;
+  padding: 1.25rem;
+  background-color: var(--feature-bg);
+  border: 1px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.specodex-mark-frame {
+  aspect-ratio: 1;
+  background-color: var(--paper);
+  border: 1px solid var(--ink-soft);
+  display: grid;
+  place-items: center;
+  padding: 18%;
+  color: var(--ink);
+}
+
+.specodex-mark-frame svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.specodex-mark-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.specodex-mark-tag {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.specodex-mark-id {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  border: 1px solid var(--accent-text);
+  padding: 0.1rem 0.5rem;
+}
+
+.specodex-mark-name {
+  font-family: var(--font-headline);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.specodex-mark-note {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.specodex-favicon-strip {
+  margin-top: 1.8rem;
+  padding: 1.1rem 1.25rem;
+  background-color: var(--feature-bg);
+  border: 1px solid var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.specodex-favicon-label {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: var(--accent-text);
+  text-transform: uppercase;
+}
+
+.specodex-favicon-row {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.specodex-favicon-tile {
+  width: 32px;
+  height: 32px;
+  background-color: var(--paper);
+  border: 1px solid var(--ink-soft);
+  padding: 2px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.specodex-favicon-tile svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* ===== Responsive nudges ===== */

@@ -196,3 +196,71 @@ export const formatValue = (
   // Fallback
   return String(value);
 };
+
+/**
+ * Compute default column widths from the data actually loaded.
+ *
+ * Width is driven by the P90 of formatted-value lengths per column, so a
+ * column adapts to whatever's in front of it without one freak outlier
+ * (a 60-char free-text spec) blowing out every row. Header label length
+ * is the floor — column titles never get truncated. Per-column min/max
+ * clamps stop pathologically narrow or wide columns.
+ *
+ * Returns a map of `key → px width`. Manual user resizes (tracked in
+ * the parent state) win over these defaults; the caller decides how to
+ * merge.
+ */
+export interface AutoWidthInputs {
+  rows: Array<Record<string, unknown>>;
+  columns: Array<{ key: string; displayName: string }>;
+  /** 'compact' | 'comfy' — drives px-per-char and padding. */
+  density: 'compact' | 'comfy';
+  unitSystem: UnitSystem;
+  /** Per-column floor. Use for `part_number`, which we want extra-wide
+   *  even if its values happen to fit in fewer chars on a thin dataset. */
+  perKeyMin?: Record<string, number>;
+  /** Cap so a single absurdly long value doesn't dominate. */
+  maxPx?: number;
+  /** Percentile (0..1). Default 0.90 — 90% of values fit, top 10% truncate. */
+  percentile?: number;
+}
+
+export const computeAutoColumnWidths = (
+  inputs: AutoWidthInputs,
+): Record<string, number> => {
+  const {
+    rows,
+    columns,
+    density,
+    unitSystem,
+    perKeyMin = {},
+    maxPx = 400,
+    percentile = 0.9,
+  } = inputs;
+
+  // Mono font ≈ 0.6em per glyph. 0.85rem cells in compact, ~1rem in comfy.
+  const charPx = density === 'comfy' ? 9.0 : 7.5;
+  const cellPaddingPx = density === 'comfy' ? 28 : 22;
+  const minPx = 60;
+
+  const widths: Record<string, number> = {};
+  for (const col of columns) {
+    const lengths: number[] = [];
+    for (const row of rows) {
+      const formatted = formatValue(row[col.key], 0, 5, unitSystem);
+      if (formatted) lengths.push(formatted.length);
+    }
+    lengths.sort((a, b) => a - b);
+
+    const pIdx = Math.max(0, Math.min(lengths.length - 1,
+      Math.floor(lengths.length * percentile)));
+    const dataChars = lengths.length > 0 ? lengths[pIdx] : 0;
+    const headerChars = col.displayName.length;
+    const chars = Math.max(dataChars, headerChars);
+
+    const desiredPx = Math.round(chars * charPx + cellPaddingPx);
+    const floor = Math.max(minPx, perKeyMin[col.key] ?? 0);
+    widths[col.key] = Math.min(maxPx, Math.max(floor, desiredPx));
+  }
+  return widths;
+};

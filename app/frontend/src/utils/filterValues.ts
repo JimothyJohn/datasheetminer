@@ -5,12 +5,18 @@
 import { Product } from '../types/models';
 
 /**
- * Extract unique values for a given attribute from products
+ * Extract unique values for a given attribute from products.
+ *
+ * The `limit` cap exists so a string/categorical field with hundreds of
+ * unique values (part numbers, series codes) doesn't dump an unbounded
+ * dropdown. 100 is wide enough that a mid-size catalog's full part list
+ * fits, while still bounded — and the FilterChip dropdown does its own
+ * display-side slice on top of this.
  */
 export function extractUniqueValues(
   products: Product[],
   attribute: string,
-  limit: number = 20
+  limit: number = 100
 ): Array<string | number> {
   const values = new Set<string | number>();
 

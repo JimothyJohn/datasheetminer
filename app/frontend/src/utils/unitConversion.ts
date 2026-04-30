@@ -63,6 +63,16 @@ export const IMPERIAL_CONVERSIONS: Record<string, UnitConversion> = {
     forward: n => n * 3.28084,
     inverse: n => n / 3.28084,
   },
+  /* `mm/s` exists because the ProductList linear-travel mode converts
+   * RPM × lead → mm/s for the rated-speed column. Without an entry here,
+   * the imperial toggle would leave the cell value untouched while the
+   * sibling thrust column converts N → lbf, and the table reads as half
+   * imperial / half metric. */
+  'mm/s': {
+    target: 'in/s',
+    forward: n => n * 0.0393701,
+    inverse: n => n / 0.0393701,
+  },
   bar: {
     target: 'psi',
     forward: n => n * 14.50377,

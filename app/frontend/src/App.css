@@ -1108,7 +1108,7 @@ button.secondary:hover {
   min-width: 500px;
   order: 2;
   background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
-  padding: 1.2rem 1.25rem;
+  padding: 0.85rem 1rem;
   align-self: flex-start;
   position: sticky;
   top: 0;
@@ -1179,8 +1179,8 @@ button.secondary:hover {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--text-primary);
   position: relative;
 }
@@ -1208,6 +1208,7 @@ button.secondary:hover {
 
 .unit-toggle-compact {
   display: inline-flex;
+  flex-direction: column;
   align-items: stretch;
   border: 1px solid var(--border-color);
   border-radius: 3px;
@@ -1219,6 +1220,11 @@ button.secondary:hover {
   overflow: hidden;
   flex-shrink: 0;
   line-height: 1;
+}
+
+.unit-toggle-compact-pills {
+  display: inline-flex;
+  align-items: stretch;
 }
 
 .unit-toggle-compact-pill {
@@ -1238,8 +1244,20 @@ button.secondary:hover {
   color: var(--text-primary);
 }
 
+.unit-toggle-compact-caption {
+  display: block;
+  text-align: center;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+  padding: 0.1rem 0.25rem 0.15rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
 .filter-controls-top {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.45rem;
 }
 
 /* Match summary — top of the filter pane. Shows the impact of the
@@ -1250,9 +1268,9 @@ button.secondary:hover {
 .filter-match-summary {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.75rem 0.85rem;
-  margin-bottom: 0.7rem;
+  gap: 0.3rem;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.5rem;
   background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
   border: 1px solid var(--border-color-light);
   border-left: 3px solid var(--accent-primary);
@@ -1263,13 +1281,13 @@ button.secondary:hover {
 .filter-match-numbers {
   display: flex;
   align-items: baseline;
-  gap: 0.45rem;
+  gap: 0.35rem;
   font-variant-numeric: tabular-nums;
 }
 
 .filter-match-count {
   font-family: var(--font-headline);
-  font-size: 1.65rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1;
@@ -1277,22 +1295,21 @@ button.secondary:hover {
 }
 
 .filter-match-divider {
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: var(--text-tertiary);
   font-weight: 300;
 }
 
 .filter-match-total {
   font-family: var(--font-headline);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-secondary);
   line-height: 1;
 }
 
 .filter-match-label {
-  margin-left: auto;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-tertiary);
@@ -1301,9 +1318,9 @@ button.secondary:hover {
 
 .filter-match-bar {
   position: relative;
-  height: 6px;
+  height: 4px;
   background-color: var(--bg-primary);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
   border: 1px solid var(--border-color-light);
 }
@@ -1315,19 +1332,14 @@ button.secondary:hover {
   transition: width 0.25s ease;
 }
 
-.filter-match-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
-  letter-spacing: 0.04em;
-}
-
 .filter-match-percent {
+  margin-left: auto;
+  font-family: var(--font-headline);
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--accent-primary);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 /* Filter row — chip + its distribution chart paired together. Replaces
@@ -1336,8 +1348,8 @@ button.secondary:hover {
 .filter-row {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.5rem 0.6rem 0.55rem;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border-color-light);
   border-radius: 4px;
@@ -1358,8 +1370,8 @@ button.secondary:hover {
 /* The inline DistributionChart sits inside .filter-row; tighten its
  * top spacing because the chip already provides the visual border. */
 .filter-row > div:last-child:not(.filter-chip-minimal) {
-  margin-top: 0.4rem !important;
-  padding-top: 0.4rem !important;
+  margin-top: 0.3rem !important;
+  padding-top: 0.3rem !important;
 }
 
 /* Action stack — Add Filter is the primary CTA. It owns the full width
@@ -1369,35 +1381,38 @@ button.secondary:hover {
 .filter-actions-container {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 0.85rem;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
 }
 
 /* Secondary action — small, low-weight text-link so it never competes
- * with the primary Add Filter CTA above it. */
+ * with the primary Add Filter CTA above it. Pink hue marks it as the
+ * destructive-ish counterpart to the gold "+ Add Spec" primary; warm
+ * dusty rose plays nicely with the manila/sepia palette and reads as
+ * distinct from the red --danger reserved for true destructive cues. */
 .btn-clear {
   align-self: flex-end;
-  padding: 0.15rem 0.3rem;
-  background: transparent;
-  border: none;
+  padding: 0.15rem 0.4rem;
+  background: rgba(199, 84, 127, 0.08) !important;
+  border: 1px solid rgba(199, 84, 127, 0.35) !important;
   border-radius: 2px;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--text-tertiary);
+  color: #c7547f !important;
   cursor: pointer;
-  transition: color 0.15s linear;
+  transition: color 0.15s linear, background 0.15s linear, border-color 0.15s linear;
   font-weight: 600;
-  box-shadow: none;
   text-decoration: underline;
   text-decoration-style: dotted;
   text-underline-offset: 3px;
 }
 
 .btn-clear:hover {
-  color: var(--danger);
-  background: transparent;
+  color: #ffe4ee !important;
+  background: #b85674 !important;
+  border-color: #b85674 !important;
 }
 
 /* Filter chips container — two-column grid on desktop so chips read
@@ -1406,21 +1421,21 @@ button.secondary:hover {
 .filter-chips-container {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 0.6rem;
-  min-height: 30px;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  min-height: 24px;
 }
 
 /* Minimal filter chip with vertical layout */
 .filter-chip-minimal {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.5rem 0.55rem;
+  gap: 0.3rem;
+  padding: 0.35rem 0.45rem;
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   transition: all 0.2s;
   position: relative;
 }
@@ -1450,12 +1465,12 @@ button.secondary:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.35rem;
+  height: 1.35rem;
   padding: 0;
   border-radius: 2px;
   font-family: var(--font-mono);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--border-color);
@@ -1503,14 +1518,14 @@ button.secondary:hover {
 .filter-attribute {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 1.1rem;
-  line-height: 1.3;
+  font-size: 0.95rem;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
   transition: all 0.2s;
-  padding: 0.2rem 0.35rem;
+  padding: 0.1rem 0.3rem;
   border-radius: 3px;
 }
 
@@ -1546,22 +1561,22 @@ button.secondary:hover {
 }
 
 .filter-operator {
-  padding: 0.25rem 0.4rem;
+  padding: 0.2rem 0.35rem;
   background: linear-gradient(135deg, var(--accent-gradient-start) 0%, var(--accent-gradient-end) 100%);
   color: white;
   border: 1px solid var(--accent-primary);
   border-radius: 3px;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   text-align: center;
   box-shadow: 0 1px 2px var(--shadow-sm);
   position: relative;
-  min-width: 28px;
+  min-width: 24px;
   line-height: 1;
   flex-shrink: 0;
-  height: 28px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1605,10 +1620,10 @@ button.secondary:hover {
 
 .filter-input {
   width: 100%;
-  padding: 0.35rem 0.5rem;
+  padding: 0.25rem 0.45rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   background: var(--bg-primary);
   color: var(--text-primary);
   outline: none;
@@ -1625,7 +1640,7 @@ button.secondary:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   min-width: 100px;
 }
 
@@ -1633,7 +1648,7 @@ button.secondary:hover {
 .filter-slider-range-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-family: monospace;
   padding: 0 2px;
@@ -1645,7 +1660,7 @@ button.secondary:hover {
  * at a different position than the value. */
 .filter-slider-track-container {
   position: relative;
-  height: 22px;
+  height: 18px;
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -1690,9 +1705,9 @@ button.secondary:hover {
 .filter-slider-thumb {
   position: absolute;
   top: 50%;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px; /* center on `left` */
+  width: 16px;
+  height: 16px;
+  margin-left: -8px; /* center on `left` */
   border-radius: 50%;
   background: var(--accent-primary);
   border: 2px solid var(--card-bg);
@@ -1710,9 +1725,9 @@ button.secondary:hover {
   transition: none;
   box-shadow: 0 0 0 3px var(--accent-primary), 0 3px 10px var(--shadow-lg);
   /* Subtle scale during drag — tactile feedback that the thumb is live. */
-  width: 20px;
-  height: 20px;
-  margin-left: -10px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
 }
 
 .filter-slider-track-container:hover .filter-slider-thumb {
@@ -1721,12 +1736,12 @@ button.secondary:hover {
 
 /* Setpoint value with operator prefix */
 .filter-slider-value {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   color: var(--text-primary);
   text-align: center;
   font-weight: 700;
   font-family: monospace;
-  padding: 0.25rem 0.5rem;
+  padding: 0.15rem 0.4rem;
   background: var(--bg-tertiary);
   border-radius: 3px;
   border: 1px solid var(--border-color);
@@ -1881,6 +1896,23 @@ button.secondary:hover {
   color: white;
 }
 
+/* Footer row in multi-select dropdowns when there's more than the display
+ * cap. Not interactive — it's a "keep typing to narrow" hint. */
+.filter-dropdown-more {
+  cursor: default;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.filter-dropdown-more:hover {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: normal;
+  padding-left: 0.6rem;
+}
+
 /* !important on background/color/box-shadow defeats the global button
  * rule (App.css ~3738) that paints every <button> in accent yellow.
  * Matches .column-remove-btn so the X reads as the same flat pink
@@ -1913,20 +1945,20 @@ button.secondary:hover {
 }
 
 /* Primary CTA — the action a user almost always wants next on this
- * page. Full-width, taller, uppercase stencil label, and a 2px ink
- * outer border so it reads as a stamped block on the manila pane
- * rather than a generic button. */
+ * page. Full-width, uppercase stencil label, and a 2px ink outer
+ * border so it reads as a stamped block on the manila pane rather
+ * than a generic button. */
 .btn-add-filter,
 .btn-add-sort {
   width: 100%;
   display: block;
-  padding: 0.7rem 0.9rem;
+  padding: 0.5rem 0.85rem;
   background: var(--accent-primary);
   color: #1a1a14;
   border: 2px solid var(--text-primary);
   border-radius: 3px;
   font-family: var(--font-headline);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -2183,13 +2215,6 @@ button.secondary:hover {
   line-height: 1.3;
   margin-top: 0.2rem;
 }
-.transmission-efficiency-slider {
-  flex: 1;
-  height: 4px;
-  cursor: pointer;
-  accent-color: var(--accent-primary);
-}
-
 /* Computed column styles */
 .computed-col {
   background: rgba(52, 152, 219, 0.06);
@@ -2731,34 +2756,42 @@ button.secondary:hover {
 .sort-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  transition: color 0.2s;
+  gap: 0.25rem;
+  /* Bumped from 0.85rem so the arrow reads as a proper status badge,
+   * not a typographic afterthought. The header line is ~1rem; the
+   * arrow now sits visibly above it with the same weight as the label. */
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--accent-primary);
+  text-shadow: 0 0 4px rgba(212, 165, 42, 0.45);
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .product-grid-header-item.clickable:hover .sort-indicator {
   color: var(--accent-primary);
+  transform: translateY(-1px);
 }
 
 .product-grid-header-item.clickable .sort-indicator:has(.sort-order) {
   color: var(--accent-primary);
 }
 
-/* When actively sorted, make the arrow green */
-.sort-indicator:not(:empty):not(:has(:only-child)) {
+/* When actively sorted, the indicator already has content; keep accent color
+ * and add a subtle scale so the active arrow pops over its neighbours. */
+.sort-indicator:not(:empty) {
   color: var(--accent-primary);
 }
 
 .sort-order {
-  font-size: 0.85rem;
-  color: white;
-  font-weight: 700;
+  /* Sort-priority badge — sized up to match the new bigger arrow. */
+  font-size: 0.75rem;
+  color: var(--bg-primary);
+  font-weight: 800;
   background: var(--accent-primary);
   border-radius: 50%;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3322,7 +3355,7 @@ button.secondary:hover {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 1rem;
     background: var(--card-bg);
     border: none;
     border-bottom: 1px solid var(--border-color-light);
@@ -3338,9 +3371,34 @@ button.secondary:hover {
   }
 
   .mobile-filter-summary {
-    display: flex;
-    align-items: center;
+    display: inline-flex;
+    align-items: baseline;
     gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* "Filters" label — small uppercase tag so the bar reads as a control,
+   * not just a heading. The product-type scope follows it as the prominent
+   * line. */
+  .mobile-filter-prefix {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  .mobile-filter-scope {
+    color: var(--text-primary);
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .mobile-filter-count {
@@ -3349,17 +3407,21 @@ button.secondary:hover {
     justify-content: center;
     background: var(--accent-primary);
     color: white;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    width: 1.4rem;
-    height: 1.4rem;
-    border-radius: 50%;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    flex-shrink: 0;
   }
 
   .mobile-filter-arrow {
     transition: transform 0.2s ease;
     font-size: 0.85rem;
     color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-left: 0.5rem;
   }
 
   .mobile-filter-arrow.open {
@@ -3369,16 +3431,120 @@ button.secondary:hover {
   /* Sidebar body — collapsed by default on mobile */
   .filter-sidebar-body {
     display: none;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem 0.75rem;
   }
 
   .filter-sidebar-body.mobile-expanded {
     display: block;
   }
 
-  /* Mobile: single column for chips. */
+  /* Mobile compaction — every spec row already has its own card border,
+   * so the per-element padding can shrink hard without losing legibility.
+   * Keeps the expanded pane usable on a phone instead of pushing the
+   * results table several screens down. */
   .filter-chips-container {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .filter-sidebar-title-row {
+    margin-bottom: 0.3rem;
+    padding-bottom: 0.2rem;
+  }
+
+  .filter-sidebar-title {
+    font-size: 0.95rem;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .filter-controls-top {
+    margin-bottom: 0.35rem;
+  }
+
+  .filter-match-summary {
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.4rem;
+    gap: 0.25rem;
+  }
+
+  .filter-match-count {
+    font-size: 1.15rem;
+  }
+
+  .filter-actions-container {
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .btn-add-filter,
+  .btn-add-sort {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    /* Touch-friendly even after the trim — 44px target via padding. */
+    min-height: 44px;
+  }
+
+  .filter-row {
+    padding: 0.35rem 0.45rem;
+    gap: 0.1rem;
+  }
+
+  .filter-chip-minimal {
+    padding: 0.3rem 0.4rem;
+    gap: 0.25rem;
+    font-size: 0.95rem;
+  }
+
+  .filter-attribute {
+    font-size: 0.9rem;
+    padding: 0.05rem 0.25rem;
+  }
+
+  .filter-mode-toggle {
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.85rem;
+    /* override the global mobile 44px-min-button rule below */
+    min-width: 1.3rem;
+    min-height: 1.3rem;
+    padding: 0;
+  }
+
+  .filter-remove {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    padding: 0;
+  }
+
+  .filter-operator {
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.9rem;
+    padding: 0.15rem 0.3rem;
+    /* override global mobile button min sizing */
+    min-height: 22px;
+  }
+
+  .filter-slider-track-container {
+    height: 22px; /* keep touch target a hair larger than desktop */
+  }
+
+  .filter-slider-range-labels {
+    font-size: 0.7rem;
+  }
+
+  .filter-slider-value {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  .filter-input {
+    padding: 0.3rem 0.45rem;
+    /* iOS zooms inputs under 16px on focus — keep at 16px to suppress. */
+    font-size: 16px;
+    min-height: 36px;
   }
 
   /* Results main area on mobile */
@@ -3689,39 +3855,13 @@ button.secondary:hover {
   }
 }
 
-/* ========== DISABLE ALL ANIMATIONS (EXCEPT LOADING) ========== */
-
-/* Remove all transitions for snappy, instant UI */
-*,
-*::before,
-*::after {
-  transition: none !important;
-  animation-duration: 0s !important;
-}
-
-/* Exception: Keep loading animations only */
-.skeleton,
-.loading-spinner,
-.loading,
-[class*="loading"],
-[aria-busy="true"] {
-  animation-duration: revert !important;
-}
-
-/* Keep skeleton loading animation for perceived performance */
-.skeleton {
-  animation: skeleton-loading 1.5s ease-in-out infinite !important;
-}
-
-/* Keep connection status pulse */
-.connection-status {
-  animation: pulse 2s ease-in-out infinite !important;
-}
-
-/* Keep offline banner slide-in (important for UX feedback) */
-[role="alert"] {
-  animation-duration: 0.3s !important;
-}
+/* Animations are not blanket-disabled. Accessibility-respecting reduced
+ * motion is handled by the `prefers-reduced-motion` media query at
+ * line ~3579, which is the correct way to honor user preference. The
+ * previous `* { animation-duration: 0s !important }` block was removed
+ * because it forced every new animated element to either chain
+ * `!important` or get added to a hand-maintained whitelist, with silent
+ * failure when neither happened. */
 
 /* ========== RETRO TERMINAL / MILITARY AESTHETIC ========== */
 
@@ -4663,23 +4803,24 @@ body::after {
   letter-spacing: -0.02em;
 }
 
-/* ----- Filter sidebar: clipboard panel ------------------------------- */
+/* ----- Filter sidebar: sticky-note panel -----------------------------
+ * Solid warm panel with a top→bottom gradient: lighter at the top edge
+ * (suggesting a curl lifting off the page), darker toward the bottom
+ * where the "adhesive" sits. Inner highlight at top + stronger drop
+ * shadow read as a note pinned over the grid. */
 .filter-sidebar {
-  background: var(--card-bg);
-  background-image:
-    linear-gradient(to right,  var(--grid-line-major) 0 1px, transparent 1px 100%),
-    linear-gradient(to bottom, var(--grid-line-major) 0 1px, transparent 1px 100%),
-    linear-gradient(to right,  var(--grid-line-minor) 0 1px, transparent 1px 100%),
-    linear-gradient(to bottom, var(--grid-line-minor) 0 1px, transparent 1px 100%);
-  background-size:
-    calc(var(--grid-cell) * var(--grid-block)) calc(var(--grid-cell) * var(--grid-block)),
-    calc(var(--grid-cell) * var(--grid-block)) calc(var(--grid-cell) * var(--grid-block)),
-    var(--grid-cell) var(--grid-cell),
-    var(--grid-cell) var(--grid-cell);
+  background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-tertiary) 100%);
   border-left: 1px solid var(--border-color);
   box-shadow:
-    -1px 0 0 rgba(0, 0, 0, 0.10),
-    -8px 0 16px -6px rgba(0, 0, 0, 0.15);
+    -1px 0 0 rgba(0, 0, 0, 0.12),
+    -12px 6px 24px -6px rgba(0, 0, 0, 0.28),
+    0 2px 0 rgba(255, 255, 255, 0.55) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.04) inset;
+  /* Drop the panel below the header band so it reads as a separate
+   * pinned card, not as part of the chrome. Sticky-position carries
+   * this offset when the page scrolls. */
+  margin-top: 6rem;
+  top: 6rem;
 }
 
 /* Section heading reads as a labelled tab. */
@@ -4771,6 +4912,306 @@ input.transmission-param-input {
   outline-offset: 1px;
 }
 
+/* =========================================================================
+ * Polish pass — confident spacing, alive states, real hierarchy.
+ * Tightens the field-manual aesthetic without leaving it. Anything below
+ * here either replaces or augments the rules above; the cascade order
+ * (this block last) is load-bearing.
+ * ========================================================================= */
+
+/* ----- Header: cluster the right-side controls. The OPTIONS label sits
+ * on the inside of a vertical hairline rule, so the wordmark+nav cluster
+ * reads as one group and the controls cluster reads as another. */
+.header { padding-left: 1.25rem; padding-right: 1.25rem; gap: 1rem; }
+.header-left { gap: 1.25rem; }
+.header-options {
+  position: relative;
+  padding-left: 1rem;
+  gap: 0.5rem;
+}
+.header-options::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 18%; bottom: 18%;
+  width: 1px;
+  background: rgba(232, 226, 201, 0.25);
+}
+.header-options-label {
+  letter-spacing: 0.30em;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  margin-right: 0.25rem;
+}
+
+/* Wordmark — confident lockup. Bigger, accent underline that animates on
+ * hover so the brand feels alive without being noisy. */
+.header-wordmark-link {
+  position: relative;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.1rem;
+  text-decoration: none;
+}
+.header-wordmark-link::after {
+  content: '';
+  position: absolute;
+  left: 0.1rem; right: 0.1rem; bottom: 0;
+  height: 2px;
+  background: var(--accent-primary);
+  transform: scaleX(0.18);
+  transform-origin: left center;
+  transition: transform 0.25s ease;
+}
+.header-wordmark-link:hover::after { transform: scaleX(1); }
+
+/* Nav buttons — real press affordance + gold-accent active strip. */
+.nav-btn {
+  padding: 0.45rem 0.85rem;
+  transition: background-color 0.12s linear, color 0.12s linear,
+    transform 0.10s ease, border-color 0.12s linear;
+}
+.nav-btn:active { transform: translateY(1px); }
+.nav-btn.active {
+  background: rgba(156, 122, 22, 0.18);
+  border-color: var(--accent-primary);
+  color: var(--header-text);
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+/* ----- Empty state — anchored to the right edge of the results pane,
+ * inboard of the filter sidebar's product-type picker. A small gold
+ * arrow points at the picker; copy stays in sentence case, regular
+ * weight. No animation. Calm, inviting, not a stamped-CAD callout. */
+.empty-state-minimal {
+  padding: 5rem 1.5rem 4rem 0;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: flex-end;
+}
+.empty-state-minimal p {
+  font-size: 1.5rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  font-weight: 500;
+  max-width: 18ch;
+  margin: 0;
+  color: var(--text-primary);
+  position: relative;
+  padding-top: 3rem;
+  text-align: right;
+}
+.empty-state-minimal p::before {
+  content: '↗';
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--accent-primary);
+  opacity: 0.85;
+  letter-spacing: 0;
+}
+@media (max-width: 900px) {
+  .empty-state-minimal { justify-content: center; padding: 4rem 1rem; }
+  .empty-state-minimal p { text-align: center; max-width: 22ch; }
+  .empty-state-minimal p::before { position: static; display: block; margin: 0 auto 0.75rem; }
+}
+
+/* ----- Results header / pagination — give the orphan toolbar a frame.
+ * "Show:" gets a label-pill, "N of M" is a count badge with weight. */
+.results-header {
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.25rem;
+  gap: 0.85rem;
+  align-items: center;
+}
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pagination-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 0.15rem 0.45rem;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 2px;
+}
+.results-count,
+.results-header .results-summary {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+/* ----- Filter chips — solid pills, accent fill when active. Dashed empty
+ * boxes vanished into the paper; these read as real selections. */
+.filter-chip-minimal,
+.filter-chip {
+  border-style: solid;
+  background: var(--card-bg);
+  padding: 0.3rem 0.7rem;
+  border-color: var(--border-color-light);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.10s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.filter-chip-minimal:hover,
+.filter-chip:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.filter-chip-minimal.active,
+.filter-chip.active,
+.filter-chip-minimal[data-active='true'],
+.filter-chip[data-active='true'] {
+  background: var(--accent-primary);
+  color: var(--card-bg);
+  border-color: var(--accent-secondary);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* ----- Buttons everywhere get a real press. Add-spec / clear / type
+ * buttons inherit; primary actions get an accent-coloured fill. */
+.filter-bar-button,
+.btn-clear,
+.btn-add-filter,
+.transmission-type-btn {
+  padding: 0.45rem 0.85rem;
+  transition: transform 0.08s ease, background 0.12s ease,
+    border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.filter-bar-button:hover,
+.btn-clear:hover,
+.btn-add-filter:hover,
+.transmission-type-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.filter-bar-button:active,
+.btn-clear:active,
+.btn-add-filter:active,
+.transmission-type-btn:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* "+ Add Spec" is the primary call-to-action in the sidebar — give it the
+ * gold treatment so the user has somewhere obvious to land. */
+.btn-add-filter {
+  background: var(--accent-primary);
+  color: #fff;
+  border: 1px solid var(--accent-secondary);
+  font-weight: 600;
+  letter-spacing: 0.10em;
+}
+.btn-add-filter:hover {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+/* ----- Stat cards — actually different from regular cards. Bigger value,
+ * accent colour, hover lift. The dashed top rule already exists; we make
+ * the card itself stand up. */
+.stat-card {
+  padding: 1.1rem 1.25rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 4px 0 rgba(0, 0, 0, 0.08),
+    0 12px 24px -10px rgba(0, 0, 0, 0.30);
+}
+.stat-card .value {
+  font-size: 2.25rem;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* ----- Tables — zebra rows + a hover row. Tabular-nums is already set;
+ * we add scanability without losing the drafting feel. */
+.product-card-minimal:nth-child(even),
+.datasheet-row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.025);
+}
+.product-card-minimal:hover,
+.datasheet-row:hover {
+  background: rgba(156, 122, 22, 0.08);
+  outline: 1px solid rgba(156, 122, 22, 0.30);
+  outline-offset: -1px;
+  cursor: pointer;
+}
+
+/* ----- Cards — card surfaces lift on hover. Subtle, but everything
+ * suddenly feels touchable instead of static. */
+.card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 3px 0 rgba(0, 0, 0, 0.07),
+    0 10px 20px -10px rgba(0, 0, 0, 0.25);
+}
+
+/* ----- Build tray slots — they were anonymous beige rectangles. Make
+ * them feel like labelled spec slots. */
+.build-tray-slot {
+  border: 1px dashed var(--border-color-light);
+  padding: 0.4rem 0.6rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.build-tray-slot:hover {
+  border-color: var(--accent-primary);
+  border-style: solid;
+}
+
+/* ----- Spacing rhythm — kill the cramped gutters on the main results
+ * area so the table breathes against the sidebar. */
+.results-main {
+  padding-left: 1.25rem;
+  padding-right: 1rem;
+}
+@media (max-width: 900px) {
+  .results-main { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
+
+/* ----- Header overflow on narrow screens — the nav-buttons and options
+ * cluster were colliding. Switch to horizontal scroll under the wordmark
+ * rather than wrapping/ truncating. */
+@media (max-width: 720px) {
+  .header { padding-left: 0.75rem; padding-right: 0.75rem; gap: 0.5rem; }
+  .header-options { padding-left: 0.5rem; gap: 0.35rem; }
+  .header-options-label { display: none; }
+  .header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .header nav::-webkit-scrollbar { display: none; }
+  .nav-btn { flex: 0 0 auto; padding: 0.4rem 0.65rem; }
+}
+
 /* ─────────────────────────────────────────────────────────────────────
  * Custom dropdown — replaces every native <select> in the app so we
  * never inherit the OS-level popup chrome. Trigger is a button styled
@@ -4822,6 +5263,70 @@ input.transmission-param-input {
 .custom-dropdown-trigger[data-placeholder='true'] .custom-dropdown-trigger-label {
   color: var(--text-tertiary);
   font-weight: 500;
+}
+
+/* Product-type dropdown — initial empty state.
+ *
+ * The catalog is useless until a type is picked, so when the dropdown has
+ * no value the trigger gets a hero treatment: bigger box, bigger text,
+ * and a slow accent pulse to draw the eye. The pulse and the size revert
+ * the moment the user picks a type, so the chrome quiets down and the
+ * filter pane reads as normal sidebar furniture. Scoped to
+ * `.filter-controls-top` so admin pages and ProductDetailModal don't
+ * inherit the loud version. */
+.filter-controls-top .custom-dropdown-trigger[data-placeholder='true'] {
+  /* `!important` on padding/border/background mirrors the global `button`
+   * rule at line ~3825 which uses !important and would otherwise win
+   * the cascade. The hero-state dropdown is the one place that needs to
+   * override that global treatment. */
+  padding: 1.1rem 1.1rem !important;
+  font-size: 1.15rem;
+  border: 2px solid var(--accent-primary) !important;
+  background: var(--card-bg) !important;
+  color: var(--accent-primary) !important;
+  letter-spacing: 0.02em;
+  animation: productTypePulse 1.8s ease-in-out infinite;
+}
+
+.filter-controls-top .custom-dropdown-trigger[data-placeholder='true'] .custom-dropdown-trigger-label {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  letter-spacing: 0.04em;
+}
+
+.filter-controls-top .custom-dropdown-trigger[data-placeholder='true'] .custom-dropdown-trigger-caret {
+  font-size: 1.25rem;
+}
+
+/* Pulse: a soft accent halo that breathes around the trigger. Uses
+ * `outline` rather than `box-shadow` because the global `button` rule
+ * (App.css line ~3825) declares box-shadow with `!important`, which the
+ * animation can't reliably override. Outline is unencumbered, sits
+ * outside the border, and gives the same growing-halo effect. Stops the
+ * moment the dropdown opens or has a value — the selectors no longer
+ * match, so the animation never competes with active interaction. */
+@keyframes productTypePulse {
+  0%, 100% {
+    outline: 0 solid rgba(212, 165, 42, 0.55);
+    outline-offset: 0;
+  }
+  50% {
+    outline: 8px solid rgba(212, 165, 42, 0);
+    outline-offset: 4px;
+  }
+}
+
+/* When the dropdown is opened, kill the pulse (the focus ring takes over)
+ * and keep the bigger size. */
+.filter-controls-top .custom-dropdown-trigger[data-placeholder='true'][data-open='true'] {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-controls-top .custom-dropdown-trigger[data-placeholder='true'] {
+    animation: none;
+  }
 }
 
 .custom-dropdown-trigger-label {

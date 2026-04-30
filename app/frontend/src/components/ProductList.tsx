@@ -2,14 +2,14 @@
  * Product list component with advanced filtering and sorting
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { ProductType, Product } from '../types/models';
-import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators } from '../types/filters';
+import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators, buildDefaultFiltersForType, DEFAULT_FILTER_FLOOR_PERCENTILE } from '../types/filters';
 // Column order is authored in types/columnOrder.ts — edit that file to
 // change what columns appear and in what order.
 import { orderColumnAttributes } from '../types/columnOrder';
-import { formatValue } from '../utils/formatting';
+import { formatValue, computeAutoColumnWidths } from '../utils/formatting';
 import { displayUnit, convertValueUnit, convertMinMaxUnit } from '../utils/unitConversion';
 import { numericFromValue } from '../utils/filterValues';
 import { useColumnResize } from '../utils/hooks';
@@ -81,13 +81,12 @@ export default function ProductList() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [appType, setAppType] = useState<'rotary' | 'linear' | 'z-axis'>('rotary');
   const [linearTravel, setLinearTravel] = useState<number>(0); // mm/rev
-  const [screwEfficiency, setScrewEfficiency] = useState<number>(90); // % (ball screw ~90, lead screw ~30-50)
   const [loadMass, setLoadMass] = useState<number>(0); // kg (for Z-axis gravity calc)
 
-// Default column widths (px): part number + spec columns. Comfy mode
-// widens both so the bumped font size has room to breathe; toggling
-// density resets widths to that mode's defaults (see effect below).
-  const defaultPartWidth = rowDensity === 'compact' ? 120 : 160;
+// Floor widths (px) for the part-number column — twice the historical
+// default so common 12-16 char part numbers stop truncating. The auto-
+// fit helper widens further whenever the loaded data warrants it.
+  const defaultPartWidth = rowDensity === 'compact' ? 240 : 320;
   const defaultColWidth = rowDensity === 'compact' ? 90 : 130;
   const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
 
@@ -241,33 +240,62 @@ export default function ProductList() {
     return columnAttributes.filter(a => !visibleKeys.has(a.key));
   }, [columnAttributes, visibleColumnAttributes]);
 
-  // Sync column widths when the visible column set changes. When
-  // `rowDensity` flips, we clobber instead of preserving so the new
-  // defaults actually take effect — manual resizes within a mode are
-  // still respected until the next density toggle.
+  // Auto-fit defaults from data: each column's width = P90 of its formatted-
+  // value lengths in the loaded rows, header label as the floor, with
+  // `part_number` floored at 2x so it always reveals more characters than
+  // the rest. Computed fresh whenever the productType, visible-column set,
+  // or loaded data changes — but a user's manual resize (tracked in
+  // columnWidths) wins and is preserved across these transitions.
   useEffect(() => {
     if (!productType) return;
-    const defaults = visibleColumnAttributes.map(a => a.key);
-    const allKeys = ['part_number', ...defaults];
+    const cols = [
+      { key: 'part_number', displayName: 'Part Number' },
+      ...visibleColumnAttributes.map(a => ({ key: a.key, displayName: a.displayName })),
+    ];
+    const auto = computeAutoColumnWidths({
+      rows: products as unknown as Array<Record<string, unknown>>,
+      columns: cols,
+      density: rowDensity,
+      unitSystem,
+      perKeyMin: { part_number: defaultPartWidth },
+    });
     setColumnWidths(prev => {
       const next: Record<string, number> = {};
-      for (const key of allKeys) {
-        next[key] = prev[key] ?? (key === 'part_number' ? defaultPartWidth : defaultColWidth);
+      for (const col of cols) {
+        next[col.key] = prev[col.key] ?? auto[col.key]
+          ?? (col.key === 'part_number' ? defaultPartWidth : defaultColWidth);
       }
       return next;
     });
-  }, [productType, visibleColumnAttributes]);
+  }, [productType, visibleColumnAttributes, products, unitSystem, defaultPartWidth, defaultColWidth, setColumnWidths]);
 
-  // Reset widths to the active density's defaults whenever density flips.
+  // Density flip → clobber to the new mode's auto-fit defaults so the
+  // bumped px-per-char and padding actually take effect. Manual resizes
+  // within a mode are preserved by the effect above; they only reset on
+  // an intentional density toggle.
   useEffect(() => {
-    setColumnWidths(prev => {
+    if (!productType) return;
+    const cols = [
+      { key: 'part_number', displayName: 'Part Number' },
+      ...visibleColumnAttributes.map(a => ({ key: a.key, displayName: a.displayName })),
+    ];
+    const auto = computeAutoColumnWidths({
+      rows: products as unknown as Array<Record<string, unknown>>,
+      columns: cols,
+      density: rowDensity,
+      unitSystem,
+      perKeyMin: { part_number: defaultPartWidth },
+    });
+    setColumnWidths(() => {
       const next: Record<string, number> = {};
-      for (const key of Object.keys(prev)) {
-        next[key] = key === 'part_number' ? defaultPartWidth : defaultColWidth;
+      for (const col of cols) {
+        next[col.key] = auto[col.key]
+          ?? (col.key === 'part_number' ? defaultPartWidth : defaultColWidth);
       }
       return next;
     });
-  }, [rowDensity, defaultPartWidth, defaultColWidth, setColumnWidths]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowDensity]);
 
   // Load products and categories when product type changes or on mount
   useEffect(() => {
@@ -278,6 +306,48 @@ export default function ProductList() {
       loadCategories();
     }
   }, [productType, loadProducts, loadCategories]);
+
+  // Seed default filter chips with a P10 value once products load. Runs
+  // once per product-type via seededTypeRef so a user who later clears or
+  // adjusts a chip's value doesn't get it re-populated. We override even
+  // non-undefined values on this one-shot run because FilterChip's own
+  // auto-init also seeds at P10; the per-type seed wins to guarantee the
+  // bottom decile is excluded for the chips we ship enabled by default.
+  // The percentile lives in DEFAULT_FILTER_FLOOR_PERCENTILE.
+  const seededTypeRef = useRef<ProductType | null>(null);
+  useEffect(() => {
+    if (!productType || products.length === 0) return;
+    if (seededTypeRef.current === productType) return;
+    const typeAttrs = getAttributesForType(productType);
+    const isDefaultKey = (key: string) =>
+      typeAttrs.some(a => a.key === key && a.defaultFilter);
+    setFilters(prev => {
+      let mutated = false;
+      const next = prev.map(f => {
+        if (!isDefaultKey(f.attribute)) return f;
+        const values: number[] = [];
+        for (const product of products) {
+          const raw = (product as unknown as Record<string, unknown>)[f.attribute];
+          let n: number | null = null;
+          if (typeof raw === 'number') n = raw;
+          else if (raw && typeof raw === 'object') {
+            const o = raw as { value?: unknown; min?: unknown; max?: unknown };
+            if (typeof o.value === 'number') n = o.value;
+            else if (typeof o.min === 'number' && typeof o.max === 'number') n = (o.min + o.max) / 2;
+          }
+          if (n !== null && Number.isFinite(n)) values.push(n);
+        }
+        if (values.length === 0) return f;
+        values.sort((a, b) => a - b);
+        const idx = Math.min(values.length - 1,
+          Math.floor(values.length * DEFAULT_FILTER_FLOOR_PERCENTILE));
+        mutated = true;
+        return { ...f, value: values[idx] };
+      });
+      return mutated ? next : prev;
+    });
+    seededTypeRef.current = productType;
+  }, [productType, products]);
 
   // Add keyboard shortcut for opening filter (Ctrl+K)
   useEffect(() => {
@@ -293,36 +363,18 @@ export default function ProductList() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Slider-operator → sort direction. The user's "seek method": picking
-  // `>=` means they're hunting for high values (sort desc); picking `<`
-  // means they want low values (sort asc). If a sort already exists for
-  // this attribute (e.g. set via column-header click), flip its direction
-  // in place to preserve any multi-level sort hierarchy. If no prior sort,
-  // prepend so the seek direction takes the primary slot.
-  const handleSortByOperator = (
-    attribute: string,
-    displayName: string,
-    direction: 'asc' | 'desc',
-  ) => {
-    setSorts(prev => {
-      const idx = prev.findIndex(s => s.attribute === attribute);
-      if (idx !== -1) {
-        const next = [...prev];
-        next[idx] = { attribute, displayName, direction };
-        return next;
-      }
-      return [{ attribute, displayName, direction }, ...prev];
-    });
-  };
-
-  // Handle product type change
+  // Handle product type change. Seed the filter list with this type's
+  // curated defaults (e.g. motor → rated_torque, rated_speed) so the
+  // sidebar opens with the chips an integrator almost always reaches
+  // for. Chips land valueless; the user dials in the constraint.
+  // Sort starts empty — rows render in the catalog's natural order
+  // until the user clicks a column header.
   const handleProductTypeChange = (newType: ProductType) => {
     setProductType(newType);
-    setFilters([]);
+    setFilters(buildDefaultFiltersForType(newType));
     setSorts([]);
     setAppType('rotary');
     setLinearTravel(0);
-    setScrewEfficiency(90);
     setLoadMass(0);
   };
 
@@ -351,11 +403,12 @@ export default function ProductList() {
   };
 
   // Convert torque (Nm) ValueUnit to thrust force (N)
-  // F = T * 2π * η / lead   (lead in meters, η = efficiency 0-1)
+  // F = T * 2π / lead (lead in meters). Assumes 100% screw efficiency —
+  // simpler default; revisit if real-world losses become material to the
+  // selection workflow.
   const torqueToThrust = (value: any): any => {
     if (!value || !linearTravel) return value;
-    const eta = screwEfficiency / 100;
-    const factor = (2 * Math.PI * eta) / (linearTravel * 0.001);
+    const factor = (2 * Math.PI) / (linearTravel * 0.001);
     if (typeof value === 'object' && 'value' in value && typeof value.value === 'number') {
       return { value: parseFloat((value.value * factor).toPrecision(4)), unit: 'N' };
     }
@@ -398,20 +451,13 @@ export default function ProductList() {
 
   const compatHiddenCount = compatFilterActive ? products.length - compatNarrowed.length : 0;
 
-  const filteredProducts = useMemo(() => {
-    return applyFilters(compatNarrowed, filters);
-  }, [compatNarrowed, filters]);
-
-  // Apply sorting to filtered products
-  const sortedProducts = useMemo(
-    () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
-    [filteredProducts, sorts]
-  );
-
-  // Transform display values for linear / z-axis modes.
-  const displayProducts = useMemo(() => {
-    if (!isLinearMode) return sortedProducts;
-    return sortedProducts.map(p => {
+  // Linear-mode transform applied *before* filter/sort so the filter
+  // pane's sliders, the table cells, and the sort all operate on the
+  // same units (N / mm/s) when linear mode is on. Compat-check stays
+  // upstream because it expects canonical Nm/rpm.
+  const linearizedSource = useMemo(() => {
+    if (!isLinearMode) return compatNarrowed;
+    return compatNarrowed.map(p => {
       const copy = { ...p } as any;
       for (const key of SPEED_KEYS) {
         if (copy[key]) copy[key] = rpmToLinearSpeed(copy[key]);
@@ -421,7 +467,22 @@ export default function ProductList() {
       }
       return copy as Product;
     });
-  }, [sortedProducts, isLinearMode, linearTravel, screwEfficiency]);
+  }, [compatNarrowed, isLinearMode, linearTravel]);
+
+  const filteredProducts = useMemo(() => {
+    return applyFilters(linearizedSource, filters);
+  }, [linearizedSource, filters]);
+
+  // Apply sorting to filtered products
+  const sortedProducts = useMemo(
+    () => sortProducts(filteredProducts, sorts.length > 0 ? sorts : null),
+    [filteredProducts, sorts]
+  );
+
+  // The display set is now identical to the sorted set — linearization
+  // already happened upstream. Kept as an alias so call sites read the
+  // same as before.
+  const displayProducts = sortedProducts;
 
   // Paginate products
   const paginatedProducts = useMemo(() => {
@@ -436,6 +497,47 @@ export default function ProductList() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, sorts, itemsPerPage]);
+
+  // When the linear-mode flips (or travel changes the unit scale), the
+  // stored filter values for torque/speed are no longer comparable to
+  // the new product unit (Nm ↔ N, rpm ↔ mm/s). Clear values *and* swap
+  // each chip's displayName so the label matches the unit it now
+  // operates in (Rated Torque ↔ Rated Thrust, Rated Speed ↔ Linear
+  // Speed). The chip itself stays put.
+  useEffect(() => {
+    const linearLabel = (key: string): string | null => {
+      if (key === 'rated_torque') return 'Rated Thrust';
+      if (key === 'peak_torque') return 'Peak Thrust';
+      if (key === 'rated_speed') return 'Linear Speed';
+      return null;
+    };
+    const rotaryLabel = (key: string): string | null => {
+      if (key === 'rated_torque') return 'Rated Torque';
+      if (key === 'peak_torque') return 'Peak Torque';
+      if (key === 'rated_speed') return 'Rated Speed';
+      return null;
+    };
+    setFilters(current => {
+      let changed = false;
+      const next = current.map(f => {
+        const baseKey = f.attribute.split('.')[0];
+        if (!TORQUE_KEYS.includes(baseKey) && !SPEED_KEYS.includes(baseKey)) {
+          return f;
+        }
+        const targetName = isLinearMode ? linearLabel(baseKey) : rotaryLabel(baseKey);
+        const needsNameSwap = targetName !== null && targetName !== f.displayName;
+        const needsValueReset = f.value !== undefined;
+        if (!needsNameSwap && !needsValueReset) return f;
+        changed = true;
+        return {
+          ...f,
+          value: undefined,
+          displayName: targetName ?? f.displayName,
+        };
+      });
+      return changed ? next : current;
+    });
+  }, [isLinearMode, linearTravel]);
 
   // Column headers with linear-mode label/unit overrides for SPEED_KEYS
   // and TORQUE_KEYS (thrust/force view for linear actuators). Unit
@@ -967,22 +1069,12 @@ export default function ProductList() {
                   className="product-card-minimal"
                   onClick={(e) => handleProductClick(product, e)}
                 >
-                  {/* Product info - first grid cell */}
+                  {/* Product info - first grid cell. Part number is plain
+                      text; clicking the row opens the detail modal, which
+                      hosts the (intentionally singular) datasheet link. */}
                   <div className="product-card-info">
                     <div className="product-info-part">
-                      {(typeof product.datasheet_url === 'string' ? product.datasheet_url : product.datasheet_url?.url) ? (
-                        <a
-                          href={typeof product.datasheet_url === 'string' ? product.datasheet_url : product.datasheet_url!.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'var(--text-tertiary)', textUnderlineOffset: '2px' }}
-                        >
-                          {product.part_number || 'N/A'}
-                        </a>
-                      ) : (
-                        product.part_number || 'N/A'
-                      )}
+                      {product.part_number || 'N/A'}
                     </div>
                   </div>
 
@@ -1069,20 +1161,34 @@ export default function ProductList() {
 
       {/* Right sidebar - filters & gear ratio */}
       <aside className="filter-sidebar">
-        {/* Mobile-only toggle header */}
+        {/* Mobile-only toggle header. Collapsed by default — phones don't
+         * have the vertical real estate to host the full pane above the
+         * results table. The summary line tells the user what the current
+         * scope is (product type) and how many specs are pinned, so they
+         * can decide whether to expand without doing it first. */}
         <button
           className="mobile-filter-toggle"
           onClick={() => setMobileFiltersOpen(prev => !prev)}
+          aria-expanded={mobileFiltersOpen}
+          aria-label={mobileFiltersOpen ? 'Hide filters' : 'Show filters'}
         >
           <span className="mobile-filter-summary">
-            {productType
-              ? categories.find(c => c.type === productType)?.display_name ?? productType
-              : 'Select Type'}
+            <span className="mobile-filter-prefix">Filters</span>
+            <span className="mobile-filter-scope">
+              {productType
+                ? categories.find(c => c.type === productType)?.display_name ?? productType
+                : 'Pick a type'}
+            </span>
             {filters.length > 0 && (
-              <span className="mobile-filter-count">{filters.length}</span>
+              <span
+                className="mobile-filter-count"
+                aria-label={`${filters.length} active spec filter${filters.length === 1 ? '' : 's'}`}
+              >
+                {filters.length}
+              </span>
             )}
           </span>
-          <span className={`mobile-filter-arrow ${mobileFiltersOpen ? 'open' : ''}`}>&#9662;</span>
+          <span className={`mobile-filter-arrow ${mobileFiltersOpen ? 'open' : ''}`} aria-hidden="true">&#9662;</span>
         </button>
 
         <div className={`filter-sidebar-body${mobileFiltersOpen ? ' mobile-expanded' : ''}`}>
@@ -1129,28 +1235,6 @@ export default function ProductList() {
               </div>
             )}
 
-            {/* Screw efficiency — shown when linear travel is set */}
-            {(appType === 'linear' || appType === 'z-axis') && linearTravel > 0 && (
-              <div className="transmission-param">
-                <label className="transmission-param-label">Screw Efficiency</label>
-                <div className="transmission-param-input-row">
-                  <input
-                    type="range"
-                    className="transmission-efficiency-slider"
-                    min={10}
-                    max={100}
-                    step={1}
-                    value={screwEfficiency}
-                    onChange={(e) => setScrewEfficiency(Number(e.target.value))}
-                  />
-                  <span className="transmission-param-unit">{screwEfficiency}%</span>
-                </div>
-                <div className="transmission-param-hint">
-                  Ball screw ~90%, Lead screw ~30-50%
-                </div>
-              </div>
-            )}
-
             {/* Load Mass — shown for z-axis */}
             {appType === 'z-axis' && (
               <div className="transmission-param">
@@ -1183,9 +1267,8 @@ export default function ProductList() {
           products={filteredProducts}
           onFiltersChange={setFilters}
           onSortChange={() => {}}
-          onSortByOperator={handleSortByOperator}
           onProductTypeChange={handleProductTypeChange}
-          allProducts={products}
+          allProducts={linearizedSource}
         />
         </div>
       </aside>
