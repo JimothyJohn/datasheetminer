@@ -287,6 +287,18 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: ./Quickstart deploy --stage staging
 
+      # Upload synthesized CFN templates + asset manifests on failure so a
+      # post-mortem doesn't require re-running the deploy. Skipped on
+      # success (cdk.out churns every run, not worth the storage).
+      - name: Upload cdk.out on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdk-out-staging
+          path: app/infrastructure/cdk.out/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Verify staging stack status
         # `cdk deploy` returns success even when a stack is in
         # UPDATE_ROLLBACK_COMPLETE — the rollback succeeded, the deploy
@@ -340,20 +352,7 @@ jobs:
         run: uv sync --quiet
 
       - name: Wait for /health to go 200
-        env:
-          URL: ${{ needs.deploy-staging.outputs.url }}
-        run: |
-          for i in $(seq 1 60); do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health" || true)
-            if [ "$CODE" = "200" ]; then
-              echo "Healthy after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::Staging /health returned $CODE after 60s (expected 200)"
-          curl -sv "$URL/health" || true
-          exit 1
+        run: ./Quickstart wait-health "${{ needs.deploy-staging.outputs.url }}" --retries 60 --label Staging
 
       - name: Run staging contract tests
         env:
@@ -440,6 +439,15 @@ jobs:
           HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
         run: ./Quickstart deploy --stage prod
 
+      - name: Upload cdk.out on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdk-out-prod
+          path: app/infrastructure/cdk.out/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Verify prod stack status
         run: |
           for stack in DatasheetMiner-Prod-Database DatasheetMiner-Prod-Api DatasheetMiner-Prod-Frontend; do
@@ -496,20 +504,7 @@ jobs:
         run: uv sync --quiet
 
       - name: Wait for /health to go 200
-        env:
-          URL: ${{ needs.deploy-prod.outputs.url }}
-        run: |
-          for i in $(seq 1 60); do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health" || true)
-            if [ "$CODE" = "200" ]; then
-              echo "Healthy after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::Production /health returned $CODE after 60s (expected 200)"
-          curl -sv "$URL/health" || true
-          exit 1
+        run: ./Quickstart wait-health "${{ needs.deploy-prod.outputs.url }}" --retries 60 --label Production
 
       - name: Run smoke tests
         env:
