@@ -1,19 +1,26 @@
 /**
  * API routes for subscription management.
  * Proxies requests to the Stripe payments Lambda.
+ *
+ * All routes are auth-gated: identity comes from the verified JWT
+ * (req.user.sub), never from a path param or request body. The Stripe
+ * Lambda's wire format still uses `user_id`; that value is now sourced
+ * from the token, not the client.
  */
 
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { stripeService } from '../services/stripe';
+import { requireAuth } from '../middleware/auth';
 import config from '../config';
 
 const router = Router();
 
 /**
- * GET /api/subscription/status/:userId
- * Check subscription status for a user
+ * GET /api/subscription/status
+ * Check subscription status for the authed user.
  */
-router.get('/status/:userId', async (req: Request, res: Response) => {
+router.get('/status', requireAuth, async (req: Request, res: Response) => {
   try {
     if (!config.stripe.lambdaUrl) {
       res.json({
@@ -23,7 +30,7 @@ router.get('/status/:userId', async (req: Request, res: Response) => {
       return;
     }
 
-    const status = await stripeService.getSubscriptionStatus(req.params.userId);
+    const status = await stripeService.getSubscriptionStatus(req.user!.sub);
     res.json({ success: true, data: status });
   } catch (error: any) {
     console.error('Error checking subscription status:', error);
@@ -33,19 +40,26 @@ router.get('/status/:userId', async (req: Request, res: Response) => {
 
 /**
  * POST /api/subscription/checkout
- * Create a Stripe checkout session
- * Body: { user_id: string }
+ * Create a Stripe checkout session for the authed user.
+ *
+ * Body must be empty / {}; any user_id field is rejected. Identity
+ * comes from the token. The strict schema makes the negative test
+ * (old-style body with user_id → 400) explicit.
  */
-router.post('/checkout', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { user_id } = req.body;
+const checkoutBodySchema = z.object({}).strict();
 
-    if (!user_id) {
-      res.status(400).json({ success: false, error: 'user_id is required' });
+router.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = checkoutBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Request body must be empty; identity is taken from the auth token',
+      });
       return;
     }
 
-    const result = await stripeService.createCheckoutSession(user_id);
+    const result = await stripeService.createCheckoutSession(req.user!.sub);
     res.json({ success: true, data: result });
   } catch (error: any) {
     console.error('Error creating checkout session:', error);
@@ -55,7 +69,8 @@ router.post('/checkout', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/subscription/config
- * Returns whether billing is enabled (useful for frontend conditional rendering)
+ * Returns whether billing is enabled (useful for frontend conditional rendering).
+ * Public — used by the frontend before any user is authed.
  */
 router.get('/config', (_req: Request, res: Response) => {
   res.json({

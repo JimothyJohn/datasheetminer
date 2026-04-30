@@ -1,14 +1,25 @@
 /**
  * Tests for subscription routes, middleware, and stripe service.
+ *
+ * Phase 4: routes are now requireAuth-gated; identity comes from
+ * req.user.sub (the JWT). Tests mock aws-jwt-verify the same way
+ * auth.middleware.test.ts does and supply a Bearer header.
  */
 
 import request from 'supertest';
-import app from '../src/index';
-import { stripeService } from '../src/services/stripe';
-import { requireSubscription } from '../src/middleware/subscription';
 import { Request, Response, NextFunction } from 'express';
 
-// Mock stripe service methods
+const mockVerify = jest.fn();
+jest.mock('aws-jwt-verify', () => ({
+  CognitoJwtVerifier: { create: jest.fn(() => ({ verify: mockVerify })) },
+}));
+
+import app from '../src/index';
+import config from '../src/config';
+import { stripeService } from '../src/services/stripe';
+import { requireSubscription } from '../src/middleware/subscription';
+import { _resetVerifierForTests } from '../src/middleware/auth';
+
 jest.mock('../src/services/stripe', () => ({
   stripeService: {
     getSubscriptionStatus: jest.fn(),
@@ -23,12 +34,32 @@ jest.mock('../src/db/dynamodb');
 // =================== Subscription Routes ===================
 
 describe('Subscription Routes', () => {
+  const origPoolId = config.cognito.userPoolId;
+  const origClientId = config.cognito.userPoolClientId;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    _resetVerifierForTests();
+    mockVerify.mockReset();
+    config.cognito.userPoolId = 'us-east-1_TEST';
+    config.cognito.userPoolClientId = 'test-client-id';
   });
 
+  afterAll(() => {
+    config.cognito.userPoolId = origPoolId;
+    config.cognito.userPoolClientId = origClientId;
+  });
+
+  function authedUser(sub = 'user-123', groups: string[] = []) {
+    mockVerify.mockResolvedValue({
+      sub,
+      email: `${sub}@example.com`,
+      'cognito:groups': groups,
+    });
+  }
+
   describe('GET /api/subscription/config', () => {
-    it('returns billing_enabled status', async () => {
+    it('returns billing_enabled status without auth (public endpoint)', async () => {
       const response = await request(app).get('/api/subscription/config');
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -36,21 +67,39 @@ describe('Subscription Routes', () => {
     });
   });
 
-  describe('GET /api/subscription/status/:userId', () => {
-    it('returns subscription status when stripe is configured', async () => {
-      (stripeService.getSubscriptionStatus as jest.Mock).mockResolvedValue({
-        user_id: 'user-123',
-        subscription_status: 'active',
-      });
+  describe('GET /api/subscription/status', () => {
+    it('returns 401 without an auth token', async () => {
+      const response = await request(app).get('/api/subscription/status');
+      expect(response.status).toBe(401);
+    });
 
-      const response = await request(app).get('/api/subscription/status/user-123');
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
+    it('returns subscription status when stripe is configured', async () => {
+      authedUser('user-123');
+      const origUrl = config.stripe.lambdaUrl;
+      config.stripe.lambdaUrl = 'https://stripe-lambda.test';
+      try {
+        (stripeService.getSubscriptionStatus as jest.Mock).mockResolvedValue({
+          user_id: 'user-123',
+          subscription_status: 'active',
+        });
+
+        const response = await request(app)
+          .get('/api/subscription/status')
+          .set('Authorization', 'Bearer good-token');
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(stripeService.getSubscriptionStatus).toHaveBeenCalledWith('user-123');
+      } finally {
+        config.stripe.lambdaUrl = origUrl;
+      }
     });
 
     it('returns none status when stripe is not configured', async () => {
-      // In test env, config.stripe.lambdaUrl is empty, so the early-return path is taken
-      const response = await request(app).get('/api/subscription/status/user-123');
+      authedUser('user-123');
+      // In test env, config.stripe.lambdaUrl is empty → early-return path
+      const response = await request(app)
+        .get('/api/subscription/status')
+        .set('Authorization', 'Bearer good-token');
       expect(response.status).toBe(200);
       expect(response.body.data.subscription_status).toBe('none');
       expect(response.body.data.billing_enabled).toBe(false);
@@ -58,34 +107,48 @@ describe('Subscription Routes', () => {
   });
 
   describe('POST /api/subscription/checkout', () => {
-    it('returns 400 when user_id is missing', async () => {
+    it('returns 401 without an auth token', async () => {
       const response = await request(app).post('/api/subscription/checkout').send({});
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('user_id');
+      expect(response.status).toBe(401);
     });
 
-    it('creates checkout session when user_id provided', async () => {
+    it('rejects legacy body with user_id field (must use auth token)', async () => {
+      authedUser('user-123');
+      const response = await request(app)
+        .post('/api/subscription/checkout')
+        .set('Authorization', 'Bearer good-token')
+        .send({ user_id: 'someone-else' });
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatch(/empty|auth token/i);
+    });
+
+    it('creates checkout session using authed sub', async () => {
+      authedUser('user-123');
       (stripeService.createCheckoutSession as jest.Mock).mockResolvedValue({
         checkout_url: 'https://checkout.stripe.com/session123',
       });
 
       const response = await request(app)
         .post('/api/subscription/checkout')
-        .send({ user_id: 'user-123' });
+        .set('Authorization', 'Bearer good-token')
+        .send({});
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.checkout_url).toContain('stripe.com');
+      expect(stripeService.createCheckoutSession).toHaveBeenCalledWith('user-123');
     });
 
     it('handles checkout error', async () => {
+      authedUser('user-123');
       (stripeService.createCheckoutSession as jest.Mock).mockRejectedValue(
-        new Error('Checkout failed')
+        new Error('Checkout failed'),
       );
 
       const response = await request(app)
         .post('/api/subscription/checkout')
-        .send({ user_id: 'user-123' });
+        .set('Authorization', 'Bearer good-token')
+        .send({});
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
@@ -99,11 +162,6 @@ describe('requireSubscription middleware', () => {
   let nextCalled: boolean;
   const next: NextFunction = () => { nextCalled = true; };
 
-  // requireSubscription now reads `req.user.sub` (populated by
-  // requireAuth) instead of trusting an unverified header. The
-  // header-based path was removed because it allowed any caller to
-  // impersonate any user — see middleware/subscription.ts header
-  // comment for the migration note.
   function reqWithUser(sub: string | null): Partial<Request> {
     if (sub === null) return {} as Partial<Request>;
     return { user: { sub, email: `${sub}@example.com`, groups: [] } } as Partial<Request>;
