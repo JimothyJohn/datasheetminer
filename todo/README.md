@@ -1,49 +1,76 @@
 # Backlog
 
 **This file is the entry point.** Reading this gets you the full picture
-without opening each `todo/*.md`. Drill into the linked docs only when
-you're about to act on that work.
+of what's left without opening each `todo/*.md`. Drill into the linked
+docs only when you're about to act on that work.
+
+> **Recently shipped (2026-04-29).** REBRAND Stage 4 cutover ✅
+> `www.specodex.com` is live, `datasheets.advin.io` NXDOMAIN'd.
+> All 5 CICD followups merged (`fromlookup`, `ci-hygiene`,
+> `nightly-bench`, `staging-yml-cleanup`, `late-night-dedupe-audit`).
+> Frontend visual iteration ✅ (App.css palette, Welcome rework,
+> ProductList refinements, FilterChip refactor + tests, sitemap.xml).
+> UNITS shipped 2026-04-28; eligible for `done/` move.
 
 ## How to use it
 
-1. **Starting a session?** Skim **Active and deferred work** and **Suggested chronological order** below to know what's hot, what's blocked, and what's done.
+1. **Starting a session?** Skim **The bottleneck** and **Active work** to know what's hot, what's blocked.
 2. **About to touch a file?** Scan **Trigger conditions** at the bottom — if anything matches, the linked doc is queued and worth reading first.
 3. **Got an idle dev box overnight?** Pick from **Late Night** — curated tasks safe to run autonomously and easy to verify in the morning.
 4. **Deferring new work?** Add a `todo/<AREA>.md` with a `## Triggers` section, then add a row to the table here.
 
 ---
 
-## Active and deferred work
+## The bottleneck — operator queue
 
-Ordered by **dependency-and-rework risk**, not urgency or size — the goal
-is to avoid landing work that has to be redone after a downstream refactor
-reshapes its substrate.
+Everything else assumes Nick is unblocked. **[USER.md](USER.md)** is the
+punch list of one-shot manual actions only Nick can do (IAM writes,
+prod secret deletes, GitHub env approvals). Read top-down — the order
+minimizes rework. After the recent shipping spree the queue is mostly
+drained; remaining items are small post-cutover cleanups.
+
+---
+
+## Active work
+
+Ordered by **dependency-and-rework risk**, not urgency or size.
 
 | # | Doc | Status | Effort | One-line summary |
 |---|-----|--------|--------|------------------|
-| 1 | [CICD.md](CICD.md) | 🟢 healthy — chain green; 5 followup PRs code-ready | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. Action refresh, integration tests, JUnit XML already shipped. 5 followup branches code-ready: `cicd-followup-{fromlookup, ci-hygiene, nightly-bench, security-scans, staging-yml-cleanup}`. `fromlookup` is gated on adding `route53:ListHostedZonesByName` + `route53:GetHostedZone` to the deploy role; the rest can merge in any order. |
-| 2 | [REBRAND.md](REBRAND.md) | 🚧 Phase 3a–e ✅ shipped + deployed; Stage 4 (DNS cutover) pending | 🟡 medium | Datasheetminer → Specodex. Stages 1+2 chrome ✅, 3a (Python pkg) ✅, 3b (Node workspaces) ✅, 3c (CDK rename) ✅ deployed 2026-04-28, 3d (GH repo rename) ✅, 3e (docs sweep) ✅. Stage 4 (`specodex.com` DNS cutover + ACM cert + CloudFront alt-domain) waits on zone NS propagation. |
-| 3 | [UNITS.md](UNITS.md) | ✅ shipped 2026-04-28 — code `a8f6162` + `aac7050`, data backfill applied to dev (273 rows) + prod (10 rows) | 🟢 done | **Linchpin.** `ValueUnit`/`MinMaxUnit` carry `{value, unit}` end-to-end. `cli/migrate_units_to_dict.py` rescued `~`/`,`/`≤`/`≥` quirks; `±` and `;null`/`;unknown` left in review. Manual triage of ~373 dev + 10 prod review entries pending — pre-existing data quality, non-blocking. |
-| 4 | [DEDUPE.md](DEDUPE.md) | ⏸ deferred | 🟡 medium (high blast radius) | One-time cross-vendor sweep for prefix-drift duplicates left by `--force` re-ingests pre-family-aware-ID fix. Audit + safe-merge + human review. **Phase 1 audit is a Late Night candidate** — read-only on DB, output is JSON. |
-| 5 | [INTEGRATION.md](INTEGRATION.md) | 🚧 phases A+B shipped 2026-04-26 | 🟢 small | Motion-system builder — drive → motor → gearhead. Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only. |
+| 1 | [SEO.md](SEO.md) | 🚧 Phase 0 ✅ shipped 2026-04-28 (robots.txt, static sitemap, OG/Twitter cards, JSON-LD); structural lifts queued | 🟡 medium | Public launch is now possible (`specodex.com` live). Next: SPA crawlability, per-product titles/meta, dynamic sitemap, category/manufacturer/comparison pages, OG image generator. The product *is* the SEO asset; every product row is a long-tail landing page waiting to be rendered. |
+| 2 | [MARKETING.md](MARKETING.md) | 📐 planned | 🟡 medium | Engineer-to-engineer distribution — no paid spend, leans on field-manual aesthetic + open-source repo as proof of seriousness. Pairs with SEO (programmatic product pages serve both). |
+| 3 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
+| 4 | [INTEGRATION.md](INTEGRATION.md) | 🚧 phases A+B ✅ shipped 2026-04-26 | 🟢 small | Motion-system builder — drive → motor → gearhead. Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only. |
+| 5 | [CICD.md](CICD.md) | 🟢 healthy — full chain green; 4 small followups remain | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. **Remaining followups:** delete dead `HOSTED_ZONE_ID` secret + remove its workflow validation; pin codeql.yml SHA on `cicd-followup-security-scans` (currently parked); apex `specodex.com` support (only `www` resolves today); fix `config.ts` apex-domain fallback so `HOSTED_ZONE_NAME` isn't required for 2-part domains. |
 | 6 | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) | 📐 planned | 🟢 small (half-day, 8 phases) | Lock down "simple but crucial" frontend state — persistence keys, AppContext setters, ProductList type-switch resets, header toggles, FilterChip unit propagation. Catches L1–L12 spillover bestiary. |
 | 7 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
 
 Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · 📐 planned
 Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴 multi-week or high blast radius
 
+## Done (eligible for `done/` move)
+
+- **[REBRAND.md](REBRAND.md)** — all stages ✅ shipped through 2026-04-29.
+  `www.specodex.com` live, old domain NXDOMAIN'd. Stage 4e decommission
+  effectively auto-done since `datasheets.advin.io` no longer resolves.
+  Doc kept until the rebrand has soaked for ~2 weeks; then move to
+  `done/REBRAND.md` for historical reference.
+- **[UNITS.md](UNITS.md)** — shipped 2026-04-28 (code `a8f6162` +
+  `aac7050`, data backfill applied to dev 273 rows + prod 10 rows).
+  Manual triage of ~373 dev + 10 prod review entries is pre-existing
+  data quality, non-blocking. Move to `done/UNITS.md` next sweep.
+
 ---
 
 ## Suggested chronological order
 
-UNITS was the linchpin (Pydantic + DynamoDB + frontend rendering substrate). Now done.
-With UNITS landed and CICD green, the remaining order:
+With UNITS, REBRAND, and CICD all landed, the remaining order:
 
-1. **CICD followups.** 5 branches code-ready; merge in the order listed in `CICD.md` "What you need to do next". Branch 1 (`cicd-followup-fromlookup`) is gated on a one-shot Route53 IAM permission update; branches 2–5 can merge in any order. Plus `late-night-dedupe-audit` (DEDUPE Phase 1 read-only audit script) is also code-ready, separate from the CICD chain.
-2. **REBRAND Stage 4.** DNS cutover for `specodex.com` once registrar NS records propagate. Mechanical AWS plumbing — touches no Python/TS code, can interleave with anything else.
-3. **DEDUPE.** Operates on post-UNITS uniform data. Phase 1 audit is a Late Night candidate (read-only). Phase 2 auto-merge + Phase 3 human review queue follow.
-4. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
-5. **FRONTEND_TESTING.** Tests against canonical post-UNITS shape.
+1. **SEO + MARKETING.** Public launch is now possible. SEO structural lifts pair with marketing distribution; product pages serve both.
+2. **DEDUPE Phase 2+3.** Operates on post-UNITS uniform data. Audit script is shipped; auto-merge + human review queue follow.
+3. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
+4. **FRONTEND_TESTING.** Tests against canonical post-UNITS shape.
+5. **CICD remaining followups.** Small loose ends — `HOSTED_ZONE_ID` cleanup, codeql.yml SHA pin, apex domain support, config.ts apex-fallback fix. Each can interleave with anything else.
 6. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
 
 **Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue.
@@ -97,8 +124,8 @@ Curated tasks safe to run autonomously overnight on dev. Each one meets four cri
 
 - Anything touching `app/infrastructure/` (CDK) or `.github/workflows/` — needs human review.
 - Any prod write or `./Quickstart admin promote --stage prod` — gated on morning checklist.
-- REBRAND Stage 4 DNS cutover — needs zone NS propagation + manual smoke.
 - INTEGRATION UI changes — visual review required.
+- SEO structural lifts (per-product page rendering, dynamic sitemap) — needs build + manual crawl check.
 
 ---
 
@@ -108,7 +135,9 @@ If your current task matches any "trigger" entry, the linked doc is queued and w
 
 | Trigger (files / topics in your current task) | Surface |
 |---|---|
-| `.github/workflows/`, `tests/unit/test_admin.py`, `cli/quickstart.py`, push to master, deploy attempt, "CI red", `HOSTED_ZONE_ID`, `gh-deploy-datasheetminer` | [CICD.md](CICD.md) |
+| `app/frontend/index.html` head metadata, `app/frontend/public/{robots.txt,sitemap.xml}`, JSON-LD blocks, OG/Twitter card tags, per-product page rendering, dynamic sitemap, prerender/SSR, "SEO", "canonical", "search ranking", "OG image" | [SEO.md](SEO.md) |
+| Landing-page copy, "marketing", "launch", "audience", "Reddit / HN / mailing list", outreach plans, paid spend (don't), Stripe pricing surface | [MARKETING.md](MARKETING.md) |
+| `.github/workflows/`, `tests/unit/test_admin.py`, `cli/quickstart.py`, push to master, deploy attempt, "CI red", `HOSTED_ZONE_ID`, `gh-deploy-datasheetminer`, apex/`www` domain support, `app/infrastructure/lib/config.ts:hostedZoneName` fallback | [CICD.md](CICD.md) |
 | `cli/admin.py:purge`/`promote`, `specodex/ids.py:compute_product_id` or `_strip_family_prefix`, new vendor catalog with prefix-form drift; user mentions "duplicate", "dedupe", "merge rows", "same product twice", "two part numbers for one motor"; promotion to staging/prod | [DEDUPE.md](DEDUPE.md) |
 | `app/backend/src/routes/admin.ts`, `AdminPanel.tsx`, `specodex/ingest_log.py`, `specodex/llm.py`, `cli/bench.py:PRICING`, "godmode/dashboard/observability/Gemini cost/Claude usage" | [GODMODE.md](GODMODE.md) |
 | `specodex/integration/{ports,adapters,compat}.py`, `app/backend/src/services/compat.ts`, `BuildTray.tsx`, `CompatChecker.tsx`; user mentions "compat", "pairing", "BOM", "system", "chain" | [INTEGRATION.md](INTEGRATION.md) |
