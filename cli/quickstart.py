@@ -23,6 +23,10 @@ Usage:
     ./Quickstart audit-dedupes    DEDUPE Phase 1 — scan dev DB for prefix-drift
                                   duplicates. Read-only; writes JSON + MD review.
                                   (try: ./Quickstart audit-dedupes --help)
+    ./Quickstart units-triage     Parse outputs/units_migration_review_*.md
+                                  and group rows by pattern (auto-rescue vs
+                                  manual). Read-only.
+                                  (try: ./Quickstart units-triage --help)
     ./Quickstart godmode          Data-quality observatory — coverage, oddities,
                                   distributions, outliers, drift, etc.
                                   Writes outputs/godmode/<ts>.html for review.
@@ -916,6 +920,13 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "audit-dedupes":
         run(
             ["uv", "run", "python", "-m", "cli.audit_dedupes", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "units-triage":
+        run(
+            ["uv", "run", "python", "-m", "cli.units_triage", *sys.argv[2:]],
             cwd=ROOT,
         )
         return
