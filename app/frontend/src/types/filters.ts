@@ -134,6 +134,13 @@ export interface AttributeMetadata {
   //           everything else hidden)
   // The frontend visibility predicate lives in ProductList.tsx.
   defaultVisible?: boolean;
+  // When true, pre-populate this attribute as a filter chip the moment its
+  // product type is selected. The chip lands without a value, exposing the
+  // operator + slider so the user can dial in a constraint immediately —
+  // this is for the 1-2 specs that *every* selection of this type starts
+  // with (e.g. motor → rated torque + rated speed). Keep it tightly
+  // curated; default chips that nobody touches become noise.
+  defaultFilter?: boolean;
 }
 
 // ========== Attribute Categories ==========
@@ -352,9 +359,9 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
   { key: 'type', displayName: 'Motor Type', type: 'string', applicableTypes: ['motor'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['motor'] },
   { key: 'rated_power', displayName: 'Rated Power', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'W', defaultVisible: true },
-  { key: 'rated_torque', displayName: 'Rated Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm', defaultVisible: true },
+  { key: 'rated_torque', displayName: 'Rated Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm', defaultVisible: true, defaultFilter: true },
   { key: 'peak_torque', displayName: 'Peak Torque', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'Nm', defaultVisible: true },
-  { key: 'rated_speed', displayName: 'Rated Speed', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'rpm', defaultVisible: true },
+  { key: 'rated_speed', displayName: 'Rated Speed', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'rpm', defaultVisible: true, defaultFilter: true },
   { key: 'rated_voltage', displayName: 'Rated Voltage', type: 'range', applicableTypes: ['motor'], nested: true, unit: 'V', defaultVisible: true },
   { key: 'rated_current', displayName: 'Rated Current', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'A', defaultVisible: true },
   { key: 'rotor_inertia', displayName: 'Rotor Inertia', type: 'object', applicableTypes: ['motor'], nested: true, unit: 'kg·cm²', defaultVisible: true },
@@ -737,6 +744,61 @@ export const getAttributesForType = (productType: ProductType): AttributeMetadat
 
   console.log(`[filters] Found ${commonAttrs.length} common attributes for 'all' type`);
   return commonAttrs;
+};
+
+/**
+ * Build the seed FilterCriterion[] for a freshly-selected product type.
+ *
+ * Returns one chip per attribute marked `defaultFilter: true` in the type's
+ * static metadata. Numerics land with operator `>` (lower-bound) — the value
+ * is filled in by ProductList once products load, at the
+ * DEFAULT_FILTER_FLOOR_PERCENTILE of the distribution. The slider opens at
+ * the 10th percentile so the bottom decile (the smallest / weakest parts)
+ * is excluded by default — the visible result set should exceed user
+ * expectations rather than start at the floor of the catalog. Strings get
+ * `=` and stay valueless.
+ *
+ * Curated, not auto: keep the per-type `defaultFilter` set tight (1-2 specs
+ * the user almost certainly wants to filter on) so the sidebar opens with
+ * intent, not noise.
+ */
+export const DEFAULT_FILTER_FLOOR_PERCENTILE = 0.10;
+
+export const buildDefaultFiltersForType = (
+  productType: ProductType,
+): FilterCriterion[] => {
+  const attrs = getAttributesForType(productType);
+  return attrs
+    .filter(a => a.defaultFilter)
+    .map(a => {
+      const wantsRange = a.nested || a.type === 'number' || a.type === 'range' || a.type === 'object';
+      return {
+        attribute: a.key,
+        mode: 'include' as const,
+        operator: (wantsRange ? '>=' : '=') as ComparisonOperator,
+        displayName: a.displayName,
+      };
+    });
+};
+
+/**
+ * Sister of buildDefaultFiltersForType — sort the table descending on every
+ * default-filter attribute so users see the ceiling of their selection at
+ * the top. With the slider seeded at P90 and operator `<`, the first row is
+ * the part closest to (but still under) the user's threshold; the very top
+ * of the catalog is right where the trim bites.
+ */
+export const buildDefaultSortsForType = (
+  productType: ProductType,
+): SortConfig[] => {
+  const attrs = getAttributesForType(productType);
+  return attrs
+    .filter(a => a.defaultFilter)
+    .map(a => ({
+      attribute: a.key,
+      direction: 'desc' as const,
+      displayName: a.displayName,
+    }));
 };
 
 // =====================================================================

@@ -230,7 +230,7 @@ export default function DistributionChart({ products, attribute, title, attribut
   if (summary.total === 0) return null;
 
   const heading = (
-    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '0.4rem' }}>
+    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '0.25rem' }}>
       {title}
     </div>
   );
@@ -241,14 +241,14 @@ export default function DistributionChart({ products, attribute, title, attribut
     const dispMax = unit ? toDisplay(histogram.max, unit, unitSystem) : histogram.max;
     const dispUnit = unit ? displayUnit(unit, unitSystem) : '';
     return (
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border-color)' }}>
+      <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)' }}>
         {heading}
         <div
           style={{
             display: 'flex',
             alignItems: 'flex-end',
             gap: '2px',
-            height: '36px',
+            height: '26px',
             padding: '0 1px',
           }}
           title={`${summary.numeric.length} value${summary.numeric.length === 1 ? '' : 's'} across ${HISTOGRAM_BINS} bins`}
@@ -289,8 +289,8 @@ export default function DistributionChart({ products, attribute, title, attribut
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            marginTop: '0.25rem',
-            fontSize: '0.78rem',
+            marginTop: '0.15rem',
+            fontSize: '0.7rem',
             color: 'var(--text-tertiary)',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -303,10 +303,10 @@ export default function DistributionChart({ products, attribute, title, attribut
   }
 
   return (
-    <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border-color)' }}>
+    <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)' }}>
       {heading}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
         {distribution.items.map((item, index) => {
           const isOther = item.name === 'Other';
           const outlined = isOutlineRank(index, item.name);
@@ -316,7 +316,7 @@ export default function DistributionChart({ products, attribute, title, attribut
               {/* Horizontal bar */}
               <div style={{
                 flex: 1,
-                height: '6px',
+                height: '5px',
                 backgroundColor: 'var(--bg-tertiary)',
                 borderRadius: '3px',
                 overflow: 'hidden'
@@ -333,10 +333,10 @@ export default function DistributionChart({ products, attribute, title, attribut
               </div>
               {/* Percentage — bold and prominent */}
               <span style={{
-                fontSize: '0.85rem',
+                fontSize: '0.75rem',
                 fontWeight: isOther ? 400 : 700,
                 color: isOther ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                minWidth: '30px',
+                minWidth: '28px',
                 textAlign: 'right',
                 fontVariantNumeric: 'tabular-nums'
               }}>
@@ -348,13 +348,13 @@ export default function DistributionChart({ products, attribute, title, attribut
       </div>
 
       {/* Labels under bars — compact row */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
         {distribution.items.filter(i => i.name !== 'Other').map((item, index) => {
           const outlined = isOutlineRank(index, item.name);
           const color = getColor(index, item.name);
           return (
             <span key={item.name} style={{
-              fontSize: '0.85rem',
+              fontSize: '0.72rem',
               color: 'var(--text-secondary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',

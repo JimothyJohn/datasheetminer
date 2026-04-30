@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { FilterCriterion, AttributeMetadata, ComparisonOperator, getAvailableOperators } from '../types/filters';
+import { FilterCriterion, AttributeMetadata, ComparisonOperator, getAvailableOperators, DEFAULT_FILTER_FLOOR_PERCENTILE } from '../types/filters';
 import { Product } from '../types/models';
 import { useApp } from '../context/AppContext';
 import {
@@ -21,7 +21,6 @@ interface FilterChipProps {
   onUpdate: (updatedFilter: FilterCriterion) => void;
   onRemove: () => void;
   onEditAttribute: (cursor: { x: number; y: number } | null) => void;
-  onSortByOperator?: (attribute: string, displayName: string, direction: 'asc' | 'desc') => void;
   suggestedValues?: Array<string | number>;
   attributeMetadata?: AttributeMetadata;
   allProducts?: Product[];
@@ -76,19 +75,6 @@ const getUnitString = (value: any): string | null => {
  */
 const SLIDER_RES = 1000;
 
-/**
- * Map a comparison operator to the user's "seek direction" — `>` / `>=`
- * means hunting for high values (sort desc), `<` / `<=` means low values
- * (sort asc). `=` and `!=` carry no direction.
- */
-const directionForOperator = (
-  op: ComparisonOperator | undefined,
-): 'asc' | 'desc' | null => {
-  if (op === '>' || op === '>=') return 'desc';
-  if (op === '<' || op === '<=') return 'asc';
-  return null;
-};
-
 const valueToPosition = (value: number, sortedValues: number[]): number => {
   const n = sortedValues.length;
   if (n <= 1) return 0;
@@ -114,7 +100,6 @@ export default function FilterChip({
   onUpdate,
   onRemove,
   onEditAttribute,
-  onSortByOperator,
   suggestedValues = [],
   attributeMetadata,
   allProducts
@@ -154,9 +139,9 @@ export default function FilterChip({
   );
 
   // Slider/numeric fields cycle just '>=' and '<' — drag-from-zero with a
-  // single click to flip into upper-bound mode. The legacy
-  // '=' / '!=' / '>' / '<=' permutations were never used in practice and
-  // forced multiple clicks to reach the desired direction.
+  // single click to flip into upper-bound mode. The lower bound includes
+  // the equality so a row sitting exactly at the seeded percentile floor
+  // isn't quietly excluded; the upper bound stays strict.
   const SLIDER_OPERATORS: ComparisonOperator[] = useMemo(() => ['>=', '<'], []);
 
   // Build slider scale from the actual value distribution. Stores the full
@@ -216,19 +201,28 @@ export default function FilterChip({
   }, [attributeType, rangeInfo]);
 
   // Auto-initialize slider filter value when slider first becomes available.
-  // Always starts at 0 with '>=' so the slider shows "everything" by default
-  // and the user drags right to tighten — clicking the operator flips to '<'
-  // for upper-bound mode. Sort is NOT seeded here — adding a spec leaves the
-  // table's current order alone. Sort changes only when the user explicitly
-  // clicks the operator button.
+  // Seeds at the 10th percentile of the empirical distribution with operator
+  // '>=' so the bottom decile (smallest / weakest parts) is excluded from
+  // the result set by default — what's shown should exceed user expectations
+  // rather than start at the catalog floor. Percentile-based, not max-based,
+  // so long-tailed distributions don't park the seed in the outlier zone.
+  // Integer units (V, rpm) round to a whole number so the readout doesn't
+  // show fractional volts. Sort is NOT seeded here.
   useEffect(() => {
     if (showSlider && rangeInfo && filter.value === undefined) {
       const op = filter.operator && SLIDER_OPERATORS.includes(filter.operator)
         ? filter.operator
         : '>=';
+      const sorted = rangeInfo.sortedValues;
+      const idx = Math.min(
+        sorted.length - 1,
+        Math.floor(sorted.length * DEFAULT_FILTER_FLOOR_PERCENTILE),
+      );
+      const seed = sorted[idx];
+      const initialValue = isIntegerUnit(rangeInfo.unit) ? Math.round(seed) : seed;
       onUpdate({
         ...filter,
-        value: 0,
+        value: initialValue,
         operator: op,
       });
     }
@@ -267,19 +261,16 @@ export default function FilterChip({
   }, [filter.value]);
 
   // Cycle through comparison operators. Slider fields toggle '>=' ↔ '<';
-  // non-slider numeric fields cycle whatever the data supports. The new
-  // operator also re-sorts the table to match the seek direction so the
-  // user sees the most-relevant results at the top immediately.
+  // non-slider numeric fields cycle whatever the data supports.
+  // Auto-sort on cycle was removed — flipping an operator no longer
+  // re-orders the table. The user controls sort separately via the
+  // column header arrows.
   const cycleOperator = () => {
     if (cycleOperators.length <= 1) return;
     const currentIndex = cycleOperators.indexOf(filter.operator || cycleOperators[0]);
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOperators.length;
     const nextOp = cycleOperators[nextIndex];
     onUpdate({ ...filter, operator: nextOp });
-    const dir = directionForOperator(nextOp);
-    if (dir && onSortByOperator) {
-      onSortByOperator(filter.attribute, filter.displayName, dir);
-    }
   };
 
   // The user's chosen index in sortedValues, kept alongside the value
@@ -515,14 +506,21 @@ export default function FilterChip({
   // Handle suggestion selection
   const handleSelectSuggestion = (value: string | number) => {
     if (isMultiSelectField) {
-      // Add to array of selected values
+      // Add to array of selected values. After picking, keep the dropdown
+      // open and refocus the input so the user can pile on more values
+      // without re-clicking — this is the whole point of multi-select.
       const currentValues = selectedValues.map(v => String(v));
       if (!currentValues.includes(String(value))) {
         const newValues = [...currentValues, String(value)];
         onUpdate({ ...filter, value: newValues.length === 1 ? newValues[0] : newValues });
       }
       setEditValue('');
-      setShowDropdown(false);
+      const remaining = suggestedValues.filter(val =>
+        !currentValues.includes(String(val)) && String(val) !== String(value)
+      );
+      setFilteredSuggestions(remaining);
+      setShowDropdown(remaining.length > 0);
+      inputRef.current?.focus();
     } else {
       // Single value - replace existing
       setEditValue(String(value));
@@ -533,6 +531,16 @@ export default function FilterChip({
       onUpdate({ ...filter, value: finalValue });
       setShowDropdown(false);
     }
+  };
+
+  // Multi-select: commit whatever's typed (free-form). Lets the user add a
+  // part number that isn't in the suggestion list — common, since the list
+  // is capped and the catalog has hundreds of unique part numbers.
+  const handleCommitTyped = () => {
+    if (!isMultiSelectField) return;
+    const trimmed = editValue.trim();
+    if (!trimmed) return;
+    handleSelectSuggestion(trimmed);
   };
 
   // Remove a value from multi-select
@@ -797,7 +805,32 @@ export default function FilterChip({
               value={editValue}
               onChange={(e) => handleValueChange(e.target.value)}
               onFocus={handleFocus}
-              placeholder={isMultiSelectField ? 'add value...' : 'value...'}
+              onKeyDown={(e) => {
+                if (!isMultiSelectField) return;
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Prefer the highlighted suggestion if there's exactly one
+                  // good match; otherwise commit the typed text as-is so the
+                  // user isn't trapped when their value isn't in the list.
+                  if (filteredSuggestions.length === 1 && editValue.trim()) {
+                    handleSelectSuggestion(filteredSuggestions[0]);
+                  } else {
+                    handleCommitTyped();
+                  }
+                } else if (e.key === 'Backspace' && editValue === '' && selectedValues.length > 0) {
+                  // Empty input + Backspace = remove last pill. Standard
+                  // tag-input convention; saves a trip to the × button.
+                  e.preventDefault();
+                  handleRemoveValue(selectedValues[selectedValues.length - 1]);
+                }
+              }}
+              placeholder={
+                isMultiSelectField
+                  ? selectedValues.length > 0
+                    ? 'add another (Enter to commit)…'
+                    : 'type or pick — Enter to add'
+                  : 'value…'
+              }
               autoFocus={!filter.value}
             />
 
@@ -809,17 +842,31 @@ export default function FilterChip({
                 left: rect.left,
                 width: rect.width,
               } : {};
+              // Multi-select cataloged values can run into the hundreds (part
+              // numbers, series codes); show more before truncating so users
+              // don't lose visible options once they start typing.
+              const displayCap = isMultiSelectField ? 30 : 10;
               return (
                 <div ref={dropdownRef} className="filter-dropdown" style={style}>
-                  {filteredSuggestions.slice(0, 10).map((value, index) => (
+                  {filteredSuggestions.slice(0, displayCap).map((value, index) => (
                     <div
                       key={index}
                       className="filter-dropdown-item"
-                      onClick={() => handleSelectSuggestion(value)}
+                      // mousedown (not click) — fires before the input's blur,
+                      // so the dropdown doesn't close-then-cancel mid-pick.
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectSuggestion(value);
+                      }}
                     >
                       {String(value)}
                     </div>
                   ))}
+                  {filteredSuggestions.length > displayCap && (
+                    <div className="filter-dropdown-item filter-dropdown-more" aria-hidden="true">
+                      …{filteredSuggestions.length - displayCap} more — keep typing to narrow
+                    </div>
+                  )}
                 </div>
               );
             })()}

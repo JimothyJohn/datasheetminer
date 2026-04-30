@@ -21,7 +21,6 @@ interface FilterBarProps {
   products: Product[];
   onFiltersChange: (filters: FilterCriterion[]) => void;
   onSortChange: (sort: SortConfig | null) => void;
-  onSortByOperator?: (attribute: string, displayName: string, direction: 'asc' | 'desc') => void;
   onProductTypeChange: (type: ProductType) => void;
   allProducts: Product[];
 }
@@ -33,7 +32,6 @@ export default function FilterBar({
   products,
   onFiltersChange,
   onSortChange,
-  onSortByOperator,
   onProductTypeChange,
   allProducts
 }: FilterBarProps) {
@@ -149,19 +147,10 @@ export default function FilterBar({
           fullWidth
           ariaLabel="Product type"
           placeholder={categories.length === 0 ? 'Loading...' : 'Select Product Type...'}
-          options={[
-            // Only offer the placeholder choice while no type is selected.
-            // Once the user picks a real type, removing it from the option
-            // list prevents accidentally re-selecting null and dropping
-            // back into the empty-state UI.
-            ...(productType === null
-              ? [{ value: '', label: categories.length === 0 ? 'Loading...' : 'Select Product Type...' }]
-              : []),
-            ...categories.map((category) => ({
-              value: category.type,
-              label: category.display_name,
-            })),
-          ]}
+          options={categories.map((category) => ({
+            value: category.type,
+            label: category.display_name,
+          }))}
         />
       </div>
 
@@ -181,6 +170,11 @@ export default function FilterBar({
             <span className="filter-match-divider">/</span>
             <span className="filter-match-total">{allProducts.length}</span>
             <span className="filter-match-label">matching</span>
+            <span className="filter-match-percent">
+              {allProducts.length === 0
+                ? '0%'
+                : `${Math.round((products.length / allProducts.length) * 100)}%`}
+            </span>
           </div>
           <div className="filter-match-bar" aria-hidden="true">
             <div
@@ -189,18 +183,6 @@ export default function FilterBar({
                 width: `${allProducts.length === 0 ? 0 : (products.length / allProducts.length) * 100}%`,
               }}
             />
-          </div>
-          <div className="filter-match-meta">
-            <span>
-              {filters.length === 0
-                ? 'no specs active'
-                : `${filters.length} spec${filters.length === 1 ? '' : 's'} active`}
-            </span>
-            <span className="filter-match-percent">
-              {allProducts.length === 0
-                ? '0%'
-                : `${Math.round((products.length / allProducts.length) * 100)}%`}
-            </span>
           </div>
         </div>
       )}
@@ -255,7 +237,6 @@ export default function FilterBar({
                 onUpdate={(updated) => handleUpdateFilter(index, updated)}
                 onRemove={() => handleRemoveFilter(index)}
                 onEditAttribute={(cursor) => handleEditFilterAttribute(index, cursor)}
-                onSortByOperator={onSortByOperator}
                 allProducts={contextProducts}
               />
               {products.length > 0 && (
