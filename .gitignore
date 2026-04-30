@@ -281,3 +281,8 @@ s3*
 stripe/
 webscraper/
 *.pdf
+
+# Node tooling cache/output anywhere in the tree (Vite cache, stray installs).
+# app/.gitignore covers the intended location; this catches accidents at root or other depths.
+node_modules/
+.vite/
