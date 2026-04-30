@@ -30,13 +30,16 @@ export function getConfig(): AppConfig {
   const certificateArn = process.env.CERTIFICATE_ARN;
   let domain: DomainConfig | undefined;
   if (domainName && certificateArn) {
-    // HOSTED_ZONE_NAME is optional — default to the parent of DOMAIN_NAME
-    // (e.g. datasheets.advin.io → advin.io). `||` (not `??`) so that an
-    // empty string from an unset GitHub Actions secret falls back too —
-    // empty here renders the record name as `datasheets.advin.io..` and
-    // Route53 rejects it with DomainLabelEmpty.
+    // HOSTED_ZONE_NAME is optional. For a 3+-part subdomain we default to
+    // the parent (datasheets.advin.io → advin.io). For a 2-part apex
+    // (specodex.com) the parent would be `com`, which fromLookup can't
+    // resolve — fall back to the domain itself instead. `||` (not `??`)
+    // so that an empty string from an unset GitHub Actions secret also
+    // falls through to the default.
+    const parts = domainName.split('.');
     const hostedZoneName =
-      process.env.HOSTED_ZONE_NAME || domainName.split('.').slice(1).join('.');
+      process.env.HOSTED_ZONE_NAME ||
+      (parts.length > 2 ? parts.slice(1).join('.') : domainName);
     domain = { domainName, certificateArn, hostedZoneName };
   }
 

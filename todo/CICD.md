@@ -124,6 +124,15 @@ of `smoke-staging` — it's the manual-trigger ad-hoc smoke for
 arbitrary URLs. Refreshed action versions to match `ci.yml` + added
 a header comment spelling out the distinction.
 
+### 8. `config.ts` apex-domain fallback ✅ shipped 2026-04-30
+
+`config.ts:hostedZoneName` previously always stripped the leftmost
+label of `DOMAIN_NAME`, which produced `"com"` for an apex like
+`specodex.com` and broke `HostedZone.fromLookup` at synth. Patched to
+detect the 2-part case and fall back to the domain itself instead.
+`HOSTED_ZONE_NAME` is now a true override, not a workaround the apex
+case requires. CLAUDE.md "Apex (2-part) domains" section updated.
+
 ---
 
 ## Success criteria (unchanged from prior plan)

@@ -203,11 +203,11 @@ When adding a deploy permission, attach it to the **role's `CdkDeploy` inline po
     aws iam get-role-policy --role-name gh-deploy-datasheetminer --policy-name CdkDeploy \
       --query 'PolicyDocument.Statement[?Sid==`<your-sid>`]'
 
-### `HOSTED_ZONE_NAME` is mandatory for 2-part (apex) domains
+### Apex (2-part) domains and `HOSTED_ZONE_NAME`
 
-`app/infrastructure/lib/config.ts` falls back to `domainName.split('.').slice(1).join('.')` when `HOSTED_ZONE_NAME` is empty. That works for `www.specodex.com` (→ `specodex.com`) but produces `"com"` for an apex domain like `specodex.com` — CDK's `fromLookup` then asks Route53 for a zone named `com.`, finds none, and fails synth with `Found zones: [] for dns:com`. Bit us during the 2026-04-29 cutover.
+`app/infrastructure/lib/config.ts` infers the hosted-zone name from `DOMAIN_NAME` when `HOSTED_ZONE_NAME` is unset. The fallback now detects the 2-part case: 3+ parts strips the leftmost label (`datasheets.advin.io` → `advin.io`), 2 parts uses the domain itself (`specodex.com` → `specodex.com`). Setting `HOSTED_ZONE_NAME` explicitly is no longer required for apex deploys, but still works as an override when the zone name differs from the inferred parent.
 
-Until that fallback is patched to detect the 2-part case (e.g. `parts.length > 2 ? parts.slice(1).join('.') : domainName`), set `HOSTED_ZONE_NAME` explicitly whenever `DOMAIN_NAME` is an apex.
+History: prior to the 2026-04-30 fix the fallback always stripped the leftmost label, so an apex `DOMAIN_NAME` produced `"com"` and CDK `fromLookup` failed synth with `Found zones: [] for dns:com`. Bit us during the 2026-04-29 cutover.
 
 ### Pushing from a Claude session
 

@@ -27,11 +27,8 @@ docs only when you're about to act on that work.
 
 ## The bottleneck — operator queue
 
-Everything else assumes Nick is unblocked. **[USER.md](USER.md)** is the
-punch list of one-shot manual actions only Nick can do (IAM writes,
-prod secret deletes, GitHub env approvals). Read top-down — the order
-minimizes rework. After the recent shipping spree the queue is mostly
-drained; remaining items are small post-cutover cleanups.
+Drained as of 2026-04-30. Only manual action remaining is
+`gh secret delete HOSTED_ZONE_ID` (operator-only) — see CICD row below.
 
 ---
 
@@ -45,7 +42,7 @@ Ordered by **dependency-and-rework risk**, not urgency or size.
 | 2 | [MARKETING.md](MARKETING.md) | 📐 planned | 🟡 medium | Engineer-to-engineer distribution — no paid spend, leans on field-manual aesthetic + open-source repo as proof of seriousness. Pairs with SEO (programmatic product pages serve both). |
 | 3 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
 | 4 | [INTEGRATION.md](INTEGRATION.md) | 🚧 phases A+B ✅ shipped 2026-04-26 | 🟢 small | Motion-system builder — drive → motor → gearhead. Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only. |
-| 5 | [CICD.md](CICD.md) | 🟢 healthy — full chain green; 4 small followups remain | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. **Remaining followups:** delete dead `HOSTED_ZONE_ID` secret + remove its workflow validation; pin codeql.yml SHA on `cicd-followup-security-scans` (currently parked); apex `specodex.com` support (only `www` resolves today); fix `config.ts` apex-domain fallback so `HOSTED_ZONE_NAME` isn't required for 2-part domains. |
+| 5 | [CICD.md](CICD.md) | 🟢 healthy — full chain green; 3 small followups remain | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. **Remaining followups:** delete dead `HOSTED_ZONE_ID` secret + remove its workflow validation (operator-only); pin codeql.yml SHA on `cicd-followup-security-scans` (currently parked); apex `specodex.com` support (only `www` resolves today). `config.ts` apex-domain fallback ✅ shipped 2026-04-30 — `HOSTED_ZONE_NAME` is now optional even for 2-part domains. |
 | 6 | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) | 📐 planned | 🟢 small (half-day, 8 phases) | Lock down "simple but crucial" frontend state — persistence keys, AppContext setters, ProductList type-switch resets, header toggles, FilterChip unit propagation. Catches L1–L12 spillover bestiary. |
 | 7 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
 
@@ -62,7 +59,7 @@ With UNITS, REBRAND, and CICD all landed, the remaining order:
 2. **DEDUPE Phase 2+3.** Operates on post-UNITS uniform data. Audit script is shipped; auto-merge + human review queue follow.
 3. **INTEGRATION next slice.** UI-only, lands on cleaned-up rendering path.
 4. **FRONTEND_TESTING.** Tests against canonical post-UNITS shape.
-5. **CICD remaining followups.** Small loose ends — `HOSTED_ZONE_ID` cleanup, codeql.yml SHA pin, apex domain support, config.ts apex-fallback fix. Each can interleave with anything else.
+5. **CICD remaining followups.** Small loose ends — `HOSTED_ZONE_ID` cleanup, codeql.yml SHA pin, apex domain support. Each can interleave with anything else.
 6. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
 
 **Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue.
