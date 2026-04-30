@@ -38,10 +38,10 @@ Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · �
 
 | # | Doc | Status | Effort | One-line |
 |---|---|---|---|---|
-| 1 | [CICD](todo/CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | Autonomous followups: `fromLookup`, action refresh, integration tests in CI, nightly bench. |
+| 1 | [CICD](todo/CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | ✅ shipped today: `fromLookup` (#1), nightly bench (#4), ci-hygiene 5a, staging.yml refresh (#7). Remaining: action version refresh (#2), integration tests in CI (#3), security scans. |
 | 2 | [REBRAND](todo/REBRAND.md) | 🚧 Stage 4 DNS cutover pending | 🟡 medium | `specodex.com` ACM cert + CloudFront alt-domain + Route 53 records + 301 redirect. Waits on registrar NS propagation. |
 | 3 | [UNITS](todo/UNITS.md) | ✅ shipped 2026-04-28 | 🟢 done | ~373 dev + 10 prod review entries pending manual triage (`±`, `;null`, `;unknown`). |
-| 4 | [DEDUPE](todo/DEDUPE.md) | ⏸ deferred | 🟡 medium | One-time sweep for prefix-drift duplicates from pre-family-aware-ID `--force` re-ingests. Phase 1 audit is Late Night-eligible. |
+| 4 | [DEDUPE](todo/DEDUPE.md) | 🚧 Phase 1 script shipped 2026-04-29 | 🟡 medium | One-time sweep for prefix-drift duplicates from pre-family-aware-ID `--force` re-ingests. `cli/audit_dedupes.py` exists; running against dev is the next Late Night step. |
 | 5 | [INTEGRATION](todo/INTEGRATION.md) | 🚧 phases A+B shipped | 🟢 small | Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only, half-day. |
 | 6 | [FRONTEND_TESTING](todo/FRONTEND_TESTING.md) | 📐 planned | 🟢 small | Lock down spillover bestiary (L1–L12) — persistence keys, AppContext setters, ProductList type-switch resets. 8 phases, half-day total. |
 | 7 | [GODMODE](todo/GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, deploy state, backlog state. ~1 day for MVP. |
@@ -54,15 +54,17 @@ Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · �
 ## 1. CICD — autonomous followups
 
 The chain has been green end-to-end since 2026-04-29. Operator queue
-is empty. Five followups, in priority order, all branch-isolated:
+is empty.
 
-1. **Eliminate `HOSTED_ZONE_ID` as a secret.** Replace
-   `HostedZone.fromHostedZoneAttributes({ hostedZoneId, zoneName })`
-   in `frontend-stack.ts` with `HostedZone.fromLookup({ domainName })`.
-   Adds `route53:ListHostedZonesByName` + `GetHostedZone` to the deploy
-   role; `cdk.context.json` becomes a committed artifact. After one
-   prod deploy proves it: `gh secret delete HOSTED_ZONE_ID` and remove
-   the env-export from the workflow.
+**Shipped 2026-04-29:** items 1, 4, the deploy-artifact + `/health`
+slice of 5, plus a new item 7 (`staging.yml` repurpose). Remaining
+work: actions version refresh (2), integration tests in CI (3), the
+rest of CI hygiene (5), security scans.
+
+1. ✅ **Eliminate `HOSTED_ZONE_ID` as a secret.** `frontend-stack.ts`
+   now uses `HostedZone.fromLookup({ domainName })`; `cdk.context.json`
+   is a committed artifact and the workflow no longer exports
+   `HOSTED_ZONE_ID`.
 2. **Refresh GitHub Actions versions.** Bump `actions/checkout`,
    `setup-node`, `astral-sh/setup-uv` (SHA-pinned). Resolves the Node
    20 deprecation warning emitting on every run.
@@ -73,18 +75,18 @@ is empty. Five followups, in priority order, all branch-isolated:
    Add a `test-integration` job: `pytest tests/integration/ -m "not live"`
    with moto-mocked AWS. Gate `live`-marked tests behind a nightly
    trigger. Also: include `tests/test_cli.py` in the unit pass.
-4. **Nightly `./Quickstart bench` workflow.** Catches LLM-pipeline
-   regressions before users see them. Schedule weekly first (~$1-5/run);
-   promote to nightly if weekly catches anything in month 1. Compare
-   against `outputs/benchmarks/latest.json`; tracking issue if any
-   fixture drops > 5pp.
-5. **CI hygiene (one PR).** JUnit XML + step summary, `paths-ignore`
-   for doc-only changes, unify the `/health` poll between CI and
-   `Quickstart smoke`, upload `cdk.out/` on deploy failure, `cdk diff`
-   PR comment.
-
-Plus security scans (warn-only first): `pip-audit`, `npm audit
---omit=dev`, CodeQL.
+4. ✅ **Nightly `./Quickstart bench` workflow.** Live in
+   `.github/workflows/bench.yml` with `cli/bench_compare.py` as the
+   regression gate. Currently weekly (per-run cost ~$1-5); promote to
+   nightly if the first month surfaces drift.
+5. **CI hygiene.** ✅ Shipped: `cdk.out/` upload on deploy failure +
+   unified `/health` poll between CI and `Quickstart smoke`.
+   Remaining: JUnit XML + step summary, `paths-ignore` for doc-only
+   changes, `cdk diff` PR comment.
+6. **Security scans (warn-only first):** `pip-audit`, `npm audit
+   --omit=dev`, CodeQL.
+7. ✅ **`staging.yml` refresh.** Repurposed (not deleted) so the file
+   serves a defined role under the new chain.
 
 ---
 
@@ -150,12 +152,14 @@ stamped fresh UUIDs.
 
 Three phases:
 
-- **Phase 1 — audit (read-only, Late Night-eligible).**
-  `cli/audit_dedupes.py` scans every product-type partition in dev
-  DynamoDB; groups by family-aware normalized core; emits JSON of every
-  group with ≥2 rows + side-by-side diff classified as `identical` /
-  `complementary` / `conflicting`. No DB writes. Output:
-  `outputs/dedupe_audit_<ts>.json` + `outputs/dedupe_review_<ts>.md`.
+- **Phase 1 — audit (read-only, Late Night-eligible).** ✅ Script
+  shipped 2026-04-29. `cli/audit_dedupes.py` scans every product-type
+  partition in dev DynamoDB; groups by family-aware normalized core;
+  emits JSON of every group with ≥2 rows + side-by-side diff classified
+  as `identical` / `complementary` / `conflicting`. No DB writes.
+  Output: `outputs/dedupe_audit_<ts>.json` +
+  `outputs/dedupe_review_<ts>.md`. **Next step:** run it against dev
+  overnight.
 - **Phase 2 — auto-merge safe cases.** `--apply --safe-only` writes
   the merged row under the canonical (family-aware) UUID, deletes
   orphans. Most-populated part-number form wins (e.g. `MPP-1152C` over
@@ -661,7 +665,7 @@ four criteria: bounded, dev-only writes, recoverable, morning-checkable.
 | Ingest-report | `./Quickstart ingest-report --email-template` | `outputs/ingest_report_*.md` |
 | UNITS review triage | parse `outputs/units_migration_review_dev_*.md`, group by pattern | `outputs/units_triage_<ts>.md` |
 | Integration test sweep | `./Quickstart verify --integration` | exit code; stale tests surface as failures |
-| DEDUPE Phase 1 audit | write `cli/audit_dedupes.py`, run against dev | `outputs/dedupe_audit_<ts>.json` + `dedupe_review_<ts>.md` |
+| DEDUPE Phase 1 audit | run `uv run python -m cli.audit_dedupes` against dev | `outputs/dedupe_audit_<ts>.json` + `dedupe_review_<ts>.md` |
 
 **Tier 2 — small Gemini cost, dev DB writes only:**
 
