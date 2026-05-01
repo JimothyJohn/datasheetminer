@@ -15,6 +15,7 @@ import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import { AppConfig } from './config';
 import { SiteWebAcl } from './waf/site-web-acl';
+import { WafAlarms } from './waf/waf-alarms';
 import * as path from 'path';
 
 export interface FrontendStackProps extends cdk.StackProps {
@@ -65,6 +66,21 @@ export class FrontendStack extends cdk.Stack {
           authRateLimit: process.env.WAF_AUTH_RATE_LIMIT ? Number(process.env.WAF_AUTH_RATE_LIMIT) : undefined,
         })
       : undefined;
+
+    // Phase 5f: CloudWatch alarms on the WAF rules. Opt-out via
+    // WAF_ALARMS_ENABLED=false (rare; no-data alarms are cheap).
+    // ALARM_EMAIL subscribes the topic to that address; without it,
+    // the topic exists but has no subscribers (set later via aws sns
+    // subscribe).
+    if (siteWebAcl && (process.env.WAF_ALARMS_ENABLED ?? 'true').toLowerCase() !== 'false') {
+      new WafAlarms(this, 'EdgeAclAlarms', {
+        stage: config.stage,
+        metricNames: siteWebAcl.metricNames,
+        alarmEmail: process.env.ALARM_EMAIL,
+        scrapeThresholdPerMin: process.env.WAF_SCRAPE_THRESHOLD ? Number(process.env.WAF_SCRAPE_THRESHOLD) : undefined,
+        credentialStuffingThresholdPerMin: process.env.WAF_CRED_STUFFING_THRESHOLD ? Number(process.env.WAF_CRED_STUFFING_THRESHOLD) : undefined,
+      });
+    }
 
     // CloudFront distribution
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
