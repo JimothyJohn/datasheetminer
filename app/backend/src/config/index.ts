@@ -39,6 +39,13 @@ export const config = {
   stripe: {
     lambdaUrl: process.env.STRIPE_LAMBDA_URL || '',
   },
+  cognito: {
+    // Populated from env (.env in dev) or SSM (Lambda cold start). Empty
+    // string when unset means the auth middleware bails with a 503; the
+    // app stays bootable for stages where the auth stack hasn't deployed.
+    userPoolId: process.env.COGNITO_USER_POOL_ID || '',
+    userPoolClientId: process.env.COGNITO_USER_POOL_CLIENT_ID || '',
+  },
   ssmPrefix,
 };
 
@@ -57,7 +64,11 @@ export async function loadSsmSecrets(): Promise<void> {
   const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
   const ssm = new SSMClient({ region: config.aws.region });
 
-  const paramNames = [`${ssmPrefix}/stripe-lambda-url`];
+  const paramNames = [
+    `${ssmPrefix}/stripe-lambda-url`,
+    `${ssmPrefix}/cognito/user-pool-id`,
+    `${ssmPrefix}/cognito/user-pool-client-id`,
+  ];
 
   try {
     const result = await ssm.send(new GetParametersCommand({
@@ -66,9 +77,16 @@ export async function loadSsmSecrets(): Promise<void> {
     }));
 
     for (const param of result.Parameters || []) {
-      const key = param.Name?.split('/').pop();
-      if (key === 'stripe-lambda-url') {
+      // Match against the suffix so the cognito/* nesting works without
+      // a dedicated case per parameter. `.pop()` over `.split('/')`
+      // would only catch the leaf, missing the namespace.
+      const name = param.Name || '';
+      if (name.endsWith('/stripe-lambda-url')) {
         config.stripe.lambdaUrl = param.Value || '';
+      } else if (name.endsWith('/cognito/user-pool-id')) {
+        config.cognito.userPoolId = param.Value || '';
+      } else if (name.endsWith('/cognito/user-pool-client-id')) {
+        config.cognito.userPoolClientId = param.Value || '';
       }
     }
 

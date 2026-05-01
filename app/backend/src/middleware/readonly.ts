@@ -14,6 +14,11 @@ const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // Paths exempt from readonly — these only queue work, they don't mutate existing data
 const WRITE_ALLOWED_PATHS = new Set(['/upload', '/upload/']);
 
+// Path prefixes exempt from readonly. Auth endpoints (register, login,
+// password reset, etc.) need POST in public mode but don't mutate
+// product data — the user table is Cognito's, not ours.
+const WRITE_ALLOWED_PREFIXES = ['/auth/'];
+
 export function readonlyGuard(req: Request, res: Response, next: NextFunction): void {
   if (ALLOWED_METHODS.has(req.method)) {
     next();
@@ -22,6 +27,11 @@ export function readonlyGuard(req: Request, res: Response, next: NextFunction): 
 
   // Allow specific write paths in public mode (e.g., PDF upload queue)
   if (WRITE_ALLOWED_PATHS.has(req.path)) {
+    next();
+    return;
+  }
+
+  if (WRITE_ALLOWED_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
     next();
     return;
   }

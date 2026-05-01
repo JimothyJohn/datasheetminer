@@ -1,16 +1,19 @@
 /**
  * Edge tests for the adminOnly guard.
  *
- * This is the hard boundary between public deployments and admin routes. A
- * forged header, a path trick, or a weird method must NOT loosen it — the
- * gate only opens when `config.appMode === 'admin'` at process start.
+ * This is the hard boundary between non-admin users and admin routes.
+ * Phase 4: gating is on the verified Cognito 'admin' group, not on
+ * an env flag. A forged header, suggestive cookie, or path trick must
+ * not loosen it — only a valid JWT containing the admin group does.
  *
- * config is captured at module load, so we re-import the middleware under
- * `APP_MODE=public` via jest.isolateModulesAsync — same pattern as the
- * existing adminOnly.test.ts.
+ * Note: in production, requireAuth runs before adminOnly and rejects
+ * unauthenticated callers with 401. These tests exercise adminOnly in
+ * isolation; the request shapes here mirror what would arrive *if*
+ * requireAuth had populated (or failed to populate) req.user.
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { adminOnly } from '../src/middleware/adminOnly';
 
 function mockReq(overrides: Partial<Request> = {}): Partial<Request> {
   return {
@@ -37,48 +40,26 @@ function mockRes(): Partial<Response> & { _status: number; _body: any } {
   return res;
 }
 
-async function withPublicMode(
-  fn: (adminOnly: (req: Request, res: Response, next: NextFunction) => void) => void,
-): Promise<void> {
-  const original = process.env.APP_MODE;
-  process.env.APP_MODE = 'public';
-  try {
-    await jest.isolateModulesAsync(async () => {
-      const { adminOnly } = await import('../src/middleware/adminOnly');
-      fn(adminOnly);
-    });
-  } finally {
-    if (original === undefined) delete process.env.APP_MODE;
-    else process.env.APP_MODE = original;
-  }
-}
-
-describe('adminOnly in public mode — ignores all request state', () => {
+describe('adminOnly without req.user — 401 regardless of request shape', () => {
   let nextCalled: boolean;
-  const next: NextFunction = () => {
-    nextCalled = true;
-  };
+  const next: NextFunction = () => { nextCalled = true; };
 
   beforeEach(() => {
     nextCalled = false;
   });
 
-  it('403 on GET', async () => {
-    await withPublicMode((adminOnly) => {
-      const res = mockRes();
-      adminOnly(mockReq({ method: 'GET' }) as Request, res as Response, next);
-      expect(res._status).toBe(403);
-      expect(nextCalled).toBe(false);
-    });
+  it('401 on GET', () => {
+    const res = mockRes();
+    adminOnly(mockReq({ method: 'GET' }) as Request, res as Response, next);
+    expect(res._status).toBe(401);
+    expect(nextCalled).toBe(false);
   });
 
-  it('403 on POST', async () => {
-    await withPublicMode((adminOnly) => {
-      const res = mockRes();
-      adminOnly(mockReq({ method: 'POST' }) as Request, res as Response, next);
-      expect(res._status).toBe(403);
-      expect(nextCalled).toBe(false);
-    });
+  it('401 on POST', () => {
+    const res = mockRes();
+    adminOnly(mockReq({ method: 'POST' }) as Request, res as Response, next);
+    expect(res._status).toBe(401);
+    expect(nextCalled).toBe(false);
   });
 
   it.each([
@@ -87,20 +68,18 @@ describe('adminOnly in public mode — ignores all request state', () => {
     { cookie: 'session=admin' },
     { 'x-forwarded-user': 'root' },
     { 'x-api-key': 'dsm_live_forged' },
-  ])('403 with suggestive header %s', async (headers) => {
-    await withPublicMode((adminOnly) => {
-      const res = mockRes();
-      adminOnly(
-        mockReq({ headers: headers as any }) as Request,
-        res as Response,
-        next,
-      );
-      expect(res._status).toBe(403);
-      expect(nextCalled).toBe(false);
-    });
+  ])('401 with suggestive header %s — adminOnly does not consult headers', (headers) => {
+    const res = mockRes();
+    adminOnly(
+      mockReq({ headers: headers as any }) as Request,
+      res as Response,
+      next,
+    );
+    expect(res._status).toBe(401);
+    expect(nextCalled).toBe(false);
   });
 
-  it('403 for every variant path under /admin/...', async () => {
+  it('401 for every variant path under /admin/...', () => {
     const paths = [
       '/admin',
       '/admin/',
@@ -110,50 +89,69 @@ describe('adminOnly in public mode — ignores all request state', () => {
       '/admin/../products',
       '/admin/%00',
     ];
-    await withPublicMode((adminOnly) => {
-      for (const path of paths) {
-        const res = mockRes();
-        adminOnly(mockReq({ path }) as Request, res as Response, next);
-        expect(res._status).toBe(403);
-        expect(nextCalled).toBe(false);
-      }
-    });
-  });
-
-  it('403 body does not leak appMode or config internals', async () => {
-    await withPublicMode((adminOnly) => {
+    for (const path of paths) {
       const res = mockRes();
-      adminOnly(mockReq() as Request, res as Response, next);
-      const body = JSON.stringify(res._body);
-      expect(body).not.toMatch(/appMode/i);
-      expect(body).not.toMatch(/env/i);
-    });
+      adminOnly(mockReq({ path }) as Request, res as Response, next);
+      expect(res._status).toBe(401);
+      expect(nextCalled).toBe(false);
+    }
   });
 });
 
-describe('adminOnly in admin mode — passes through', () => {
-  it('next() called regardless of path or headers', async () => {
-    const original = process.env.APP_MODE;
-    process.env.APP_MODE = 'admin';
-    try {
-      await jest.isolateModulesAsync(async () => {
-        const { adminOnly } = await import('../src/middleware/adminOnly');
-        let nextCalled = false;
-        const next: NextFunction = () => {
-          nextCalled = true;
-        };
-        const res = mockRes();
-        adminOnly(
-          mockReq({ path: '/admin/anything', headers: {} }) as Request,
-          res as Response,
-          next,
-        );
-        expect(nextCalled).toBe(true);
-        expect(res._status).toBe(0);
-      });
-    } finally {
-      if (original === undefined) delete process.env.APP_MODE;
-      else process.env.APP_MODE = original;
-    }
+describe('adminOnly with non-admin req.user — 403 regardless of request shape', () => {
+  let nextCalled: boolean;
+  const next: NextFunction = () => { nextCalled = true; };
+  const nonAdmin = { user: { sub: 'u', email: 'u@x', groups: ['viewer'] } };
+
+  beforeEach(() => {
+    nextCalled = false;
+  });
+
+  it('403 on GET with non-admin user', () => {
+    const res = mockRes();
+    adminOnly(mockReq({ method: 'GET', ...nonAdmin }) as Request, res as Response, next);
+    expect(res._status).toBe(403);
+    expect(nextCalled).toBe(false);
+  });
+
+  it('403 body does not leak appMode or config internals', () => {
+    const res = mockRes();
+    adminOnly(mockReq(nonAdmin) as Request, res as Response, next);
+    const body = JSON.stringify(res._body);
+    expect(body).not.toMatch(/appMode/i);
+    expect(body).not.toMatch(/env/i);
+  });
+
+  it('forged groups in headers cannot promote a non-admin user', () => {
+    const res = mockRes();
+    adminOnly(
+      mockReq({
+        ...nonAdmin,
+        headers: { 'x-cognito-groups': 'admin' } as any,
+      }) as Request,
+      res as Response,
+      next,
+    );
+    expect(res._status).toBe(403);
+    expect(nextCalled).toBe(false);
+  });
+});
+
+describe('adminOnly with admin req.user — passes through', () => {
+  it('next() called regardless of path or headers', () => {
+    let nextCalled = false;
+    const next: NextFunction = () => { nextCalled = true; };
+    const res = mockRes();
+    adminOnly(
+      mockReq({
+        path: '/admin/anything',
+        headers: {},
+        user: { sub: 'u', email: 'u@x', groups: ['admin', 'viewer'] },
+      }) as Request,
+      res as Response,
+      next,
+    );
+    expect(nextCalled).toBe(true);
+    expect(res._status).toBe(0);
   });
 });

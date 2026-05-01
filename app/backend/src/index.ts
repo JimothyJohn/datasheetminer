@@ -8,6 +8,7 @@ import cors from 'cors';
 import config from './config';
 import { readonlyGuard } from './middleware/readonly';
 import { adminOnly } from './middleware/adminOnly';
+import { requireAuth, optionalAuth } from './middleware/auth';
 import productsRouter from './routes/products';
 import datasheetsRouter from './routes/datasheets';
 import uploadRouter from './routes/upload';
@@ -16,6 +17,7 @@ import searchRouter from './routes/search';
 import compatRouter from './routes/compat';
 import docsRouter from './routes/docs';
 import adminRouter from './routes/admin';
+import authRouter from './routes/auth';
 
 const app: Application = express();
 
@@ -39,18 +41,26 @@ if (config.appMode === 'public') {
   app.use('/api', readonlyGuard);
 }
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
+// Health check endpoint. `mode` reports Cognito group membership when
+// the caller presents a valid token, otherwise falls back to the
+// deploy-time APP_MODE flag (which is now a local-dev convenience —
+// admin gating in production is on Cognito groups).
+app.get('/health', optionalAuth, (req: Request, res: Response) => {
+  const mode = req.user?.groups.includes('admin') ? 'admin' : config.appMode;
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
-    mode: config.appMode,
+    mode,
   });
 });
 
 // Upload route — available in both public and admin mode (queues only, no data mutation)
 app.use('/api/upload', uploadRouter);
+
+// Auth routes — register/login/etc. need POST in public mode. The
+// readonly guard exempts /auth/* paths (see middleware/readonly.ts).
+app.use('/api/auth', authRouter);
 
 // API routes
 app.use('/api/products', productsRouter);
@@ -58,7 +68,7 @@ app.use('/api/datasheets', datasheetsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/v1/search', searchRouter);
 app.use('/api/v1/compat', compatRouter);
-app.use('/api/admin', adminOnly, adminRouter);
+app.use('/api/admin', requireAuth, adminOnly, adminRouter);
 app.use('/api', docsRouter);
 
 // Serve frontend static files in production (Docker container)

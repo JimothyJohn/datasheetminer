@@ -35,18 +35,6 @@ import { CompatibilityReport } from '../types/compat';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 /**
- * App mode: 'public' (read-only cloud) or 'admin' (local toolset)
- * Write methods throw in public mode instead of hitting 403s.
- */
-const APP_MODE = import.meta.env.VITE_APP_MODE || 'admin';
-
-function requireAdmin(operation: string): void {
-  if (APP_MODE === 'public') {
-    throw new Error(`${operation} is not available in public mode. Use the local admin toolset.`);
-  }
-}
-
-/**
  * Default request timeout in milliseconds
  * Prevents requests from hanging indefinitely on slow connections
  */
@@ -81,6 +69,11 @@ interface ApiResponse<T> {
  */
 class ApiClient {
   private baseUrl: string;
+  // Bearer token, set by AuthContext on login/refresh and cleared on
+  // logout. Undefined means no auth header is sent. Kept on the
+  // singleton (not in React state) so the request layer doesn't have
+  // to thread it through every call site.
+  private authToken: string | null = null;
 
   /**
    * Create new API client instance
@@ -89,6 +82,15 @@ class ApiClient {
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
     console.log(`[ApiClient] Initialized with base URL: ${this.baseUrl}`);
+  }
+
+  /**
+   * Set the bearer token attached to all outgoing requests. Pass null
+   * to clear (logout). AuthContext owns the lifecycle; the client is
+   * a passive consumer.
+   */
+  setAuthToken(token: string | null): void {
+    this.authToken = token;
   }
 
   /**
@@ -145,6 +147,7 @@ class ApiClient {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
           ...options?.headers,
         },
         signal: controller.signal,
@@ -356,7 +359,6 @@ class ApiClient {
    * Note: AppContext will refresh data after successful creation to get generated ID
    */
   async createProduct(product: Partial<Product>): Promise<void> {
-    requireAdmin('createProduct');
     console.log('[ApiClient] Creating single product:', product.part_number || 'unnamed');
 
     await this.request('/api/products', {
@@ -383,7 +385,6 @@ class ApiClient {
    * Note: Backend automatically detects array vs single object
    */
   async createProducts(products: Partial<Product>[]): Promise<void> {
-    requireAdmin('createProducts');
     console.log(`[ApiClient] Creating ${products.length} products in batch`);
 
     await this.request('/api/products', {
@@ -398,7 +399,6 @@ class ApiClient {
    * Backend Endpoint: POST /api/datasheets
    */
   async createDatasheet(datasheet: Partial<DatasheetEntry>): Promise<void> {
-    requireAdmin('createDatasheet');
     console.log('[ApiClient] Creating datasheet:', (datasheet as any).product_name || 'unnamed');
     await this.request('/api/datasheets', {
       method: 'POST',
@@ -410,7 +410,6 @@ class ApiClient {
    * Update a datasheet
    */
   async updateDatasheet(id: string, updates: Partial<DatasheetEntry>): Promise<void> {
-    requireAdmin('updateDatasheet');
     await this.request(`/api/datasheets/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
@@ -423,7 +422,6 @@ class ApiClient {
    * Backend Endpoint: PUT /api/products/:id?type=X
    */
   async updateProduct(id: string, updates: Partial<Product>, type: Exclude<ProductType, null>): Promise<void> {
-    requireAdmin('updateProduct');
     console.log(`[ApiClient] Updating product: ${id} (type: ${type})`);
     await this.request(`/api/products/${id}?type=${type}`, {
       method: 'PUT',
@@ -463,25 +461,27 @@ class ApiClient {
   }
 
   /**
-   * Get subscription status for a user
+   * Get subscription status for the authed user. Identity comes from
+   * the Authorization header (set via setAuthToken); no userId param.
    */
-  async getSubscriptionStatus(userId: string): Promise<{
+  async getSubscriptionStatus(): Promise<{
     subscription_status: string;
     billing_enabled?: boolean;
     stripe_customer_id?: string;
   }> {
-    const response = await this.request<any>(`/api/subscription/status/${userId}`);
+    const response = await this.request<any>('/api/subscription/status');
     if (!response.data) throw new Error('No subscription data received');
     return response.data;
   }
 
   /**
-   * Create a Stripe checkout session and return the checkout URL
+   * Create a Stripe checkout session for the authed user and return
+   * the checkout URL. Identity comes from the Authorization header.
    */
-  async createCheckoutSession(userId: string): Promise<string> {
+  async createCheckoutSession(): Promise<string> {
     const response = await this.request<{ checkout_url: string }>('/api/subscription/checkout', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({}),
     });
     if (!response.data?.checkout_url) throw new Error('No checkout URL received');
     return response.data.checkout_url;
@@ -505,7 +505,6 @@ class ApiClient {
    * Warning: This operation is irreversible!
    */
   async deleteProduct(id: string, type: Exclude<ProductType, null>, componentType?: string): Promise<void> {
-    requireAdmin('deleteProduct');
     console.log(`[ApiClient] Deleting product: ${id} (type: ${type}, componentType: ${componentType})`);
 
     // If deleting a datasheet, we need to pass the actual component type (e.g. 'motor')
@@ -519,6 +518,89 @@ class ApiClient {
     await this.request(endpoint, {
       method: 'DELETE',
     });
+  }
+
+  // ========== Auth Methods (Cognito proxy) ==========
+
+  async authRegister(email: string, password: string): Promise<{ next: string }> {
+    const response = await this.request<{ next: string; message: string }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.data) throw new Error('Registration failed');
+    return response.data;
+  }
+
+  async authConfirm(email: string, code: string): Promise<void> {
+    await this.request('/api/auth/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    });
+  }
+
+  async authResendCode(email: string): Promise<void> {
+    await this.request('/api/auth/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async authLogin(email: string, password: string): Promise<{
+    id_token: string;
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  }> {
+    const response = await this.request<{
+      id_token: string;
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.data) throw new Error('Login failed');
+    return response.data;
+  }
+
+  async authRefresh(refresh_token: string): Promise<{
+    id_token: string;
+    access_token: string;
+    expires_in: number;
+  }> {
+    const response = await this.request<{
+      id_token: string;
+      access_token: string;
+      expires_in: number;
+    }>('/api/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token }),
+    });
+    if (!response.data) throw new Error('Refresh failed');
+    return response.data;
+  }
+
+  async authForgotPassword(email: string): Promise<void> {
+    await this.request('/api/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async authResetPassword(email: string, code: string, password: string): Promise<void> {
+    await this.request('/api/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, password }),
+    });
+  }
+
+  async authMe(): Promise<{ sub: string; email: string; groups: string[] }> {
+    const response = await this.request<{ sub: string; email: string; groups: string[] }>(
+      '/api/auth/me',
+    );
+    if (!response.data) throw new Error('Failed to fetch profile');
+    return response.data;
   }
 
 }

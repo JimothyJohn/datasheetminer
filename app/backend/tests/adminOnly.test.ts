@@ -1,11 +1,13 @@
 /**
- * adminOnly middleware: blocks when APP_MODE !== 'admin'.
+ * adminOnly middleware: Cognito-group based gate.
  *
- * config/index.ts reads APP_MODE from env at module load, so we re-import
- * the middleware with different env values per test via jest.isolateModules.
+ * Phase 4: replaced the old `config.appMode === 'admin'` env-toggle.
+ * The middleware now reads req.user (populated by requireAuth) and
+ * checks for 'admin' group membership.
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { adminOnly } from '../src/middleware/adminOnly';
 
 function mockRes(): Partial<Response> & { _status: number; _body: unknown } {
   const res: Partial<Response> & { _status: number; _body: unknown } = {
@@ -24,42 +26,48 @@ function mockRes(): Partial<Response> & { _status: number; _body: unknown } {
 }
 
 describe('adminOnly middleware', () => {
-  const originalAppMode = process.env.APP_MODE;
+  let nextCalled: boolean;
+  const next: NextFunction = () => { nextCalled = true; };
 
-  afterEach(() => {
-    if (originalAppMode === undefined) delete process.env.APP_MODE;
-    else process.env.APP_MODE = originalAppMode;
+  beforeEach(() => {
+    nextCalled = false;
   });
 
-  it('allows requests when APP_MODE=admin', async () => {
-    process.env.APP_MODE = 'admin';
-    let nextCalled = false;
-    const next: NextFunction = () => {
-      nextCalled = true;
-    };
-    await jest.isolateModulesAsync(async () => {
-      const { adminOnly } = await import('../src/middleware/adminOnly');
-      const req = {} as Request;
-      const res = mockRes();
-      adminOnly(req, res as Response, next);
-      expect(nextCalled).toBe(true);
-      expect(res._status).toBe(0);
-    });
+  it('allows requests when req.user is in the admin group', () => {
+    const req = {
+      user: { sub: 'u-1', email: 'u@x', groups: ['admin'] },
+    } as Request;
+    const res = mockRes();
+    adminOnly(req, res as Response, next);
+    expect(nextCalled).toBe(true);
+    expect(res._status).toBe(0);
   });
 
-  it('blocks requests with 403 when APP_MODE=public', async () => {
-    process.env.APP_MODE = 'public';
-    let nextCalled = false;
-    const next: NextFunction = () => {
-      nextCalled = true;
-    };
-    await jest.isolateModulesAsync(async () => {
-      const { adminOnly } = await import('../src/middleware/adminOnly');
-      const req = {} as Request;
-      const res = mockRes();
-      adminOnly(req, res as Response, next);
-      expect(nextCalled).toBe(false);
-      expect(res._status).toBe(403);
-    });
+  it('returns 401 when req.user is missing (auth middleware skipped)', () => {
+    const req = {} as Request;
+    const res = mockRes();
+    adminOnly(req, res as Response, next);
+    expect(nextCalled).toBe(false);
+    expect(res._status).toBe(401);
+  });
+
+  it('returns 403 when authed user lacks the admin group', () => {
+    const req = {
+      user: { sub: 'u-1', email: 'u@x', groups: ['viewer'] },
+    } as Request;
+    const res = mockRes();
+    adminOnly(req, res as Response, next);
+    expect(nextCalled).toBe(false);
+    expect(res._status).toBe(403);
+  });
+
+  it('returns 403 when user has empty groups array', () => {
+    const req = {
+      user: { sub: 'u-1', email: 'u@x', groups: [] as string[] },
+    } as Request;
+    const res = mockRes();
+    adminOnly(req, res as Response, next);
+    expect(nextCalled).toBe(false);
+    expect(res._status).toBe(403);
   });
 });

@@ -25,6 +25,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ThemeToggle from './components/ThemeToggle';
 import GitHubLink from './components/GitHubLink';
 import UnitToggle from './components/UnitToggle';
@@ -32,12 +33,8 @@ import DensityToggle from './components/DensityToggle';
 import NetworkStatus from './components/NetworkStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import BuildTray from './components/BuildTray';
+import AccountMenu from './components/AccountMenu';
 import './App.css';
-
-// ========== App Mode ==========
-// public = read-only cloud deployment, admin = local toolset with full access
-const APP_MODE = import.meta.env.VITE_APP_MODE || 'admin';
-const isAdmin = APP_MODE === 'admin';
 
 // ========== Eager Imports ==========
 import ProductList from './components/ProductList';
@@ -47,19 +44,15 @@ import ProductList from './components/ProductList';
 // land directly on the catalog at "/"; the marketing surface is opt-in.
 const Welcome = lazy(() => import('./components/Welcome'));
 
-
-// ========== Lazy Imports (admin-only, tree-shaken in public builds) ==========
-const ProductManagement = isAdmin
-  ? lazy(() => import('./components/ProductManagement'))
-  : null;
-
-const DatasheetsPage = isAdmin
-  ? lazy(() => import('./components/DatasheetsPage'))
-  : null;
-
-const AdminPanel = isAdmin
-  ? lazy(() => import('./components/AdminPanel'))
-  : null;
+// Admin views are code-split into their own chunks (lazy import →
+// separate JS file fetched only when an admin navigates). They ship
+// with every build now — gating is at runtime via the Cognito 'admin'
+// group, not at build time. Pre-Phase-4 we tree-shook these out of
+// public builds via VITE_APP_MODE; that no longer composes with one
+// deployed environment serving both audiences.
+const ProductManagement = lazy(() => import('./components/ProductManagement'));
+const DatasheetsPage = lazy(() => import('./components/DatasheetsPage'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
 
 /**
  * Loading Fallback Component
@@ -92,6 +85,11 @@ export function AppShell() {
   // and shouldn't sit underneath the existing "Product Search" header.
   const { pathname } = useLocation();
   const isLanding = pathname === '/welcome';
+  // Admin nav is shown iff the signed-in user is in the Cognito
+  // 'admin' group. The env-mode gate retired in Phase 4 — one
+  // deployed environment now serves both admin and public UI based
+  // on token contents.
+  const { isAdmin: showAdminNav } = useAuth();
 
   return (
     <>
@@ -109,7 +107,7 @@ export function AppShell() {
                 </NavLink>
               </h1>
               <GitHubLink />
-              {isAdmin && (
+              {showAdminNav && (
                 <nav className="nav-inline">
                   <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
                   <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
@@ -123,6 +121,7 @@ export function AppShell() {
               <UnitToggle />
               <DensityToggle />
               <ThemeToggle />
+              <AccountMenu />
             </div>
           </header>
         )}
@@ -137,10 +136,13 @@ export function AppShell() {
               {/* Specodex landing (Stage 1 rebrand) */}
               <Route path="/welcome" element={<Welcome />} />
 
-              {/* Admin-only routes (hidden in public mode) */}
-              {DatasheetsPage && <Route path="/datasheets" element={<DatasheetsPage />} />}
-              {ProductManagement && <Route path="/management" element={<ProductManagement />} />}
-              {AdminPanel && <Route path="/admin" element={<AdminPanel />} />}
+              {/* Admin routes — registered for everyone, but hidden
+                  from nav unless the user is in the Cognito 'admin'
+                  group. Non-admins typing the URLs see chrome but the
+                  data calls 401/403. */}
+              <Route path="/datasheets" element={<DatasheetsPage />} />
+              <Route path="/management" element={<ProductManagement />} />
+              <Route path="/admin" element={<AdminPanel />} />
 
               {/* Catch-all: Redirect to products */}
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -157,11 +159,13 @@ function App() {
   console.log('[App] Rendering application');
 
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </AppProvider>
+    </AuthProvider>
   );
 }
 
