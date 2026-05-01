@@ -4588,6 +4588,35 @@ hr::after {
   border-color: var(--accent-primary);
 }
 
+.build-tray-copy {
+  margin-left: auto;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.build-tray-copy:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.build-tray.is-complete {
+  border-top-color: var(--success, #4ade80);
+}
+
+.build-tray-complete-mark {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success, #4ade80);
+  margin-right: 0.1rem;
+  line-height: 1;
+}
+
 /* Banner at top of ProductList showing how many compatible items remain. */
 .compat-filter-banner {
   display: flex;

@@ -223,33 +223,41 @@ adding signal. Re-introduce when the shared protocol enum exists.
   any anchor. A banner near the top of the list shows the count delta and
   offers a "Show all" override.
 
-## Next slice — "build complete" affordances (planned)
+## Next slice — "build complete" affordances
 
-Phases A and B shipped. With all three slots fillable from the seamless flow,
-the missing pieces are end-of-chain affordances:
+Phases A and B shipped. End-of-chain affordances:
 
-1. **Whole-chain audit view.** When the tray has ≥2 filled adjacent slots,
-   add a "Review chain" button on the tray. Opens a modal that renders
-   every junction's `CompatibilityReport` side-by-side (drive↔motor and
-   motor↔gearhead), so the user can audit the whole BOM without reopening
-   each product. Reuses `CompatChecker`'s rendering primitives — no new
-   compat code needed; just a new component that calls `apiClient.checkCompat`
-   once per adjacent pair and stacks the results.
+1. **Whole-chain audit view (planned).** When the tray has ≥2 filled
+   adjacent slots, add a "Review chain" button on the tray. Opens a modal
+   that renders every junction's `CompatibilityReport` side-by-side
+   (drive↔motor and motor↔gearhead), so the user can audit the whole
+   BOM without reopening each product. Reuses `CompatChecker`'s
+   rendering primitives — no new compat code needed; just a new
+   component that calls `apiClient.checkCompat` once per adjacent pair
+   and stacks the results.
 
-2. **BOM export.** Tray gains a small "Copy BOM" button next to "Clear".
-   Emits a single block to the clipboard:
+2. **BOM export.** ✅ shipped 2026-04-30. Tray's "Copy BOM" button
+   (next to Clear) writes a plain-text block to the clipboard via
+   `navigator.clipboard.writeText`:
 
        Drive:    Bardac — P2-74250-3HF4N-T
        Motor:    ABB — E2BA315SMB6
-       Gearhead: <part>
+       Gearhead: SEW
 
-   Plus a one-line junction summary per pair (status + the most-significant
-   mismatch detail). Plain text first; CSV later if anyone asks. No
-   server work — pure clipboard-write from `useApp().build`.
+       Drive → Motor: ✓ compatible
+       Motor → Gearhead: ! frame_size: motor 80 ≠ gearhead 90
 
-3. **"Looks complete" badge on the tray.** When all three slots are filled
-   and every junction rolls up to `ok`, swap the tray's accent border to
-   green and show a small ✓ marker. Pure visual; no behavioural change.
+   Slot lines are padded to a fixed column; missing `part_number` drops
+   the suffix cleanly; junctions block is included only when ≥1 adjacent
+   pair exists. Button label flips to "Copied!" / "Copy failed" for
+   ~1.6s on each click. Pure-function helper `buildBomText(build,
+   junctions)` is exported and unit-tested separately. No server work.
+
+3. **"Looks complete" badge on the tray.** ✅ shipped 2026-04-30.
+   When all three slots are filled AND every junction rolls up to `ok`,
+   the tray adds the `is-complete` class (green border-top accent) and
+   renders a `✓` marker with `aria-label="Build complete"` next to
+   the "Build:" label. Pure visual; no behavioural change.
 
 4. **(Stretch) "Save build as preset"** — name it, store an array in
    localStorage, restore from a dropdown next to Clear. Useful once a user
@@ -265,11 +273,16 @@ sizing wizard — which is the only remaining item from the original plan.)
 
 ### Where the code lives when picked up
 
-- New: `app/frontend/src/components/ChainReviewModal.tsx` (whole-chain audit).
-- Edit: `app/frontend/src/components/BuildTray.tsx` (add Review/Copy/✓).
-- Edit: `app/frontend/src/App.css` (tray complete state, new buttons).
+- New: `app/frontend/src/components/ChainReviewModal.tsx` (whole-chain audit
+  — only remaining piece of this slice).
+- ~~Edit: `app/frontend/src/components/BuildTray.tsx` (add Review/Copy/✓).~~
+  Copy BOM + ✓ shipped 2026-04-30; only the "Review chain" button left
+  to add.
+- ~~Edit: `app/frontend/src/App.css` (tray complete state, new buttons).~~
+  Done.
 
-No backend touch. Estimate: half-day, mostly CSS + clipboard plumbing.
+No backend touch. ChainReviewModal estimate: ~2h, mostly Suspense-ed
+data fetch + reused CompatChecker rendering.
 
 ## Open questions
 

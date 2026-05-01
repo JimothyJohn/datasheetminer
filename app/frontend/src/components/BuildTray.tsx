@@ -10,9 +10,15 @@
  * compat check used by the list filter — strict-failed junctions show as
  * partial here too (fits-partial mode), but the colour cue still points at
  * which junction to inspect.
+ *
+ * When every slot is filled and every junction rolls up to `ok`, the tray
+ * flips to a "complete" visual state (green accent border + ✓) and the
+ * Copy BOM button writes a plain-text bill of materials to the clipboard.
  */
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILD_SLOTS, BuildSlot, check } from '../utils/compat';
+import type { Product } from '../types/models';
 import CompatBadge from './CompatBadge';
 
 const SLOT_LABEL: Record<BuildSlot, string> = {
@@ -21,36 +27,113 @@ const SLOT_LABEL: Record<BuildSlot, string> = {
   gearhead: 'Gearhead',
 };
 
+interface JunctionInfo {
+  from: BuildSlot;
+  to: BuildSlot;
+  status: 'ok' | 'partial' | null;
+  detail: string;
+}
+
+export function buildBomText(
+  build: Partial<Record<BuildSlot, Product>>,
+  junctions: JunctionInfo[],
+): string {
+  const lines: string[] = [];
+  // Pad slot labels to a stable column so the BOM block reads as a list,
+  // not a paragraph. "Gearhead:" is the longest label at 9 chars including
+  // the colon — pad to 10 so there's at least one space before the value.
+  const labelWidth = 10;
+  for (const slot of BUILD_SLOTS) {
+    const p = build[slot];
+    if (!p) continue;
+    const label = `${SLOT_LABEL[slot]}:`.padEnd(labelWidth);
+    const name = `${p.manufacturer || 'Unknown'}${p.part_number ? ` — ${p.part_number}` : ''}`;
+    lines.push(`${label}${name}`);
+  }
+  const filledJunctions = junctions.filter(j => j.status !== null);
+  if (filledJunctions.length > 0) {
+    lines.push('');
+    for (const j of filledJunctions) {
+      const tag = j.status === 'ok' ? '✓' : '!';
+      const detail = j.status === 'ok' ? 'compatible' : (j.detail || 'partial match');
+      lines.push(`${SLOT_LABEL[j.from]} → ${SLOT_LABEL[j.to]}: ${tag} ${detail}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export default function BuildTray() {
   const { build, removeFromBuild, clearBuild } = useApp();
   const filledCount = Object.values(build).filter(Boolean).length;
+
+  const junctions = useMemo<JunctionInfo[]>(() => {
+    const out: JunctionInfo[] = [];
+    for (let i = 0; i < BUILD_SLOTS.length - 1; i++) {
+      const from = BUILD_SLOTS[i];
+      const to = BUILD_SLOTS[i + 1];
+      const a = build[from];
+      const b = build[to];
+      if (!a || !b) {
+        out.push({ from, to, status: null, detail: '' });
+        continue;
+      }
+      try {
+        const r = check(a, b);
+        const status = r.status === 'fail' ? 'partial' : r.status;
+        let detail = '';
+        if (r.status !== 'ok') {
+          const issues = r.results.flatMap(p => p.checks.filter(c => c.status !== 'ok'));
+          detail = issues.map(c => `${c.field}: ${c.detail}`).join(' • ') || 'partial match';
+        }
+        out.push({ from, to, status, detail });
+      } catch {
+        out.push({ from, to, status: null, detail: '' });
+      }
+    }
+    return out;
+  }, [build]);
+
+  // "Complete" = every slot filled AND every junction rolled up to ok.
+  // Drives the green accent + ✓ marker; pure visual, no behavioural
+  // change beyond the Copy BOM button always being available when at
+  // least one slot is filled.
+  const isComplete = useMemo(() => {
+    if (filledCount !== BUILD_SLOTS.length) return false;
+    return junctions.every(j => j.status === 'ok');
+  }, [filledCount, junctions]);
+
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const copyBom = async () => {
+    const text = buildBomText(build, junctions);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+    // Auto-revert the label so the button stays useful for a second copy.
+    window.setTimeout(() => setCopyState('idle'), 1600);
+  };
+
   if (filledCount === 0) return null;
 
+  const trayClass = `build-tray${isComplete ? ' is-complete' : ''}`;
+
   return (
-    <div className="build-tray" role="region" aria-label="Motion system build">
+    <div className={trayClass} role="region" aria-label="Motion system build">
       <div className="build-tray-inner">
         <span className="build-tray-label">Build:</span>
+        {isComplete && (
+          <span className="build-tray-complete-mark" aria-label="Build complete" title="All slots filled and every junction is compatible">
+            ✓
+          </span>
+        )}
         {BUILD_SLOTS.map((slot, idx) => {
           const product = build[slot];
           const isLast = idx === BUILD_SLOTS.length - 1;
-          // Junction between this slot and the next, when both are filled.
-          const next = BUILD_SLOTS[idx + 1];
-          const nextProduct = next ? build[next] : undefined;
-          let junctionStatus: 'ok' | 'partial' | null = null;
-          let junctionDetail = '';
-          if (product && nextProduct) {
-            try {
-              const r = check(product, nextProduct);
-              // Soften fail→partial for display.
-              junctionStatus = r.status === 'fail' ? 'partial' : r.status;
-              if (r.status !== 'ok') {
-                const issues = r.results.flatMap(p => p.checks.filter(c => c.status !== 'ok'));
-                junctionDetail = issues.map(c => `${c.field}: ${c.detail}`).join(' • ') || 'partial match';
-              }
-            } catch {
-              junctionStatus = null;
-            }
-          }
+          const junction = junctions[idx];
+          const junctionStatus = junction?.status ?? null;
+          const junctionDetail = junction?.detail ?? '';
           return (
             <span key={slot} className="build-tray-slot-wrap">
               <span className={`build-tray-slot ${product ? 'filled' : 'empty'}`}>
@@ -87,6 +170,14 @@ export default function BuildTray() {
             </span>
           );
         })}
+        <button
+          type="button"
+          className="build-tray-copy"
+          onClick={copyBom}
+          title="Copy a plain-text bill of materials to the clipboard"
+        >
+          {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy BOM'}
+        </button>
         <button type="button" className="build-tray-clear" onClick={clearBuild}>
           Clear
         </button>
