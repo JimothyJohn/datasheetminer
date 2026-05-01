@@ -2,10 +2,10 @@
  * Tests for FilterChip component
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '../test/utils';
 import FilterChip from './FilterChip';
-import { FilterCriterion } from '../types/filters';
+import { FilterCriterion, AttributeMetadata } from '../types/filters';
 
 describe('FilterChip', () => {
   const mockFilter: FilterCriterion = {
@@ -215,6 +215,128 @@ describe('FilterChip', () => {
       const lastCall = onUpdate.mock.calls.at(-1)?.[0];
       // One pill left after removal — collapses back to plain string.
       expect(lastCall.value).toBe('DRV-A1');
+    });
+  });
+
+  describe('slider × unit system (L7)', () => {
+    // Numeric ValueUnit field. The slider gates on attributeType ∈
+    // {'object', 'range'}, computes its range from products, and renders
+    // labels / readout in the active display unit. Filter state stays
+    // canonical metric regardless of display.
+    const torqueAttribute: AttributeMetadata = {
+      key: 'rated_torque',
+      displayName: 'Rated Torque',
+      type: 'range',
+      applicableTypes: ['motor'],
+      unit: 'Nm',
+    };
+
+    const torqueProducts = [
+      { rated_torque: { value: 5,   unit: 'Nm' }, product_type: 'motor' as const, manufacturer: 'X' },
+      { rated_torque: { value: 25,  unit: 'Nm' }, product_type: 'motor' as const, manufacturer: 'X' },
+      { rated_torque: { value: 100, unit: 'Nm' }, product_type: 'motor' as const, manufacturer: 'X' },
+    ] as any;
+
+    const torqueFilter: FilterCriterion = {
+      attribute: 'rated_torque',
+      mode: 'include',
+      operator: '>=',
+      displayName: 'Rated Torque',
+    };
+
+    beforeEach(() => {
+      window.localStorage.clear();
+    });
+
+    function renderTorqueChip(unitSystem: 'metric' | 'imperial', onUpdate = vi.fn()) {
+      window.localStorage.setItem('unitSystem', unitSystem);
+      const utils = render(
+        <FilterChip
+          filter={torqueFilter}
+          attributeType="range"
+          attributeMetadata={torqueAttribute}
+          products={torqueProducts}
+          allProducts={torqueProducts}
+          suggestedValues={[]}
+          onUpdate={onUpdate}
+          onRemove={vi.fn()}
+          onEditAttribute={vi.fn()}
+        />,
+      );
+      return { ...utils, onUpdate };
+    }
+
+    it('renders slider min/max in metric (Nm) when unitSystem is metric', () => {
+      renderTorqueChip('metric');
+      // The two range labels are the smallest and largest data points.
+      // In metric they render unconverted: 5 and 100.
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('100')).toBeInTheDocument();
+      // Readout button shows "<value> Nm".
+      const readout = screen.getByTitle(/type an exact value/i);
+      expect(readout.textContent).toContain('Nm');
+      expect(readout.textContent).not.toContain('in·lb');
+    });
+
+    it('renders slider min/max in imperial (in·lb) when unitSystem is imperial', () => {
+      renderTorqueChip('imperial');
+      // 5 Nm × 8.850746 ≈ 44.25, 100 Nm ≈ 885.07 — roundDisplay trims
+      // to 4 sig figs (44.25 and 885.1).
+      expect(screen.getByText('44.25')).toBeInTheDocument();
+      expect(screen.getByText('885.1')).toBeInTheDocument();
+      const readout = screen.getByTitle(/type an exact value/i);
+      expect(readout.textContent).toContain('in·lb');
+      expect(readout.textContent).not.toMatch(/\bNm\b/);
+    });
+
+    it('round-trips an imperial typed value back to canonical metric via onUpdate', () => {
+      const { onUpdate } = renderTorqueChip('imperial');
+      onUpdate.mockClear();   // discard the auto-seed call from useEffect
+
+      // Open the value editor.
+      fireEvent.click(screen.getByTitle(/type an exact value/i));
+      const input = screen.getByLabelText(/override slider with typed value/i) as HTMLInputElement;
+
+      // User types 100 in·lb. Canonical = 100 / 8.850746 ≈ 11.30 Nm.
+      fireEvent.change(input, { target: { value: '100' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      const lastCall = onUpdate.mock.calls.at(-1)?.[0];
+      expect(typeof lastCall.value).toBe('number');
+      expect(lastCall.value).toBeCloseTo(100 / 8.850746, 3);
+      // Operator preserved through the round trip.
+      expect(lastCall.operator).toBe('>=');
+    });
+
+    it('falls back gracefully when records carry no unit string', () => {
+      // Same numeric values, but the per-record unit is missing — only
+      // attributeMetadata.unit (Nm) supplies the display unit. The slider
+      // should still render valid min/max labels (no NaN).
+      const noUnitProducts = [
+        { rated_torque: { value: 5   }, product_type: 'motor' as const, manufacturer: 'X' },
+        { rated_torque: { value: 100 }, product_type: 'motor' as const, manufacturer: 'X' },
+      ] as any;
+
+      window.localStorage.setItem('unitSystem', 'metric');
+      render(
+        <FilterChip
+          filter={torqueFilter}
+          attributeType="range"
+          attributeMetadata={torqueAttribute}
+          products={noUnitProducts}
+          allProducts={noUnitProducts}
+          suggestedValues={[]}
+          onUpdate={vi.fn()}
+          onRemove={vi.fn()}
+          onEditAttribute={vi.fn()}
+        />,
+      );
+
+      // No NaN should leak into the rendered range labels or readout.
+      expect(document.body.textContent).not.toMatch(/NaN/);
+      // Range labels still resolve to the underlying numeric values.
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('100')).toBeInTheDocument();
     });
   });
 });

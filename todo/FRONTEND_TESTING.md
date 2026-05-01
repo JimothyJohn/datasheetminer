@@ -158,16 +158,26 @@ Three new component tests covering the three header chips:
 
 15 new tests; suite is now 18 files, 318 passing.
 
-### Phase 5: FilterChip × unit system — 1 file extension
+### Phase 5: FilterChip × unit system — ✅ shipped 2026-04-30
 
-`FilterChip.test.tsx` exists. Extend with the unit-aware cases:
+Extended `FilterChip.test.tsx` with a "slider × unit system" describe
+block covering L7 at the chip layer:
 
-- A `MinMaxUnit` filter on a metric field renders the slider in metric when
-  `unitSystem='metric'`, imperial when `'imperial'` (L7).
-- Editing the value in imperial and committing writes the *converted metric*
-  value back via `onUpdate` (the store stays canonical metric).
-- A `MinMaxUnit` filter against a record where the unit is missing falls
-  through gracefully (no NaN in the slider).
+- Slider min/max labels render in metric (`5`, `100`) with unit `Nm`
+  when `unitSystem='metric'`, and in imperial (`44.25`, `885.1`) with
+  unit `in·lb` when `unitSystem='imperial'`. The `Nm` ↔ `in·lb`
+  conversion factor (8.850746) and the 4-sig-fig roundDisplay are
+  exercised end-to-end.
+- Round trip: in imperial, click the readout, type `100` (in·lb), press
+  Enter — `onUpdate` receives `value` as the *canonical metric* number
+  (`100 / 8.850746 ≈ 11.30`), operator preserved. Confirms the
+  display-vs-storage split: filter state stays metric, only the labels
+  flip.
+- Unit-missing fallback: products carrying `{ value: 5 }` (no `unit`
+  key) still render valid range labels and no `NaN` text leaks into the
+  DOM. Display unit comes from `attributeMetadata.unit` as the backstop.
+
+4 new tests; the file is now 12 tests. Suite is 19 files, 328 passing.
 
 ### Phase 6: BuildTray + compat — 1 file
 
@@ -205,7 +215,7 @@ that catches "I broke the imports" before CI does.
 3. ✅ Phase 2 shipped 2026-04-30.
 4. ✅ Phase 3 shipped 2026-04-30 (helper-level + L1 bug fix; full DOM test deferred).
 5. ✅ Phase 4 shipped 2026-04-30.
-6. Phase 5 (FilterChip unit system). Locks in L7. ~1h. **Next.**
+6. ✅ Phase 5 shipped 2026-04-30.
 7. Phase 6 (BuildTray). ~1h.
 8. Phase 7 (ErrorBoundary), Phase 8 (smoke-render). ~1h together.
 

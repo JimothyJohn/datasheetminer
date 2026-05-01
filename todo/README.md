@@ -4,17 +4,25 @@
 of what's left without opening each `todo/*.md`. Drill into the linked
 docs only when you're about to act on that work.
 
-> **Recently shipped (2026-04-28 / 2026-04-29).** REBRAND Stage 4 cutover
+> **Recently shipped (2026-04-28 / 2026-04-30).** REBRAND Stage 4 cutover
 > ✅ `www.specodex.com` is live, `datasheets.advin.io` NXDOMAIN'd.
 > All 5 CICD followups merged (`fromlookup`, `ci-hygiene`,
 > `nightly-bench`, `staging-yml-cleanup`, `late-night-dedupe-audit`).
 > Frontend visual iteration ✅ (App.css palette, Welcome rework,
 > ProductList refinements, FilterChip refactor + tests, sitemap.xml).
 > UNITS ✅ (`ValueUnit` / `MinMaxUnit` end-to-end + data backfill).
+> Mobile-friendly compaction pass ✅ shipped 2026-04-30 — header / filter
+> sidebar / product grid / build tray / modal / pagination all trimmed,
+> filter sidebar 500 → 380px and no longer orphaned 96px below the header
+> (the chief "misalignment"); admin nav hides under 600px so phone
+> headers don't clip the display toggles. Verified at 1440 / 1280 / 768
+> / 414 / 375 with Playwright. CSS bundle flat (14.84 kB gzip).
 >
 > Historical plans for REBRAND and UNITS were deleted from `todo/` on
 > 2026-04-29 — see `git log --diff-filter=D --follow -- todo/REBRAND.md
-> todo/UNITS.md` if you need the design rationale.
+> todo/UNITS.md` if you need the design rationale. A MOBILE.md plan
+> proposing structural changes (bottom drawer, mobile cards) was drafted
+> but never committed; the compaction pass above shipped in its place.
 
 ## How to use it
 
@@ -43,7 +51,7 @@ Ordered by **dependency-and-rework risk**, not urgency or size.
 | 3 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
 | 4 | [INTEGRATION.md](INTEGRATION.md) | 🚧 phases A+B ✅ shipped 2026-04-26 | 🟢 small | Motion-system builder — drive → motor → gearhead. Next slice: chain-review modal + BOM copy + "looks complete" tray state. UI-only. |
 | 5 | [CICD.md](CICD.md) | 🟢 healthy — full chain green; 2 small followups remain | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. **Remaining followups:** delete dead `HOSTED_ZONE_ID` secret + remove its workflow validation (operator-only); apex `specodex.com` support (only `www` resolves today). `config.ts` apex-domain fallback ✅ shipped 2026-04-30 (`HOSTED_ZONE_NAME` now optional for 2-part domains); codeql.yml SHA pin ✅ shipped 2026-04-30 (v3.35.2, `ce64ddc`). |
-| 6 | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) | 🚧 Phases 1+2+3+4 ✅ shipped 2026-04-30 (per-key persistence, AppContext setter contract, ProductList type-switch reset bundle + L1 fix, header toggles); Phases 5–8 pending | 🟢 small (half-day, 8 phases) | Lock down "simple but crucial" frontend state — persistence keys, AppContext setters, ProductList type-switch resets, header toggles, FilterChip unit propagation. Catches L1–L12 spillover bestiary. |
+| 6 | [FRONTEND_TESTING.md](FRONTEND_TESTING.md) | 🚧 Phases 1–5 ✅ shipped 2026-04-30 (per-key persistence, AppContext setter contract, ProductList type-switch reset + L1 fix, header toggles, FilterChip unit propagation); Phases 6–8 pending | 🟢 small (half-day, 8 phases) | Lock down "simple but crucial" frontend state — persistence keys, AppContext setters, ProductList type-switch resets, header toggles, FilterChip unit propagation. Catches L1–L12 spillover bestiary. |
 | 7 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
 
 Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · 📐 planned
