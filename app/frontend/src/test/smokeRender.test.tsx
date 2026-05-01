@@ -21,6 +21,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppProvider } from '../context/AppContext';
+import { AuthProvider } from '../context/AuthContext';
 import { AppShell } from '../App';
 
 vi.mock('../api/client', () => ({
@@ -35,17 +36,36 @@ vi.mock('../api/client', () => ({
     createDatasheet: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
     updateDatasheet: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
     deleteDatasheet: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
+    // Auth methods AuthContext touches on mount (setAuthToken via
+    // a useEffect; the others only fire on user interaction so
+    // unauthenticated smoke renders never reach them, but mock to
+    // catch any future regression).
+    setAuthToken: vi.fn(),
+    authLogin: vi.fn(),
+    authRegister: vi.fn(),
+    authConfirm: vi.fn(),
+    authResendCode: vi.fn(),
+    authForgotPassword: vi.fn(),
+    authResetPassword: vi.fn(),
+    authRefresh: vi.fn(),
   },
   default: {},
 }));
 
 function renderRoute(path: string) {
+  // Auth Phase 4 made AppShell call useAuth() — wrap in
+  // AuthProvider so the hook resolves. The smoke render is
+  // unauthed; AuthProvider with no localStorage tokens sits at
+  // user=null, isAdmin=false, which is exactly the public-mode
+  // shape this suite has always asserted.
   return render(
-    <AppProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <AppShell />
-      </MemoryRouter>
-    </AppProvider>,
+    <AuthProvider>
+      <AppProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <AppShell />
+        </MemoryRouter>
+      </AppProvider>
+    </AuthProvider>,
   );
 }
 
