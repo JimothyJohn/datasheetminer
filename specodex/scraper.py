@@ -44,9 +44,8 @@ from specodex.utils import (
     validate_api_key,
     UUIDEncoder,
     get_product_info_from_json,
-    parse_gemini_response,
 )
-from specodex.llm import generate_content
+from specodex.extract import call_llm_and_parse
 from specodex.page_finder import find_spec_pages_by_text  # noqa: E402
 
 PAGES_PER_CHUNK = int(os.environ.get("PAGES_PER_CHUNK", "4"))
@@ -547,48 +546,6 @@ def _save_failure_artifacts(
         logger.warning("Failed to save failure artifacts to %s: %s", save_dir, exc)
 
 
-def _token_counts(response: Any) -> tuple[int, int]:
-    """Pull (input, output) token counts off a genai response; zeros if absent."""
-    usage = getattr(response, "usage_metadata", None)
-    if usage is None:
-        return 0, 0
-
-    def _as_int(value: Any) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return 0
-
-    return (
-        _as_int(getattr(usage, "prompt_token_count", 0)),
-        _as_int(getattr(usage, "candidates_token_count", 0)),
-    )
-
-
-def _call_llm(
-    doc_data: bytes | str,
-    api_key: str,
-    product_type: str,
-    context: dict,
-    content_type: str,
-    tokens: Optional[dict] = None,
-) -> List[Any]:
-    """Call Gemini and parse the response into Pydantic models.
-
-    If ``tokens`` is a dict with 'input'/'output' keys, the per-call
-    token counts are added to it in-place so the caller can roll up
-    multi-call (per-page) extractions.
-    """
-    response = generate_content(doc_data, api_key, product_type, context, content_type)
-    if tokens is not None:
-        inp, out = _token_counts(response)
-        tokens["input"] = tokens.get("input", 0) + inp
-        tokens["output"] = tokens.get("output", 0) + out
-    return parse_gemini_response(
-        response, SCHEMA_CHOICES[product_type], product_type, context
-    )
-
-
 def _extract_per_page(
     full_pdf: bytes,
     pages_0idx: List[int],
@@ -619,7 +576,7 @@ def _extract_per_page(
         try:
             page_pdf = _extract_bundled_pdf(full_pdf, chunk)
             page_context = dict(context, single_page_mode=True)
-            products = _call_llm(
+            products = call_llm_and_parse(
                 page_pdf, api_key, product_type, page_context, content_type, tokens
             )
             for model in products:
@@ -803,14 +760,14 @@ def process_datasheet(
                 )
                 pages_used = list(pages)
                 doc_data = _extract_bundled_pdf(full_pdf, pages)
-                parsed_models = _call_llm(
+                parsed_models = call_llm_and_parse(
                     doc_data, api_key, product_type, context, content_type, tokens
                 )
                 for model in parsed_models:
                     model.pages = [p + 1 for p in pages]
             else:
                 doc_data = full_pdf
-                parsed_models = _call_llm(
+                parsed_models = call_llm_and_parse(
                     doc_data, api_key, product_type, context, content_type, tokens
                 )
         else:
@@ -832,7 +789,7 @@ def process_datasheet(
                 _maybe_save_failure(STATUS_EXTRACT_FAIL, "html_download_failed")
                 return "failed"
             source_bytes = doc_data
-            parsed_models = _call_llm(
+            parsed_models = call_llm_and_parse(
                 doc_data, api_key, product_type, context, content_type, tokens
             )
 

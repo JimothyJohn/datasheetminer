@@ -26,14 +26,13 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from specodex.browser import PageContent, fetch_page
 from specodex.config import SCHEMA_CHOICES
 from specodex.db.dynamo import DynamoDBClient
-from specodex.llm import generate_content
+from specodex.extract import call_llm_and_parse
 from specodex.models.product import ProductBase
 from specodex.quality import filter_products
-from specodex.utils import parse_gemini_response, validate_api_key, UUIDEncoder
-
-from specodex.browser import PageContent, fetch_page
+from specodex.utils import validate_api_key, UUIDEncoder
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -129,8 +128,6 @@ def process_page(
 
     Returns: "success", "skipped", or "failed".
     """
-    model_class = SCHEMA_CHOICES[product_type]
-
     # --- Fetch page ---
     try:
         page: PageContent = fetch_page(url)
@@ -156,32 +153,14 @@ def process_page(
         "pages": None,
     }
 
-    # --- LLM extraction ---
+    # --- LLM extraction + parse (shared with PDF scraper via specodex.extract) ---
     logger.info("Sending %d chars to LLM for extraction", len(html_for_llm))
     try:
-        response = generate_content(
+        parsed_models = call_llm_and_parse(
             html_for_llm, api_key, product_type, context, content_type="html"
         )
     except Exception as e:
-        logger.error("LLM extraction failed: %s", e)
-        return "failed"
-
-    # Debug dump
-    if response and hasattr(response, "text"):
-        try:
-            Path("webscraper_debug_response.txt").write_text(
-                response.text, encoding="utf-8"
-            )
-        except Exception:
-            pass
-
-    # --- Parse CSV → Pydantic ---
-    try:
-        parsed_models = parse_gemini_response(
-            response, model_class, product_type, context
-        )
-    except (ValueError, TypeError) as e:
-        logger.error("Failed to parse LLM response: %s", e)
+        logger.error("LLM extraction or parse failed: %s", e)
         return "failed"
 
     if not parsed_models:

@@ -25,8 +25,8 @@ FAKE_API_KEY = "fake-api-key-for-test"
 class TestProcessDatasheetWebContent:
     """Test non-PDF (HTML) content paths."""
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.get_web_content")
     @patch("specodex.scraper.is_pdf_url", return_value=False)
     def test_html_success(
@@ -96,8 +96,8 @@ class TestProcessDatasheetWebContent:
 class TestProcessDatasheetParseFailure:
     """Test when LLM response parsing fails."""
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_parse_value_error(
@@ -119,8 +119,8 @@ class TestProcessDatasheetParseFailure:
         )
         assert result == "failed"
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     def test_empty_parse_result(

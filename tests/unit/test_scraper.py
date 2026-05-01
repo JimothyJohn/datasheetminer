@@ -94,8 +94,8 @@ class TestProcessDatasheet:
         assert result == "skipped"
         mock_client.product_exists.assert_called_once()
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.is_pdf_url")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.find_spec_pages_by_text", return_value=[])
@@ -141,8 +141,8 @@ class TestProcessDatasheet:
         assert result == "success"
         mock_client.batch_create.assert_called_once()
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.is_pdf_url")
     @patch("specodex.scraper.get_web_content")
     def test_html_success(
@@ -212,8 +212,8 @@ class TestProcessDatasheet:
 
         assert result == "failed"
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.is_pdf_url")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.find_spec_pages_by_text", return_value=[])
@@ -250,8 +250,8 @@ class TestProcessDatasheet:
         assert result == "failed"
 
     @patch("specodex.quality.filter_products", side_effect=lambda ps, **_: (ps, []))
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.is_pdf_url")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.find_spec_pages_by_text", return_value=[])
@@ -313,8 +313,8 @@ class TestProcessDatasheet:
         saved_models = mock_client.batch_create.call_args[0][0]
         assert saved_models[0].product_id == expected_id
 
-    @patch("specodex.scraper.parse_gemini_response")
-    @patch("specodex.scraper.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
     @patch("specodex.scraper.is_pdf_url")
     @patch("specodex.scraper.get_document")
     @patch("specodex.scraper.find_spec_pages_by_text", return_value=[])

@@ -102,8 +102,8 @@ class TestPdfToDbPipeline:
     @patch("specodex.scraper._extract_bundled_pdf", return_value=b"fake page bytes")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     @patch("specodex.scraper.get_document", return_value=b"fake pdf")
-    @patch("specodex.scraper.generate_content")
-    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
     def test_pdf_to_db_pipeline(
         self,
         mock_parse: MagicMock,
@@ -142,8 +142,8 @@ class TestPdfToDbPipeline:
 class TestHtmlToDbPipeline:
     @patch("specodex.scraper.is_pdf_url", return_value=False)
     @patch("specodex.scraper.get_web_content", return_value="<html>specs</html>")
-    @patch("specodex.scraper.generate_content")
-    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
     def test_html_to_db_pipeline(
         self,
         mock_parse: MagicMock,
@@ -215,8 +215,8 @@ class TestBatchFromJson:
     @patch("specodex.scraper._extract_bundled_pdf", return_value=b"fake page bytes")
     @patch("specodex.scraper.is_pdf_url", return_value=True)
     @patch("specodex.scraper.get_document", return_value=b"fake pdf")
-    @patch("specodex.scraper.generate_content")
-    @patch("specodex.scraper.parse_gemini_response")
+    @patch("specodex.extract.generate_content")
+    @patch("specodex.extract.parse_gemini_response")
     def test_batch_from_json(
         self,
         mock_parse: MagicMock,

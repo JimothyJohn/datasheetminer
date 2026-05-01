@@ -153,9 +153,9 @@ class TestDegradedPdfInputs:
         mock_get.return_value = _build_pdf(["", "", ""])  # 3 blank pages
 
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.extract.generate_content") as mock_gen,
             patch(
-                "specodex.scraper.parse_gemini_response", return_value=[]
+                "specodex.extract.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -207,9 +207,9 @@ class TestPageRouting:
 
         mock_get.return_value = _build_pdf([_spec_text(5)] * 4)
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.extract.generate_content") as mock_gen,
             patch(
-                "specodex.scraper.parse_gemini_response", return_value=[]
+                "specodex.extract.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -245,9 +245,9 @@ class TestPageRouting:
         mock_get.return_value = _build_pdf([_spec_text(5)] * 6)
 
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.extract.generate_content") as mock_gen,
             patch(
-                "specodex.scraper.parse_gemini_response", return_value=[]
+                "specodex.extract.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -280,9 +280,9 @@ class TestPageRouting:
         mock_get.return_value = _build_pdf(["lorem ipsum"] * 3)
 
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.extract.generate_content") as mock_gen,
             patch(
-                "specodex.scraper.parse_gemini_response", return_value=[]
+                "specodex.extract.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -331,9 +331,9 @@ class TestPageRouting:
             [_spec_text(5), "filler", _spec_text(5), "filler"]
         )
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
+            patch("specodex.extract.generate_content") as mock_gen,
             patch(
-                "specodex.scraper.parse_gemini_response", return_value=[]
+                "specodex.extract.parse_gemini_response", return_value=[]
             ) as mock_parse,
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
@@ -364,8 +364,8 @@ class TestPageRouting:
 
         mock_get.return_value = _build_pdf([_spec_text(5), "filler", _spec_text(5)])
         with (
-            patch("specodex.scraper.generate_content") as mock_gen,
-            patch("specodex.scraper.parse_gemini_response", return_value=[]),
+            patch("specodex.extract.generate_content") as mock_gen,
+            patch("specodex.extract.parse_gemini_response", return_value=[]),
         ):
             mock_gen.return_value = MagicMock(text="[]", usage_metadata=None)
             process_datasheet(
