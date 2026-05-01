@@ -33,7 +33,7 @@ from specodex.models.product import ProductBase
 from specodex.quality import filter_products
 from specodex.utils import parse_gemini_response, validate_api_key, UUIDEncoder
 
-from webscraper.browser import PageContent, fetch_page
+from specodex.browser import PageContent, fetch_page
 
 
 logger: logging.Logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
-"""Unit tests for webscraper.browser — HTML cleaning, JSON-LD extraction, metadata."""
+"""Unit tests for specodex.browser — HTML cleaning, JSON-LD extraction, metadata."""
 
-from webscraper.browser import (
+from specodex.browser import (
     PageContent,
     PageMetadata,
     _extract_json_ld,

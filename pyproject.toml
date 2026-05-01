@@ -24,7 +24,7 @@ specodex = "specodex.scraper:main"
 page-finder = "specodex.page_finder:main"
 dsm-agent = "cli.agent:main"
 dsm = "cli.query:main"
-web-scraper = "webscraper.scraper:main"
+web-scraper = "specodex.web_scraper:main"
 
 [dependency-groups]
 dev = [
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["specodex", "cli", "webscraper"]
+packages = ["specodex", "cli"]
 
 [tool.uv]
 package = true

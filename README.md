@@ -73,8 +73,8 @@ New product types can be scaffolded with `./Quickstart schemagen <pdf>... --type
 ## Architecture
 
 ```
-specodex/                Python core: LLM, page-finder, Pydantic models, validation, DynamoDB
-webscraper/              Playwright-based product-page scraper (same downstream pipeline)
+specodex/                Python core: LLM, page-finder, Pydantic models, validation, DynamoDB,
+                         PDF scraper (scraper.py), web scraper (web_scraper.py + browser.py)
 cli/                     CLI modules: bench, intake, processor, admin, schemagen, agent, triage
 app/
   backend/               Express API on AWS Lambda via API Gateway (TypeScript)

@@ -222,7 +222,7 @@ def _process_product(
     if dry_run:
         return
 
-    # Enrich: only fill when msrp is still None. webscraper._merge_products
+    # Enrich: only fill when msrp is still None. specodex.web_scraper._merge_products
     # semantics — do not overwrite populated fields.
     if product.msrp is not None:
         logger.info("skip write — product %s already has msrp", product.product_id)

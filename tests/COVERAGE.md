@@ -123,7 +123,7 @@ No line-level coverage collected (`@vitest/coverage-v8` not installed).
 
 ---
 
-## Web Scraper Tests (webscraper/)
+## Web Scraper Tests (specodex/browser.py, specodex/web_scraper.py)
 
 Source: `uv run pytest tests/unit/test_webscraper.py -v`
 
