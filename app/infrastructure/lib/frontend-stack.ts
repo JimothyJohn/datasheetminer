@@ -15,6 +15,7 @@ import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import { AppConfig } from './config';
 import { SiteWebAcl } from './waf/site-web-acl';
+import { SiteResponseHeadersPolicy } from './headers/site-response-headers-policy';
 import * as path from 'path';
 
 export interface FrontendStackProps extends cdk.StackProps {
@@ -66,6 +67,16 @@ export class FrontendStack extends cdk.Stack {
         })
       : undefined;
 
+    // Phase 5d: CSP + HSTS + frame-ancestors etc. Applied to every
+    // behavior so a misrouted request can't dodge the headers.
+    // CSP_DISABLED=true bypasses (debug knob — should never be set
+    // in deploy environments; if a CSP rule is blocking a real
+    // feature, fix the directive in the construct, don't disable
+    // wholesale).
+    const responseHeadersPolicy = (process.env.CSP_DISABLED ?? '').toLowerCase() === 'true'
+      ? undefined
+      : new SiteResponseHeadersPolicy(this, 'SecHeaders', { stage: config.stage }).policy;
+
     // CloudFront distribution
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       ...(siteWebAcl ? { webAclId: siteWebAcl.arn } : {}),
@@ -73,6 +84,7 @@ export class FrontendStack extends cdk.Stack {
         origin: s3Origin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        ...(responseHeadersPolicy ? { responseHeadersPolicy } : {}),
       },
       additionalBehaviors: {
         '/api/*': {
@@ -81,6 +93,7 @@ export class FrontendStack extends cdk.Stack {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+          ...(responseHeadersPolicy ? { responseHeadersPolicy } : {}),
         },
         '/health': {
           origin: apiOrigin,
@@ -88,6 +101,7 @@ export class FrontendStack extends cdk.Stack {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+          ...(responseHeadersPolicy ? { responseHeadersPolicy } : {}),
         },
       },
       defaultRootObject: 'index.html',
