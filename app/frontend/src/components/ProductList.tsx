@@ -24,6 +24,44 @@ import AttributeSelector from './AttributeSelector';
 import Dropdown from './Dropdown';
 import { ADJACENT_TYPES, BuildSlot, check as compatCheck } from '../utils/compat';
 
+/**
+ * The state slices ProductList resets when the user picks a new product
+ * type. Extracted so the spillover bestiary (FRONTEND_TESTING.md) is
+ * pinned by a unit test instead of drifting silently:
+ *   L1: selectedProduct + clickPosition cleared (else the modal stays
+ *       open across the type switch)
+ *   L2: filters reset to the new type's curated defaults
+ *   L3: sorts cleared
+ *   plus appType/linearTravel/loadMass return to their rotary defaults
+ *   so a chain of "linear motor / 50 mm travel" doesn't follow the user
+ *   into a drive screen.
+ *
+ * `currentPage` is intentionally not in this bundle — the existing
+ * `useEffect` that watches `filters, sorts, itemsPerPage` resets it to
+ * 1 transitively when this bundle is applied.
+ */
+export interface ProductListResetState {
+  filters: FilterCriterion[];
+  sorts: SortConfig[];
+  selectedProduct: Product | null;
+  clickPosition: { x: number; y: number } | null;
+  appType: 'rotary' | 'linear' | 'z-axis';
+  linearTravel: number;
+  loadMass: number;
+}
+
+export function defaultStateForType(type: ProductType): ProductListResetState {
+  return {
+    filters: buildDefaultFiltersForType(type),
+    sorts: [],
+    selectedProduct: null,
+    clickPosition: null,
+    appType: 'rotary',
+    linearTravel: 0,
+    loadMass: 0,
+  };
+}
+
 export default function ProductList() {
   const { products, categories, loading, error, loadProducts, loadCategories, unitSystem, build, compatibleOnly, setCompatibleOnly, rowDensity } = useApp();
   const [productType, setProductType] = useState<ProductType>(null);
@@ -370,12 +408,15 @@ export default function ProductList() {
   // Sort starts empty — rows render in the catalog's natural order
   // until the user clicks a column header.
   const handleProductTypeChange = (newType: ProductType) => {
+    const reset = defaultStateForType(newType);
     setProductType(newType);
-    setFilters(buildDefaultFiltersForType(newType));
-    setSorts([]);
-    setAppType('rotary');
-    setLinearTravel(0);
-    setLoadMass(0);
+    setFilters(reset.filters);
+    setSorts(reset.sorts);
+    setSelectedProduct(reset.selectedProduct);
+    setClickPosition(reset.clickPosition);
+    setAppType(reset.appType);
+    setLinearTravel(reset.linearTravel);
+    setLoadMass(reset.loadMass);
   };
 
   // Torque/speed keys — used for linear-mode display conversions.
