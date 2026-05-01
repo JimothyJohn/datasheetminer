@@ -87,7 +87,7 @@ function LoadingFallback() {
   );
 }
 
-function AppShell() {
+export function AppShell() {
   // The Specodex landing renders its own chrome (OD-green band, footer)
   // and shouldn't sit underneath the existing "Product Search" header.
   const { pathname } = useLocation();

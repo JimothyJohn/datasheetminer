@@ -179,34 +179,70 @@ block covering L7 at the chip layer:
 
 4 new tests; the file is now 12 tests. Suite is 19 files, 328 passing.
 
-### Phase 6: BuildTray + compat — 1 file
+### Phase 6: BuildTray + compat — ✅ shipped 2026-04-30
 
-**`src/components/BuildTray.test.tsx`** (new) —
+`src/components/BuildTray.test.tsx` (11 tests) covers the tray's
+contract end-to-end through the real AppProvider:
 
-- Hidden when build is empty.
-- Renders one slot for each filled `BUILD_SLOTS` entry, in slot order.
-- `removeFromBuild` button on each slot calls the right setter.
-- Junction badge between two adjacent filled slots reflects the report shape
-  (mock `apiClient.checkCompat`); single-slot build shows no junctions.
-- "Clear" empties the tray.
+- Hidden entirely when no slot is filled (returns null, no `.build-tray`
+  in the DOM).
+- Renders all three `BUILD_SLOTS` labels in fixed order
+  (Drive → Motor → Gearhead) whenever at least one is filled — the
+  unfilled ones show `empty` with no remove control.
+- Filled slots show `<manufacturer> — <part_number>` and a "Remove
+  <Slot> from build" aria-labeled button; missing `part_number` drops
+  the suffix cleanly (no orphan em-dash).
+- Remove button calls `removeFromBuild(slot)` and the in-tree probe
+  consumer reflects the change immediately; surviving slots stay
+  rendered as filled.
+- "Clear" calls `clearBuild()`, the tray vanishes, and a probe consumer
+  shows `{}`.
+- Junctions: between two adjacent **filled** slots a `.compat-badge`
+  renders (status from the actual `check()` from `utils/compat`, no
+  mock — the function is pure). When at least one side is empty the
+  junction renders the `.build-tray-arrow` instead. Compat report is
+  the production shape (`apiClient.checkCompat` mention in the original
+  plan was outdated — the chip is fully client-side).
 
-This + Phase 2's build cases together pin down the build flow without needing
-a real backend.
+Pairs with Phase 2's build setter coverage to pin the whole build flow
+without a backend.
 
-### Phase 7: ErrorBoundary — 1 small file
+### Phase 7: ErrorBoundary — ✅ shipped 2026-04-30
 
-**`src/components/ErrorBoundary.test.tsx`** (new) — render a child that throws
-on mount, assert fallback UI shows. Render a healthy child, assert no fallback.
-3 cases, ~30 lines. Right now a render-time crash anywhere in the app shows a
-white page — this test makes sure the boundary at least exists and catches.
+`src/components/ErrorBoundary.test.tsx` (4 tests):
 
-### Phase 8: smoke-render every page — 1 file
+- Renders the child unchanged when nothing throws.
+- Catches a throwing child, shows the default fallback ("Something went
+  wrong" + the thrown error's `.message` + a "Try Again" button).
+- Custom `fallback` prop overrides the default UI when provided.
+- Try Again clears the error state; re-rendering with a healthy child
+  then surfaces the recovered tree (the recovery path actually works,
+  not just the catch).
 
-**`src/test/smokeRender.test.tsx`** (new) — render `<App />` wrapped in
-`MemoryRouter` for each route (`/`, `/welcome`, `/datasheets`, `/management`,
-`/admin`) with `apiClient` fully mocked. Assert: no thrown errors, no
-`ErrorBoundary` fallback, the route's heading is in the DOM. This is one file
-that catches "I broke the imports" before CI does.
+`console.error` is silenced for the duration of the file so React's
+boundary-trip noise doesn't pollute test output.
+
+### Phase 8: smoke-render every page — ✅ shipped 2026-04-30
+
+Implementation tweak: `App.tsx` now exports `AppShell` so the test can
+wrap it in `MemoryRouter` (the prod entry uses `BrowserRouter` and is
+not test-friendly). `src/test/smokeRender.test.tsx` (6 tests) renders
+`<AppShell />` for each registered route with `apiClient` mocked at
+module level:
+
+- `/` (ProductList) — Categories never resolve, so the FilterBar
+  Dropdown sits at "Loading..." (asserted).
+- `/welcome` — lazy-loaded landing; awaits Suspense, then asserts on
+  the hero copy "A product selection frontend".
+- `/datasheets` (admin-only, lazy) — awaits the `<h1>Datasheets</h1>`.
+- `/management` (admin-only, lazy) — awaits the `<h2>Product Management</h2>`.
+- `/admin` (admin-only, lazy) — awaits the `<h2>Admin</h2>`.
+- `*` catch-all — `/this-route-does-not-exist` redirects to `/` and
+  shows the same "Loading..." dropdown.
+
+Every test asserts the ErrorBoundary fallback ("Something went wrong")
+is NOT in the DOM. Net effect: import-time + initial-render breakage
+on any of the 5 routes fails this single file, well before CI.
 
 ## Order to implement
 
@@ -216,6 +252,15 @@ that catches "I broke the imports" before CI does.
 4. ✅ Phase 3 shipped 2026-04-30 (helper-level + L1 bug fix; full DOM test deferred).
 5. ✅ Phase 4 shipped 2026-04-30.
 6. ✅ Phase 5 shipped 2026-04-30.
+7. ✅ Phase 6 shipped 2026-04-30.
+8. ✅ Phase 7 shipped 2026-04-30.
+9. ✅ Phase 8 shipped 2026-04-30.
+
+**All 8 phases done.** Next bites are the deferred items: full DOM-level
+ProductList type-switch test (Phase 3 follow-up — only worth it if
+`handleProductTypeChange` ever drifts from `defaultStateForType`),
+ratcheting `vitest --coverage` up in CI, and Playwright/visual regression
+(an entirely separate harness — see "Out of scope" below).
 7. Phase 6 (BuildTray). ~1h.
 8. Phase 7 (ErrorBoundary), Phase 8 (smoke-render). ~1h together.
 
