@@ -11,9 +11,20 @@ still read-only in public mode (`APP_MODE=public`) and fully open in
 admin mode (`APP_MODE=admin`); the unverified `x-user-id` placeholder
 still lives in `middleware/subscription.ts:11`.
 
-**Next up:** Deploy ordering — see [Phase 4 deploy ordering](#deploy-ordering--read-this-before-pushing)
-below. Phases 5+ (production hardening, stretch) follow once the
-cutover is soaked.
+**Next up after merge:** Phase 5 SES verified identity is the immediate
+next branch. Cognito's default sender (`no-reply@verificationemail.com`)
+is hard-capped at 50 emails/day in the AWS sandbox — that limit is
+hit by ~10 real users hitting "forgot password" twice each, **and is
+the gating constraint on opening up registration to the public**. See
+[SES verified identity](#ses-verified-identity-for-verification-emails-phase-5a-priority).
+
+**Bot protection at scale** — separate concern from auth hardening, but
+overlaps at the registration / login surfaces. Tracked in
+[Bot protection](#bot-protection-at-scale-phase-5b) below.
+
+**Programmatic API access (paid)** — split out to its own scope in
+[`todo/API.md`](API.md). Reuses Cognito identity + the existing
+`stripe/` Lambda's metered-billing pipeline; not part of this doc.
 
 This doc is the **how** for adding email/password login, registration,
 and session management. It does not cover OAuth providers (deferred —
@@ -430,26 +441,309 @@ exist yet — backend tests catch this, but don't rely on luck.
 These are independent items; ship as small follow-up branches rather
 than one mega-PR.
 
-### SES verified identity for verification emails
+### SES verified identity for verification emails (Phase 5a, priority)
 
-Default Cognito email comes from `no-reply@verificationemail.com` and
-is hard-capped at **50 emails/day** in the AWS sandbox. That cap is
-hit by ~10 real users hitting "forgot password" twice each, so this is
-not optional past beta.
+**Why this is gating, not a "nice to have":** Cognito's default sender
+(`no-reply@verificationemail.com`) is hard-capped at **50 emails/day**
+in the AWS sandbox. With self-signup enabled and a real signup page,
+that cap blows out the moment we cross ~10 active registrations or a
+single "forgot password" loop. Until SES is wired up, **registration
+must stay gated** (e.g. behind an invite list or with self-signup off
+on prod) or users will silently fail to receive confirm codes and bots
+will burn the daily quota in seconds.
 
-Concrete steps:
+Order of operations matters — do them in this order on the staging
+stack first so any failure mode bites you somewhere recoverable:
 
-1. `aws ses verify-domain-identity --domain specodex.com` and add the
-   returned DKIM CNAMEs to Route53. Wait for verification.
-2. `aws ses verify-email-identity --email-address noreply@specodex.com`
-   (or use the domain identity directly).
-3. Move out of SES sandbox via support ticket — required to email
-   non-verified addresses.
-4. In `auth-stack.ts`, set
-   `email: cognito.UserPoolEmail.withSES({ fromEmail: 'noreply@specodex.com', ... })`.
-5. Customize the verification message templates (currently default
-   Cognito copy) — set `userVerification.emailSubject` and
-   `emailBody` on the `UserPool` props.
+#### 1. Verify the domain in SES (one-time, ~15 min)
+
+```bash
+aws ses verify-domain-identity --domain specodex.com
+# → returns a TXT VerificationToken; add as TXT record on _amazonses.specodex.com
+aws ses verify-domain-dkim --domain specodex.com
+# → returns 3 DKIM tokens; add 3 CNAMEs:
+#   <token1>._domainkey.specodex.com → <token1>.dkim.amazonses.com
+#   <token2>._domainkey.specodex.com → <token2>.dkim.amazonses.com
+#   <token3>._domainkey.specodex.com → <token3>.dkim.amazonses.com
+```
+
+If `specodex.com` is in Route53 (it should be — we manage it through
+the existing CDK Route53 resources), add records via the Route53
+console or `aws route53 change-resource-record-sets`. **Don't put SES
+DNS records under the apex** if there's a conflicting `_amazonses`
+record from a previous attempt — list first with
+`aws route53 list-resource-record-sets`.
+
+Wait for verification:
+
+```bash
+aws ses get-identity-verification-attributes --identities specodex.com
+# VerificationStatus: Success when DNS has propagated
+```
+
+#### 2. Add the SES sender ARN to AuthStack (CDK)
+
+`app/infrastructure/lib/auth/auth-stack.ts` — change the `UserPool`
+construct:
+
+```typescript
+const userPool = new cognito.UserPool(this, 'UserPool', {
+  // ... existing config ...
+  email: cognito.UserPoolEmail.withSES({
+    fromEmail: 'noreply@specodex.com',
+    fromName: 'Specodex',
+    replyTo: 'support@specodex.com',     // optional but a good signal to recipients
+    sesRegion: 'us-east-1',
+    sesVerifiedDomain: 'specodex.com',   // the domain we verified above
+  }),
+  userVerification: {
+    emailSubject: 'Verify your Specodex account',
+    emailBody: 'Your verification code is {####}.',
+    emailStyle: cognito.VerificationEmailStyle.CODE,
+  },
+  userInvitation: {
+    emailSubject: 'Welcome to Specodex',
+    emailBody: 'Hi {username}, your temporary password is {####}.',
+  },
+});
+```
+
+Required IAM perm on the role Cognito uses to send via SES — Cognito
+will create this implicitly the first time, but verify after deploy:
+
+```bash
+# After deploy, check that Cognito has permission to ses:SendEmail
+# from noreply@specodex.com. Cognito uses a service-linked role.
+aws ses get-identity-policies --identity arn:aws:ses:us-east-1:403059190476:identity/specodex.com
+```
+
+#### 3. Move out of the SES sandbox (24-72h, manual)
+
+The sandbox limits **outbound to verified addresses only** and caps at
+200 emails/day even with a verified sender. Production needs out-of-
+sandbox.
+
+Open a Production Access ticket via the AWS Console: **SES → Account
+dashboard → Request production access**. The form wants:
+
+- **Mail type:** Transactional
+- **Website URL:** `https://datasheets.advin.io` (or `specodex.com`
+  once that DNS is live)
+- **Use case description** — paste this template:
+
+  ```
+  Specodex is a B2B engineering data platform that lets industrial
+  buyers search and filter manufacturer-published spec sheets for
+  servo drives, motors, gearheads, contactors, and similar
+  electromechanical components.
+
+  Our outbound email is exclusively transactional from Cognito user
+  pool flows: account confirmation codes, password reset codes, and
+  occasional account notices (e.g., admin promotion). No marketing
+  email. Recipients are users who have just submitted their address
+  in our registration form; they always trigger the email.
+
+  Estimated volume: <500 emails/day. Hard list management:
+  Cognito's confirm/forgot/welcome flows; user-initiated only. Bounce
+  and complaint handling: Cognito's default — invalid addresses fail
+  the registration; we surface the error inline. We will set up SNS
+  topics for SES bounce/complaint events before scaling beyond 100
+  active users.
+  ```
+
+- **Compliance:** answer yes to honoring unsubscribe (n/a for transactional but say so), AUP read, etc.
+
+Approval lands by email in 24-72h. Until then, registration
+testing must use addresses you've verified in SES individually.
+
+#### 4. Add bounce / complaint handling (do this before requesting prod access)
+
+```bash
+aws sns create-topic --name ses-bounces
+aws sns create-topic --name ses-complaints
+aws ses set-identity-notification-topic --identity specodex.com \
+  --notification-type Bounce --sns-topic arn:aws:sns:us-east-1:403059190476:ses-bounces
+aws ses set-identity-notification-topic --identity specodex.com \
+  --notification-type Complaint --sns-topic arn:aws:sns:us-east-1:403059190476:ses-complaints
+```
+
+Subscribe `nick@advin.io` to both topics. AWS rejects the production-
+access request without bounce handling for any non-trivial volume.
+
+#### 5. Verify after deploy
+
+```bash
+# After deploying AuthStack with SES wiring:
+# Register a test user; expect the email to arrive from noreply@specodex.com
+# Look for the SES SendEmail event in CloudWatch
+aws logs tail --follow /aws/cognito/userpool/<pool-id>
+```
+
+#### Cost
+
+SES outbound: $0.10 per 1,000 emails. At 500/day that's $1.50/month.
+Negligible.
+
+---
+
+### Bot protection at scale (Phase 5b)
+
+**Threat model.** Three distinct surfaces, three distinct attack patterns:
+
+1. **Registration abuse** — bots create thousands of Cognito accounts
+   to burn email quota, exhaust the user pool, or set up infrastructure
+   for content/CSRF abuse later.
+2. **Credential stuffing** — bots try leaked email/password pairs
+   against `/api/auth/login`. High volume, low success rate, expensive
+   in Cognito InitiateAuth calls and verifier CPU.
+3. **Data scraping** — bots crawl `/api/products` and `/api/v1/search`
+   anonymously. The catalog data is the entire product; this is the
+   most economically damaging class. Today the read endpoints are
+   open with no rate limit at all — anyone with a script can pull the
+   whole DB.
+
+The first two are auth-surface concerns, addressable here. The third
+overlaps with the paid API plan in `todo/API.md` — once API keys
+exist, the answer for high-volume readers is "buy a key"; the
+question is what to do for the unauthed catalog-browsing experience.
+
+#### Layer 1 — Edge (AWS WAF on CloudFront)
+
+Single biggest lever. Attach a WAFv2 web ACL to the existing
+CloudFront distribution. Rules in priority order:
+
+```typescript
+// app/infrastructure/lib/frontend-stack.ts (or a dedicated waf-stack.ts)
+const waf = new wafv2.CfnWebACL(this, 'EdgeAcl', {
+  scope: 'CLOUDFRONT',
+  defaultAction: { allow: {} },
+  rules: [
+    // 1. Anonymous data-plane rate limit. Catches the dumb scraper.
+    {
+      name: 'AnonymousReadRateLimit',
+      priority: 10,
+      action: { block: {} },
+      statement: {
+        rateBasedStatement: {
+          limit: 600,                       // requests per 5min per IP
+          aggregateKeyType: 'IP',
+          scopeDownStatement: {
+            // Only count anonymous /api/products and /api/v1/search hits
+            // (authed callers go through the per-key limit instead)
+            byteMatchStatement: { ... fieldToMatch: { uriPath: {} }, positionalConstraint: 'STARTS_WITH', ... },
+          },
+        },
+      },
+    },
+    // 2. Auth-flow per-IP rate limit. Blunts credential stuffing.
+    {
+      name: 'AuthFlowRateLimit',
+      priority: 20,
+      action: { block: {} },
+      statement: {
+        rateBasedStatement: {
+          limit: 60,                        // 60 attempts per 5min per IP
+          aggregateKeyType: 'IP',
+          scopeDownStatement: { /* /api/auth/login | /api/auth/register */ },
+        },
+      },
+    },
+    // 3. AWS Managed: Bot Control common-bot rule group.
+    {
+      name: 'AWSManagedRulesBotControlRuleSet',
+      priority: 30,
+      overrideAction: { none: {} },
+      statement: {
+        managedRuleGroupStatement: {
+          vendorName: 'AWS',
+          name: 'AWSManagedRulesBotControlRuleSet',
+          managedRuleGroupConfigs: [{ awsManagedRulesBotControlRuleSet: { inspectionLevel: 'COMMON' } }],
+        },
+      },
+    },
+    // 4. AWS Managed: Common rules (SQLi, XSS, oversized body, etc.)
+    {
+      name: 'AWSManagedRulesCommonRuleSet',
+      priority: 40,
+      overrideAction: { none: {} },
+      statement: { managedRuleGroupStatement: { vendorName: 'AWS', name: 'AWSManagedRulesCommonRuleSet' } },
+    },
+  ],
+  // ... visibility config, etc.
+});
+```
+
+**Cost notes.**
+- WAFv2 web ACL: $5/month + $1 per rule + $0.60 per 1M requests.
+- Bot Control common: $10/month + $1 per 1M requests inspected.
+- Total for Specodex traffic profile (~100K req/month estimated):
+  $20/month-ish. Cheap relative to the value of the catalog.
+- Bot Control TARGETED ($/month + much higher per-request) is the
+  premium tier — JS challenges, fingerprinting. Skip until the COMMON
+  tier proves insufficient.
+
+#### Layer 2 — Cognito-side abuse controls
+
+- **PreSignUp Lambda trigger.** Reject emails matching disposable-mail
+  domains (mailinator, guerrillamail, etc.) and rate-limit signups by
+  IP. Maintain the disposable list as a static set in the Lambda.
+- **Captcha on registration.** Cognito doesn't offer a built-in
+  captcha, but a Cloudflare Turnstile (free tier covers ~1M/month) or
+  Google reCAPTCHA v3 can verify on the SPA before calling
+  `/api/auth/register`. Backend verifies the token server-side. Adds
+  ~30 lines to `routes/auth.ts`.
+- **Email-domain allowlist for early days.** Until production access
+  is granted and we trust the volume, gate registration to a small
+  allowlist of email providers (gmail, outlook, custom domains we've
+  pre-approved). Rough hack but kills 95% of registration bots.
+
+#### Layer 3 — Application-side controls
+
+- **Login attempt counter.** Increment a DynamoDB counter on each
+  failed login per email-or-IP. Lock for N minutes after K failures.
+  Reset on success. ~50 lines in `middleware/loginGuard.ts`.
+- **Soft-lockout via exponential backoff.** Each failed attempt
+  delays the next response by 2^n seconds. Bots that respect timing
+  get fingerprinted; bots that don't get blocked at WAF.
+- **Honey-pot fields** in the registration form. Extra hidden input
+  that real browsers leave empty; bots tend to fill every field.
+  Submit with the field populated → silently 200 but don't actually
+  register. Cheap, decent signal.
+
+#### Layer 4 — Visibility (do this before the others)
+
+You can't tune what you can't see. Stand up before turning on the
+above:
+
+- **CloudWatch dashboard:** registrations/min, login failures/min,
+  unique IPs/hour on auth endpoints, top-talker IPs on
+  `/api/products` and `/api/v1/search`.
+- **WAF logging to S3** with Athena queries — cheaper than CloudWatch
+  Logs Insights for the volume.
+- **Alerts:**
+  - Login failures >50/min → page (likely credential stuffing in
+    progress)
+  - Unique signups >20/hour → page (likely registration burst)
+  - Top IP doing >1000 read req/hour → notify (manual review)
+
+#### What to ship first
+
+Don't build all of this at once. Order:
+
+1. **WAF Layer 1 rules 1+4** (anonymous rate limit + AWS managed
+   common) — the biggest lever, also fastest to deploy. ~1 day.
+2. **Layer 4 dashboards + alerts** — without these you can't tell if
+   the rules are over- or under-tuned.
+3. **Layer 1 rule 2** (auth-flow rate limit) — ships with WAF; same
+   one-day budget.
+4. **Captcha on registration** (Layer 2) — once we open self-signup
+   wider than the invite list.
+5. **Bot Control managed rule (Layer 1 rule 3)** — only if metrics
+   show the basic rate limits aren't enough. May not need it.
+
+Skip honey-pots and fancy fingerprinting until WAF metrics tell you
+they're necessary. Premature anti-abuse work optimizes for an attack
+profile that may not match what you actually face.
 
 ### CSP headers
 
@@ -561,10 +855,11 @@ Order roughly by user value, not effort:
   expose on the login page. Cognito hosted UI is the cheapest path
   but breaks the "all UI in our SPA" pattern. Worth it iff sign-up
   conversion is a measurable problem.
-- **API keys for programmatic access.** A logged-in user mints a
-  long-lived token (separate from the Cognito access token) for
-  scripting. Stored hashed in DynamoDB. Necessary if the public
-  API gets a developer audience.
+- **API keys for programmatic access.** Split out to its own scope at
+  [`todo/API.md`](API.md) — paid programmatic API tier integrated with
+  the existing `stripe/` Lambda's metered-billing pipeline. Depends
+  on this doc's Phase 5 (SES) being live so paid users actually get
+  their welcome / receipt emails.
 
 ---
 
@@ -574,8 +869,15 @@ Order roughly by user value, not effort:
   cookie for CORS simplicity. Revisit if/when XSS becomes a
   realistic threat (i.e. if we ever render user-generated HTML).
 - **Email deliverability.** Cognito's default email caps will bite
-  if registration is even modestly active. Phase 5 SES move is not
-  optional — schedule it before any public sign-up announcement.
+  if registration is even modestly active. **Phase 5a SES move is
+  the gating constraint on opening up self-signup.** Until SES is
+  live, registration must stay invite-gated or the sandbox quota
+  blows out within minutes of any real exposure.
+- **Bot exposure.** Today the read endpoints (`/api/products`,
+  `/api/v1/search`) are open with no rate limit at all — the entire
+  catalog can be pulled by any script. Tracked in Phase 5b above;
+  WAF Layer 1 rate-limit is the minimum bar before any traffic
+  campaign or public launch announcement.
 - **Migrating existing test users.** None today (zero auth means
   zero accounts). Whenever you test admin-only endpoints in
   staging post-Phase 4, you'll need to register + promote yourself
