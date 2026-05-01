@@ -1,7 +1,5 @@
 """Audit DynamoDB for malformed value-unit strings.
 
-Related: todo/fundamental-flaws.md (flaw #1).
-
 Two corruption patterns are detected:
 
 1. Multi-semicolon strings like "1;2;V" — `_parse_compact_units` in
