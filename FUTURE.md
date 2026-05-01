@@ -135,10 +135,6 @@ deferred patterns** in `outputs/units_migration_review_<stage>_*.md`:
 
 ~373 dev rows + 10 prod rows. Pre-existing data quality, non-blocking.
 
-A Late Night-eligible task: `cli/units_triage.py` (new) parses the
-review files, groups by pattern with row counts, emits
-`outputs/units_triage_<ts>.md` for human review.
-
 ---
 
 ## 4. DEDUPE — cross-vendor historical-duplicate cleanup

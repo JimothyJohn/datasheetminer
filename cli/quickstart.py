@@ -924,13 +924,6 @@ def main() -> None:
         )
         return
 
-    if len(sys.argv) >= 2 and sys.argv[1] == "units-triage":
-        run(
-            ["uv", "run", "python", "-m", "cli.units_triage", *sys.argv[2:]],
-            cwd=ROOT,
-        )
-        return
-
     if len(sys.argv) >= 2 and sys.argv[1] == "godmode":
         run(
             ["uv", "run", "python", "-m", "cli.godmode", *sys.argv[2:]],
