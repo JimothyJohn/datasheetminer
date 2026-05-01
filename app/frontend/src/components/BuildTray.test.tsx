@@ -30,6 +30,7 @@ vi.mock('../api/client', () => ({
     listProducts: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
     getSummary: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
     getCategories: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
+    checkCompat: vi.fn(() => Promise.reject(new Error('apiClient not available in unit test'))),
   },
 }));
 
@@ -298,6 +299,39 @@ describe('BuildTray Copy BOM', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /^Copy failed$/ })).toBeInTheDocument();
     });
+  });
+});
+
+describe('BuildTray Review chain button', () => {
+  it('is hidden when the build has zero adjacent filled pairs', () => {
+    window.localStorage.setItem('specodex.build', JSON.stringify({
+      drive: product('drive', { id: 'd1', manufacturer: 'X' }),
+      // no motor → no adjacent pair
+    }));
+    render(<BuildTray />, { wrapper: ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider> });
+    expect(screen.queryByRole('button', { name: /^Review chain$/ })).toBeNull();
+  });
+
+  it('is visible when at least one adjacent pair is filled', () => {
+    window.localStorage.setItem('specodex.build', JSON.stringify({
+      drive: product('drive', { id: 'd1', manufacturer: 'ABB' }),
+      motor: product('motor', { id: 'm1', manufacturer: 'NEMA' }),
+    }));
+    render(<BuildTray />, { wrapper: ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider> });
+    expect(screen.getByRole('button', { name: /^Review chain$/ })).toBeInTheDocument();
+  });
+
+  it('Review chain button only renders the modal after click', async () => {
+    window.localStorage.setItem('specodex.build', JSON.stringify({
+      drive: product('drive', { id: 'd1', manufacturer: 'ABB' }),
+      motor: product('motor', { id: 'm1', manufacturer: 'NEMA' }),
+    }));
+    const { container } = render(<BuildTray />, { wrapper: ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider> });
+    expect(container.querySelector('.chain-review-overlay')).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Review chain$/ }));
+    });
+    expect(container.querySelector('.chain-review-overlay')).not.toBeNull();
   });
 });
 

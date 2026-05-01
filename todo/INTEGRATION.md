@@ -227,14 +227,15 @@ adding signal. Re-introduce when the shared protocol enum exists.
 
 Phases A and B shipped. End-of-chain affordances:
 
-1. **Whole-chain audit view (planned).** When the tray has ≥2 filled
-   adjacent slots, add a "Review chain" button on the tray. Opens a modal
-   that renders every junction's `CompatibilityReport` side-by-side
-   (drive↔motor and motor↔gearhead), so the user can audit the whole
-   BOM without reopening each product. Reuses `CompatChecker`'s
-   rendering primitives — no new compat code needed; just a new
-   component that calls `apiClient.checkCompat` once per adjacent pair
-   and stacks the results.
+1. **Whole-chain audit view.** ✅ shipped 2026-04-30.
+   `ChainReviewModal` opens from the BuildTray's "Review chain" button
+   (visible whenever ≥1 adjacent pair is filled — drive+motor and/or
+   motor+gearhead). On open, fires one `apiClient.checkCompat` call
+   per adjacent filled pair in parallel and stacks the resulting
+   reports in BUILD_SLOTS order. Reuses `CompatBadge` + the spec-table
+   render shape from `CompatChecker` so the layout is familiar. Escape
+   and outside-click close. Helper `adjacentFilledPairs(build)` is
+   exported and unit-tested separately.
 
 2. **BOM export.** ✅ shipped 2026-04-30. Tray's "Copy BOM" button
    (next to Clear) writes a plain-text block to the clipboard via
@@ -271,18 +272,25 @@ or LinearActuator support. (Linear actuator is still tracked in
 [ACTUATOR.md](ACTUATOR.md) and feeds into a future Phase D — spec-first
 sizing wizard — which is the only remaining item from the original plan.)
 
-### Where the code lives when picked up
+### Where the code lives
 
-- New: `app/frontend/src/components/ChainReviewModal.tsx` (whole-chain audit
-  — only remaining piece of this slice).
-- ~~Edit: `app/frontend/src/components/BuildTray.tsx` (add Review/Copy/✓).~~
-  Copy BOM + ✓ shipped 2026-04-30; only the "Review chain" button left
-  to add.
-- ~~Edit: `app/frontend/src/App.css` (tray complete state, new buttons).~~
-  Done.
+All shipped 2026-04-30:
 
-No backend touch. ChainReviewModal estimate: ~2h, mostly Suspense-ed
-data fetch + reused CompatChecker rendering.
+- `app/frontend/src/components/ChainReviewModal.tsx` (new) — whole-chain
+  audit modal, 11 tests in `ChainReviewModal.test.tsx`.
+- `app/frontend/src/components/BuildTray.tsx` — Review chain button
+  (gated on `adjacentFilledPairs(build).length > 0`), Copy BOM, ✓
+  marker, `is-complete` class.
+- `app/frontend/src/App.css` — tray Review/Copy/Clear button styling,
+  complete-state border, ChainReviewModal overlay + dialog.
+
+No backend touch.
+
+### What's left in this slice
+
+- (Stretch) **Save build as preset** — name + persist to localStorage,
+  restore via dropdown. Park until a user asks; one-project users won't
+  miss it.
 
 ## Open questions
 

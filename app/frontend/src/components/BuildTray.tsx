@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 import { BUILD_SLOTS, BuildSlot, check } from '../utils/compat';
 import type { Product } from '../types/models';
 import CompatBadge from './CompatBadge';
+import ChainReviewModal, { adjacentFilledPairs } from './ChainReviewModal';
 
 const SLOT_LABEL: Record<BuildSlot, string> = {
   drive: 'Drive',
@@ -103,6 +104,11 @@ export default function BuildTray() {
   }, [filledCount, junctions]);
 
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // Show "Review chain" once at least one adjacent pair is filled — the
+  // modal is the right place to inspect cross-product fit, and a single
+  // pair (drive+motor or motor+gearhead) is enough to be useful.
+  const adjacentPairCount = useMemo(() => adjacentFilledPairs(build).length, [build]);
   const copyBom = async () => {
     const text = buildBomText(build, junctions);
     try {
@@ -170,6 +176,16 @@ export default function BuildTray() {
             </span>
           );
         })}
+        {adjacentPairCount > 0 && (
+          <button
+            type="button"
+            className="build-tray-review"
+            onClick={() => setReviewOpen(true)}
+            title="Open a side-by-side compatibility audit of every adjacent pair"
+          >
+            Review chain
+          </button>
+        )}
         <button
           type="button"
           className="build-tray-copy"
@@ -182,6 +198,7 @@ export default function BuildTray() {
           Clear
         </button>
       </div>
+      <ChainReviewModal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} />
     </div>
   );
 }
