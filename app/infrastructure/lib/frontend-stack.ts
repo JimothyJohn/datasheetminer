@@ -14,6 +14,7 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import { AppConfig } from './config';
+import { SiteWebAcl } from './waf/site-web-acl';
 import * as path from 'path';
 
 export interface FrontendStackProps extends cdk.StackProps {
@@ -51,8 +52,23 @@ export class FrontendStack extends cdk.Stack {
       ? acm.Certificate.fromCertificateArn(this, 'SiteCertificate', config.domain.certificateArn)
       : undefined;
 
+    // Edge WAF (Phase 5b). Rate limits + AWS managed common rules.
+    // Opt-out via WAF_ENABLED=false on the deploy environment if a
+    // rule unexpectedly blocks legitimate traffic — the absence of
+    // a WAF is the previous behavior.
+    const wafEnabled = (process.env.WAF_ENABLED ?? 'true').toLowerCase() !== 'false';
+    const siteWebAcl = wafEnabled
+      ? new SiteWebAcl(this, 'EdgeAcl', {
+          stage: config.stage,
+          botControlEnabled: (process.env.WAF_BOT_CONTROL_ENABLED ?? 'false').toLowerCase() === 'true',
+          readRateLimit: process.env.WAF_READ_RATE_LIMIT ? Number(process.env.WAF_READ_RATE_LIMIT) : undefined,
+          authRateLimit: process.env.WAF_AUTH_RATE_LIMIT ? Number(process.env.WAF_AUTH_RATE_LIMIT) : undefined,
+        })
+      : undefined;
+
     // CloudFront distribution
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
+      ...(siteWebAcl ? { webAclId: siteWebAcl.arn } : {}),
       defaultBehavior: {
         origin: s3Origin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
