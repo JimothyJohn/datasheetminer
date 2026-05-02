@@ -48,6 +48,9 @@ export interface ProductBase {
   part_number?: string;
   dimensions?: Dimensions;
   weight?: ValueUnit;
+  // Expected delivery / lead time. Mirrors specodex/models/product.py
+  // ProductBase.lead_time — typically a ValueUnit with unit='days'.
+  lead_time?: ValueUnit;
   datasheet_url?: string;
   pages?: number[];
   PK: string;
@@ -359,6 +362,33 @@ export interface Manufacturer {
   name: string;
   website?: string;
   offered_product_types?: string[];
+  PK?: string;
+  SK?: string;
+}
+
+/**
+ * Reference to a product inside a Project. Stored as a tuple, not a
+ * snapshot — reads dereference against the live products table so a
+ * later edit to the product propagates without a backfill. Same shape
+ * the rest of the app uses to key products.
+ */
+export interface ProductRef {
+  product_type: string;
+  product_id: string;
+}
+
+/**
+ * Project — a user-owned, named collection of product refs.
+ * PK = `USER#{owner_sub}`, SK = `PROJECT#{id}`. Per-user partition
+ * scopes list queries cleanly without a GSI.
+ */
+export interface Project {
+  id: string;
+  name: string;
+  owner_sub: string;
+  product_refs: ProductRef[];
+  created_at: string;
+  updated_at: string;
   PK?: string;
   SK?: string;
 }

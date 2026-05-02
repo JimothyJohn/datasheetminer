@@ -603,6 +603,62 @@ class ApiClient {
     return response.data;
   }
 
+  // ========== Projects ==========
+
+  async listProjects(): Promise<import('../types/projects').Project[]> {
+    const response = await this.request<import('../types/projects').Project[]>('/api/projects');
+    return response.data ?? [];
+  }
+
+  async createProject(name: string): Promise<import('../types/projects').Project> {
+    const response = await this.request<import('../types/projects').Project>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    if (!response.data) throw new Error('Failed to create project');
+    return response.data;
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    await this.request<unknown>(`/api/projects/${encodeURIComponent(projectId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async renameProject(projectId: string, name: string): Promise<import('../types/projects').Project> {
+    const response = await this.request<import('../types/projects').Project>(
+      `/api/projects/${encodeURIComponent(projectId)}`,
+      { method: 'PATCH', body: JSON.stringify({ name }) },
+    );
+    if (!response.data) throw new Error('Failed to rename project');
+    return response.data;
+  }
+
+  async addProductToProject(
+    projectId: string,
+    ref: import('../types/projects').ProductRef,
+  ): Promise<import('../types/projects').Project> {
+    const response = await this.request<import('../types/projects').Project>(
+      `/api/projects/${encodeURIComponent(projectId)}/products`,
+      { method: 'POST', body: JSON.stringify(ref) },
+    );
+    if (!response.data) throw new Error('Failed to add product to project');
+    return response.data;
+  }
+
+  async removeProductFromProject(
+    projectId: string,
+    ref: import('../types/projects').ProductRef,
+  ): Promise<import('../types/projects').Project> {
+    const response = await this.request<import('../types/projects').Project>(
+      `/api/projects/${encodeURIComponent(projectId)}/products/${encodeURIComponent(
+        ref.product_type,
+      )}/${encodeURIComponent(ref.product_id)}`,
+      { method: 'DELETE' },
+    );
+    if (!response.data) throw new Error('Failed to remove product from project');
+    return response.data;
+  }
 }
 
 // ========== Singleton Export ==========

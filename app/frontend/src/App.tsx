@@ -26,6 +26,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProjectsProvider } from './context/ProjectsContext';
 import ThemeToggle from './components/ThemeToggle';
 import GitHubLink from './components/GitHubLink';
 import DensityToggle from './components/DensityToggle';
@@ -52,6 +53,8 @@ const Welcome = lazy(() => import('./components/Welcome'));
 const ProductManagement = lazy(() => import('./components/ProductManagement'));
 const DatasheetsPage = lazy(() => import('./components/DatasheetsPage'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const ProjectsPage = lazy(() => import('./components/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./components/ProjectDetailPage'));
 
 /**
  * Loading Fallback Component
@@ -88,7 +91,8 @@ export function AppShell() {
   // 'admin' group. The env-mode gate retired in Phase 4 — one
   // deployed environment now serves both admin and public UI based
   // on token contents.
-  const { isAdmin: showAdminNav } = useAuth();
+  const { user, isAdmin: showAdminNav } = useAuth();
+  const showSignedInNav = !!user;
 
   return (
     <>
@@ -106,12 +110,19 @@ export function AppShell() {
                 </NavLink>
               </h1>
               <GitHubLink />
-              {showAdminNav && (
+              {(showSignedInNav || showAdminNav) && (
                 <nav className="nav-inline">
                   <NavLink to="/" end className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Selection</NavLink>
-                  <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
-                  <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
-                  <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>
+                  {showSignedInNav && (
+                    <NavLink to="/projects" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Projects</NavLink>
+                  )}
+                  {showAdminNav && (
+                    <>
+                      <NavLink to="/datasheets" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Datasheets</NavLink>
+                      <NavLink to="/management" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Management</NavLink>
+                      <NavLink to="/admin" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Admin</NavLink>
+                    </>
+                  )}
                 </nav>
               )}
             </div>
@@ -142,6 +153,11 @@ export function AppShell() {
               <Route path="/management" element={<ProductManagement />} />
               <Route path="/admin" element={<AdminPanel />} />
 
+              {/* Per-user projects — auth-gated at the API level; the
+                  page renders a sign-in CTA when logged out. */}
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:id" element={<ProjectDetailPage />} />
+
               {/* Catch-all: Redirect to products */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -158,11 +174,13 @@ function App() {
 
   return (
     <AuthProvider>
-      <AppProvider>
-        <BrowserRouter>
-          <AppShell />
-        </BrowserRouter>
-      </AppProvider>
+      <ProjectsProvider>
+        <AppProvider>
+          <BrowserRouter>
+            <AppShell />
+          </BrowserRouter>
+        </AppProvider>
+      </ProjectsProvider>
     </AuthProvider>
   );
 }

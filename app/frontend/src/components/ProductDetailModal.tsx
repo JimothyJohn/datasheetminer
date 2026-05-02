@@ -14,6 +14,7 @@ import {
   displayUnit,
 } from '../utils/unitConversion';
 import CompatChecker from './CompatChecker';
+import AddToProjectMenu from './AddToProjectMenu';
 import { BUILD_SLOTS, BuildSlot } from '../utils/compat';
 
 interface ProductDetailModalProps {
@@ -34,6 +35,12 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
     };
 
     const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      // Popovers (e.g. AddToProjectMenu) are portaled to document.body
+      // so they sit outside modalRef in the DOM tree. Without this the
+      // parent modal closes on every click inside the popover, killing
+      // the popover before it can act on the click.
+      if (target && target.closest?.('[data-portaled-popover]')) return;
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -277,6 +284,12 @@ export default function ProductDetailModal({ product, onClose, clickPosition }: 
             </div>
           ))}
           <CompatChecker product={product} />
+          <AddToProjectMenu
+            productRef={{
+              product_type: product.product_type,
+              product_id: product.product_id,
+            }}
+          />
           {(BUILD_SLOTS as readonly string[]).includes(product.product_type) && (() => {
             const slot = product.product_type as BuildSlot;
             const inSlot = build[slot];

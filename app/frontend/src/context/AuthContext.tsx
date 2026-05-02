@@ -24,6 +24,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   ReactNode,
@@ -124,7 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Push the current id token into the API client whenever it changes.
   // Single source of truth: tokens state here, request layer reads it
   // through setAuthToken.
-  useEffect(() => {
+  //
+  // useLayoutEffect (not useEffect) so the singleton is updated before
+  // any sibling/child useEffect runs — child effects fire BEFORE parent
+  // effects in React, so a regular useEffect here lets a child like
+  // ProjectsContext.refresh() race ahead with no token on first mount.
+  // All useLayoutEffects run before any useEffect, regardless of depth.
+  useLayoutEffect(() => {
     apiClient.setAuthToken(tokens?.idToken ?? null);
   }, [tokens]);
 

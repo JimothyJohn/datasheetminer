@@ -18,6 +18,7 @@ import compatRouter from './routes/compat';
 import docsRouter from './routes/docs';
 import adminRouter from './routes/admin';
 import authRouter from './routes/auth';
+import projectsRouter from './routes/projects';
 
 const app: Application = express();
 
@@ -61,6 +62,11 @@ app.use('/api/upload', uploadRouter);
 // Auth routes — register/login/etc. need POST in public mode. The
 // readonly guard exempts /auth/* paths (see middleware/readonly.ts).
 app.use('/api/auth', authRouter);
+
+// Projects — per-user collections of product refs. Auth-gated inside
+// the router; readonly-guard exempts /projects/* so logged-in users
+// can mutate in public mode.
+app.use('/api/projects', projectsRouter);
 
 // API routes
 app.use('/api/products', productsRouter);

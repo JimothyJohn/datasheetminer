@@ -4450,6 +4450,491 @@ hr::after {
 }
 
 /* ============================================================================
+ * "Add to project" menu — popover anchored to a trigger button,
+ * sits below CompatChecker / build buttons in the product detail modal.
+ * ============================================================================ */
+
+.add-to-project-section {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border-color-light);
+}
+
+.add-to-project-cta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.add-to-project-cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 50%;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.add-to-project-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.add-to-project-trigger:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.add-to-project-trigger:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.add-to-project-caret {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.add-to-project-popover {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow-xl);
+  z-index: 1000;
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.add-to-project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.add-to-project-item {
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.add-to-project-item:last-child {
+  border-bottom: none;
+}
+
+.add-to-project-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.add-to-project-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.add-to-project-row input[type='checkbox'] {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.add-to-project-name {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.add-to-project-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  padding: 0.05rem 0.4rem;
+  background: var(--border-color-light);
+  border-radius: 8px;
+}
+
+.add-to-project-empty {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.add-to-project-create {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid var(--border-color-light);
+}
+
+.add-to-project-input {
+  flex: 1 1 auto;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.add-to-project-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.add-to-project-create-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-to-project-create-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.add-to-project-error {
+  margin: 0;
+  padding: 0.5rem 0.85rem;
+  color: var(--danger);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border-color-light);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* ============================================================================
+ * Projects page — list view of the signed-in user's projects.
+ * ============================================================================ */
+
+.projects-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.projects-page-header {
+  margin-bottom: 1.25rem;
+}
+
+.projects-page-header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  letter-spacing: 0.5px;
+}
+
+.projects-page-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.projects-page-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-secondary);
+}
+
+.projects-page-empty-msg {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.projects-page-error {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  padding: 0.6rem 0.85rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.projects-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.15s;
+}
+
+.projects-card:hover {
+  border-color: var(--accent-primary);
+}
+
+.projects-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.projects-card-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.projects-card-count {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  padding: 0.15rem 0.5rem;
+  background: var(--border-color-light);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.projects-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.projects-card-meta dt {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.projects-card-meta dd {
+  margin: 0.1rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.projects-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  border-top: 1px dashed var(--border-color-light);
+  padding-top: 0.6rem;
+}
+
+.projects-card-delete {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.projects-card-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: var(--danger);
+}
+
+.projects-card-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.projects-card-clickable {
+  cursor: pointer;
+}
+
+.projects-card-clickable:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+ * Project detail page — drill-in for one project.
+ * ============================================================================ */
+
+.project-detail-back {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+}
+
+.project-detail-back:hover {
+  color: var(--accent-primary);
+}
+
+.project-detail-header {
+  margin-bottom: 1.25rem;
+}
+
+.project-detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.project-detail-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.project-detail-rename {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.project-detail-rename:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.project-detail-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.project-detail-name-edit input {
+  padding: 0.4rem 0.6rem;
+  font-size: 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-width: 240px;
+}
+
+.project-detail-name-edit input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.project-detail-save {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-detail-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.project-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.project-detail-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.project-detail-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.project-detail-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.project-detail-row-missing td {
+  color: var(--text-secondary);
+}
+
+.project-detail-remove {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.project-detail-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: var(--danger);
+}
+
+.project-detail-remove:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-detail-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-color-light);
+  display: flex;
+  justify-content: flex-end;
+}
+/* ============================================================================
  * Build tray — sticky bottom strip showing the in-progress motion system.
  * ============================================================================ */
 

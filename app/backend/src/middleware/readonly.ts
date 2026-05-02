@@ -16,8 +16,9 @@ const WRITE_ALLOWED_PATHS = new Set(['/upload', '/upload/']);
 
 // Path prefixes exempt from readonly. Auth endpoints (register, login,
 // password reset, etc.) need POST in public mode but don't mutate
-// product data — the user table is Cognito's, not ours.
-const WRITE_ALLOWED_PREFIXES = ['/auth/'];
+// product data — the user table is Cognito's, not ours. Projects are
+// per-user data; the route enforces ownership via requireAuth.
+const WRITE_ALLOWED_PREFIXES = ['/auth/', '/projects'];
 
 export function readonlyGuard(req: Request, res: Response, next: NextFunction): void {
   if (ALLOWED_METHODS.has(req.method)) {
