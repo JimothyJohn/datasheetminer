@@ -90,6 +90,14 @@ class ProductBase(BaseModel):
         None, description="ISO 8601 timestamp when MSRP was last fetched."
     )
     warranty: Optional[ValueUnit] = None
+    lead_time: Optional[ValueUnit] = Field(
+        None,
+        description=(
+            "Expected delivery / lead time for the product. Typically a "
+            "ValueUnit with unit='days' (e.g. {'value': 30, 'unit': 'days'}). "
+            "Sourced from manufacturer or distributor data, not the datasheet."
+        ),
+    )
     datasheet_url: Optional[str] = Field(
         None, description="URL of the source datasheet"
     )

@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Batch process all raw_pdfs/ from S3 through dsm-agent pipeline.
 
+One-shot historical bulk ingest from 2026-04-26. The PDF list is
+hardcoded; re-running blindly would re-ingest the same set. Kept under
+scripts/migrations/ for provenance, not as an active tool.
+
 Usage:
-    source .env && DYNAMODB_TABLE_NAME=products-dev uv run python cli/batch_process.py
+    source .env && DYNAMODB_TABLE_NAME=products-dev \\
+        uv run python scripts/migrations/2026-04-26-batch_process.py
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-LOG_DIR = Path(__file__).resolve().parent.parent / ".logs"
+LOG_DIR = Path(__file__).resolve().parent.parent.parent / ".logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 logging.basicConfig(

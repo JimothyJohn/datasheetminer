@@ -31,6 +31,10 @@ _META_FIELDS = frozenset(
         "pages",
         "msrp_source_url",
         "msrp_fetched_at",
+        # Lead time is sourced from distributor / manufacturer data, not
+        # the datasheet — the LLM extraction will almost never populate
+        # it, so counting it as a "spec" would unfairly tank every score.
+        "lead_time",
     }
 )
 

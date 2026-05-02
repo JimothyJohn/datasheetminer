@@ -16,7 +16,6 @@ Command-line tools for batch processing, querying, and data management.
 | `processor.py` | Processes extracted CSV into validated Pydantic models |
 | `intake.py` | Scans S3 triage/ for incoming PDFs, classifies TOC and spec pages |
 | `intake_guards.py` | Validation guards for the intake pipeline |
-| `batch_process.py` | Bulk extraction from multiple datasheets |
 | `triage.py` | Quality assessment and error classification for failed extractions |
 | `quickstart.py` | Setup and demo script |
 

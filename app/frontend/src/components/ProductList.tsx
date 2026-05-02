@@ -2,11 +2,11 @@
  * Product list component with advanced filtering and sorting
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApp, isUnitSystem } from '../context/AppContext';
 import { UnitSystem } from '../utils/unitConversion';
 import { ProductType, Product } from '../types/models';
-import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators, buildDefaultFiltersForType, DEFAULT_FILTER_FLOOR_PERCENTILE } from '../types/filters';
+import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators, buildDefaultFiltersForType } from '../types/filters';
 // Column order is authored in types/columnOrder.ts — edit that file to
 // change what columns appear and in what order.
 import { orderColumnAttributes } from '../types/columnOrder';
@@ -72,7 +72,10 @@ export default function ProductList() {
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showSortSelector, setShowSortSelector] = useState(false);
   const [columnSelectorCursor, setColumnSelectorCursor] = useState<{ x: number; y: number } | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+  // Page size is fixed — narrowing past 25 results is the user's job via
+  // sort/filter, not via a "show 500 at once" lever. Removing the picker
+  // keeps the toolbar a single tight row.
+  const itemsPerPage = 25;
   const [currentPage, setCurrentPage] = useState<number>(1);
   // Column visibility model — two sets, because default visibility
   // depends on the attribute's *kind*:
@@ -141,13 +144,11 @@ export default function ProductList() {
 // Floor widths (px) for the part-number column. Sized for typical
 // 12-16 char part numbers without over-reserving width; the auto-fit
 // helper widens further whenever the loaded data warrants it.
-  const defaultPartWidth = rowDensity === 'compact' ? 200 : 260;
-  // Spec columns now host the slider + a row of three pill buttons
-  // (operator / value / unit) in the header. Floor at ~180px so
-  // multi-digit values sit next to a 3-letter unit ("rpm", "in·lb")
-  // with comfortable gap between pills and breathing room for hover
-  // borders.
-  const defaultColWidth = rowDensity === 'compact' ? 180 : 200;
+  const defaultPartWidth = rowDensity === 'compact' ? 160 : 200;
+  // Spec column floor — enough for the slider + the operator/value/unit
+  // pill row to render legibly; auto-fit widens when data warrants.
+  // Was 180/200, dropped to keep the table compact.
+  const defaultColWidth = rowDensity === 'compact' ? 120 : 140;
   const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
 
   // Keys that should never render as their own column. `part_number` is
@@ -289,47 +290,12 @@ export default function ProductList() {
     }
   }, [productType, loadProducts, loadCategories]);
 
-  // Seed default filter chips with a P10 value once products load. Runs
-  // once per product-type via seededTypeRef so a user who later clears or
-  // adjusts a chip's value doesn't get it re-populated. We override even
-  // non-undefined values on this one-shot run because FilterChip's own
-  // auto-init also seeds at P10; the per-type seed wins to guarantee the
-  // bottom decile is excluded for the chips we ship enabled by default.
-  // The percentile lives in DEFAULT_FILTER_FLOOR_PERCENTILE.
-  const seededTypeRef = useRef<ProductType | null>(null);
-  useEffect(() => {
-    if (!productType || products.length === 0) return;
-    if (seededTypeRef.current === productType) return;
-    const typeAttrs = getAttributesForType(productType);
-    const isDefaultKey = (key: string) =>
-      typeAttrs.some(a => a.key === key && a.defaultFilter);
-    setFilters(prev => {
-      let mutated = false;
-      const next = prev.map(f => {
-        if (!isDefaultKey(f.attribute)) return f;
-        const values: number[] = [];
-        for (const product of products) {
-          const raw = (product as unknown as Record<string, unknown>)[f.attribute];
-          let n: number | null = null;
-          if (typeof raw === 'number') n = raw;
-          else if (raw && typeof raw === 'object') {
-            const o = raw as { value?: unknown; min?: unknown; max?: unknown };
-            if (typeof o.value === 'number') n = o.value;
-            else if (typeof o.min === 'number' && typeof o.max === 'number') n = (o.min + o.max) / 2;
-          }
-          if (n !== null && Number.isFinite(n)) values.push(n);
-        }
-        if (values.length === 0) return f;
-        values.sort((a, b) => a - b);
-        const idx = Math.min(values.length - 1,
-          Math.floor(values.length * DEFAULT_FILTER_FLOOR_PERCENTILE));
-        mutated = true;
-        return { ...f, value: values[idx] };
-      });
-      return mutated ? next : prev;
-    });
-    seededTypeRef.current = productType;
-  }, [productType, products]);
+  // Default filter chips appear in column headers but ship with no value
+  // ("any") so users see the full catalog on load — narrowing is the
+  // user's job via the slider/operator. Pre-seeding to a P10 floor was
+  // confusing when expected parts didn't appear in the initial result
+  // set; removed deliberately. The chip's own slider auto-init in
+  // FilterChip is also off for the same reason.
 
   // Add keyboard shortcut for opening filter (Ctrl+K)
   useEffect(() => {
@@ -366,6 +332,34 @@ export default function ProductList() {
   // Torque/speed keys — used for linear-mode display conversions.
   const TORQUE_KEYS = ['rated_torque', 'peak_torque'];
   const SPEED_KEYS = ['rated_speed'];
+
+  // Discrete gear ratios. Direct drive plus multiples of 4 — real
+  // gearhead catalogs cluster around these and a finer grid would give
+  // false precision. Snap *up* (next ratio that's enough to meet the
+  // torque target) rather than rounding, so the displayed value never
+  // overstates what the motor would actually deliver.
+  const GEAR_OPTIONS = [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64, 80, 100];
+  const snapGearUp = (raw: number): number => {
+    for (const g of GEAR_OPTIONS) {
+      if (g >= raw) return g;
+    }
+    return GEAR_OPTIONS[GEAR_OPTIONS.length - 1];
+  };
+
+  const scaleSpec = (value: any, factor: number): any => {
+    if (!value || typeof value !== 'object') return value;
+    if ('value' in value && typeof value.value === 'number') {
+      return { ...value, value: parseFloat((value.value * factor).toPrecision(4)) };
+    }
+    if ('min' in value || 'max' in value) {
+      return {
+        ...value,
+        min: typeof value.min === 'number' ? parseFloat((value.min * factor).toPrecision(4)) : value.min,
+        max: typeof value.max === 'number' ? parseFloat((value.max * factor).toPrecision(4)) : value.max,
+      };
+    }
+    return value;
+  };
 
   // Linear motion conversion helpers
   const isLinearMode = (appType === 'linear' || appType === 'z-axis') && linearTravel > 0;
@@ -454,9 +448,59 @@ export default function ProductList() {
     });
   }, [compatNarrowed, isLinearMode, linearTravel]);
 
+  // Per-row gear ratio. Picks the smallest discrete ratio that lifts
+  // each motor's rated/peak torque to clear the active torque filter,
+  // then scales speed down by the same factor — every motor gets a
+  // chance at the spec, and the user sees what speed they'd actually
+  // get with that gear in place. With no torque filter, gearMap is
+  // empty and gearedSource passes through unchanged.
+  const torqueTargets = useMemo(() => {
+    const out: { key: string; target: number }[] = [];
+    for (const f of filters) {
+      if (!TORQUE_KEYS.includes(f.attribute)) continue;
+      if (f.operator !== '>=' && f.operator !== '>') continue;
+      const v = numericFromValue(f.value);
+      if (v == null || !Number.isFinite(v) || v <= 0) continue;
+      out.push({ key: f.attribute, target: v });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
+  const { gearedSource, gearMap } = useMemo(() => {
+    if (productType !== 'motor' || torqueTargets.length === 0) {
+      return { gearedSource: linearizedSource, gearMap: new Map<string, number>() };
+    }
+    const map = new Map<string, number>();
+    const next = linearizedSource.map(p => {
+      let ratio = 1;
+      for (const { key, target } of torqueTargets) {
+        const motorVal = numericFromValue((p as any)[key]);
+        if (motorVal == null || motorVal <= 0) continue;
+        if (motorVal >= target) continue;
+        const needed = snapGearUp(target / motorVal);
+        if (needed > ratio) ratio = needed;
+      }
+      map.set(p.product_id, ratio);
+      if (ratio === 1) return p;
+      const copy: any = { ...p };
+      for (const k of TORQUE_KEYS) {
+        if (copy[k]) copy[k] = scaleSpec(copy[k], ratio);
+      }
+      for (const k of SPEED_KEYS) {
+        if (copy[k]) copy[k] = scaleSpec(copy[k], 1 / ratio);
+      }
+      return copy as Product;
+    });
+    return { gearedSource: next, gearMap: map };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linearizedSource, torqueTargets, productType]);
+
+  const showGearColumn = productType === 'motor' && torqueTargets.length > 0;
+
   const filteredProducts = useMemo(() => {
-    return applyFilters(linearizedSource, filters);
-  }, [linearizedSource, filters]);
+    return applyFilters(gearedSource, filters);
+  }, [gearedSource, filters]);
 
   // Apply sorting to filtered products
   const sortedProducts = useMemo(
@@ -845,10 +889,10 @@ export default function ProductList() {
   return (
     <div className="page-products-layout">
       <main className="results-main">
-        {/* Top toolbar — what used to live in the right-side filter pane.
-         * Type selector + match summary + unit toggle sit at the page head;
-         * each column header below carries its own slider, value, and
-         * histogram so filtering happens in place. */}
+        {/* Single top toolbar — type selector, page-size, and result count
+         * sit on the left; match summary and Clear sit on the right. This
+         * is the only fixed chrome above the results grid; the previous
+         * `.results-header` row is gone so the table gets the height back. */}
         <div className="page-toolbar">
           <div className="page-toolbar-left">
             <Dropdown<string>
@@ -863,6 +907,11 @@ export default function ProductList() {
               }))}
               className="page-toolbar-type-select"
             />
+            <span className="results-count">
+              {displayProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, displayProducts.length)}`} of {displayProducts.length}
+            </span>
+          </div>
+          <div className="page-toolbar-right">
             {productType && linearizedSource.length > 0 && (
               <div className="page-toolbar-match">
                 <div className="page-toolbar-match-numbers">
@@ -886,8 +935,6 @@ export default function ProductList() {
                 </div>
               </div>
             )}
-          </div>
-          <div className="page-toolbar-right">
             {filters.length > 0 && (
               <button
                 type="button"
@@ -959,28 +1006,6 @@ export default function ProductList() {
           </div>
         )}
 
-        <div className="results-header">
-          <div className="results-header-left">
-            <div className="pagination-controls">
-              <label className="pagination-label">Show:</label>
-              <Dropdown<number>
-                value={itemsPerPage}
-                onChange={setItemsPerPage}
-                ariaLabel="Items per page"
-                className="pagination-select"
-                options={[10, 25, 50, 100, 250, 500].map((n) => ({
-                  value: n,
-                  label: String(n),
-                }))}
-              />
-            </div>
-            <span className="results-count" style={{ marginLeft: '1rem' }}>
-              {displayProducts.length === 0 ? '0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, displayProducts.length)}`} of {displayProducts.length}
-            </span>
-          </div>
-
-        </div>
-
         {error && (
           <div className="error" style={{ margin: '0.5rem 0' }}>
             {error}
@@ -1050,6 +1075,18 @@ export default function ProductList() {
                 </span>
                 <div className="col-resize-handle" onMouseDown={(e) => startResize('part_number', e)} />
               </div>
+              {/* Gear ratio (computed). Shown only when an active torque
+                  filter forces a gear pick — otherwise it's all 1:1
+                  noise. Per-row value comes from gearMap; rated_torque
+                  and rated_speed cells already display the post-gear
+                  values so the table is an accurate depiction of
+                  what each motor would deliver at the chosen ratio. */}
+              {showGearColumn && (
+                <div className="product-grid-header-item computed-col" style={{ width: 70 }}>
+                  <div className="product-grid-header-label">Gear</div>
+                  <div className="product-grid-header-unit">(ratio)</div>
+                </div>
+              )}
               {/* Spec columns — each header is now a self-contained filter:
                   anchored histogram on top, sortable label, slider, and
                   inline operator/value/unit readout. Filters lazily promote
@@ -1074,6 +1111,7 @@ export default function ProductList() {
                       products={displayProducts}
                       allProducts={linearizedSource}
                       filter={filter}
+                      allFilters={filters}
                       sortConfig={sortConfig}
                       sortIndex={sortIndex}
                       totalSorts={sorts.length}
@@ -1146,6 +1184,17 @@ export default function ProductList() {
                       {product.part_number || 'N/A'}
                     </div>
                   </div>
+
+                  {/* Gear ratio cell — '—' for direct drive, 'N:1'
+                      otherwise. */}
+                  {showGearColumn && (() => {
+                    const r = gearMap.get(product.product_id) ?? 1;
+                    return (
+                      <div className="spec-header-item computed-cell">
+                        <div className="spec-header-value">{r === 1 ? '—' : `${r}:1`}</div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Spec values - each as a direct grid cell. Unit
                       conversion uses the per-column override so a column

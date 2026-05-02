@@ -38,6 +38,7 @@ export const COLUMN_ORDER: Partial<
   Record<Exclude<ProductType, null | 'all'>, string[]>
 > = {
   motor: [
+    'manufacturer',
     'rated_power',
     'rated_torque',
     'rated_speed',
@@ -45,6 +46,7 @@ export const COLUMN_ORDER: Partial<
     'rated_current',
   ],
   drive: [
+    'manufacturer',
     'rated_power',
     'input_voltage',
     'input_voltage_phases',
@@ -52,19 +54,24 @@ export const COLUMN_ORDER: Partial<
     'peak_current',
   ],
   robot_arm: [
-    // e.g. 'manufacturer', 'payload', 'reach', 'degrees_of_freedom', 'pose_repeatability', 'max_tcp_speed',
+    'manufacturer',
+    // e.g. 'payload', 'reach', 'degrees_of_freedom', 'pose_repeatability', 'max_tcp_speed',
   ],
   gearhead: [
-    // e.g. 'manufacturer', 'gear_ratio', 'gear_type', 'rated_torque', 'peak_torque', 'backlash', 'efficiency',
+    'manufacturer',
+    // e.g. 'gear_ratio', 'gear_type', 'rated_torque', 'peak_torque', 'backlash', 'efficiency',
   ],
   contactor: [
-    // e.g. 'manufacturer', 'ie_ac3_400v', 'motor_power_ac3_400v_kw', 'motor_power_ac3_480v_hp',
+    'manufacturer',
+    // e.g. 'ie_ac3_400v', 'motor_power_ac3_400v_kw', 'motor_power_ac3_480v_hp',
   ],
   electric_cylinder: [
-    // e.g. 'manufacturer', 'stroke', 'max_push_force', 'continuous_force', 'max_linear_speed', 'rated_voltage',
+    'manufacturer',
+    // e.g. 'stroke', 'max_push_force', 'continuous_force', 'max_linear_speed', 'rated_voltage',
   ],
   datasheet: [
-    // e.g. 'manufacturer', 'product_name', 'product_family', 'component_type',
+    'manufacturer',
+    // e.g. 'product_name', 'product_family', 'component_type',
   ],
 };
 

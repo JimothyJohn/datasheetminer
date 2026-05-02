@@ -514,11 +514,18 @@ describe('orderColumnAttributes', () => {
   });
 
   it('falls back to alphabetical when COLUMN_ORDER for the type is empty', () => {
-    // gearhead list is empty by default in columnOrder.ts
-    expect(COLUMN_ORDER.gearhead).toEqual([]);
-    const attrs = [make('z_field', 'Z Field'), make('a_field', 'A Field'), make('m_field', 'M Field')];
-    const ordered = orderColumnAttributes(attrs, 'gearhead');
-    expect(ordered.map(a => a.key)).toEqual(['a_field', 'm_field', 'z_field']);
+    // Mutate gearhead's order to empty for this test (restore after) — every
+    // real type now seeds at least 'manufacturer' as its lead column, so
+    // there is no naturally-empty type to use here.
+    const original = COLUMN_ORDER.gearhead ?? [];
+    COLUMN_ORDER.gearhead = [];
+    try {
+      const attrs = [make('z_field', 'Z Field'), make('a_field', 'A Field'), make('m_field', 'M Field')];
+      const ordered = orderColumnAttributes(attrs, 'gearhead');
+      expect(ordered.map(a => a.key)).toEqual(['a_field', 'm_field', 'z_field']);
+    } finally {
+      COLUMN_ORDER.gearhead = original;
+    }
   });
 
   it('puts authored-order keys first in declared order, then unlisted alphabetical', () => {

@@ -4091,26 +4091,17 @@ textarea:focus {
     0 0 0 4px var(--accent-primary) !important;
 }
 
-/* Header with military rank bar effect */
+/* Header divider — was a 3px solid accent + a 1px dashed accent stripe
+ * underneath ("military rank bar"). Reduced to a single 1px hairline at
+ * a softened opacity so the gold band no longer dominates the page; the
+ * header still reads as separated from the toolbar without shouting. */
 .header {
   position: relative;
-  border-bottom: 3px solid var(--accent-primary) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent) !important;
 }
 
 .header::after {
-  content: '';
-  position: absolute;
-  bottom: -3px;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--accent-primary) 0px,
-    var(--accent-primary) 10px,
-    transparent 10px,
-    transparent 20px
-  );
+  content: none;
 }
 
 /* Product grid with utilitarian spacing */
@@ -4934,6 +4925,7 @@ hr::after {
   display: flex;
   justify-content: flex-end;
 }
+
 /* ============================================================================
  * Build tray — sticky bottom strip showing the in-progress motion system.
  * ============================================================================ */
@@ -5590,15 +5582,16 @@ input.transmission-param-input {
   box-shadow: inset 0 -2px 0 var(--accent-primary);
 }
 
-/* ----- Empty state — anchored to the right edge of the results pane,
- * inboard of the filter sidebar's product-type picker. A small gold
- * arrow points at the picker; copy stays in sentence case, regular
+/* ----- Empty state — anchored to the left edge of the results pane,
+ * directly under the product-type picker now that it sits in the
+ * results header next to the "Show: N" control. A small gold arrow
+ * points up-left at the picker; copy stays in sentence case, regular
  * weight. No animation. Calm, inviting, not a stamped-CAD callout. */
 .empty-state-minimal {
-  padding: 3rem 1rem 2.5rem 0;
+  padding: 3rem 0 2.5rem 1rem;
   color: var(--text-secondary);
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .empty-state-minimal p {
   font-size: 1.15rem;
@@ -5610,13 +5603,13 @@ input.transmission-param-input {
   color: var(--text-primary);
   position: relative;
   padding-top: 3rem;
-  text-align: right;
+  text-align: left;
 }
 .empty-state-minimal p::before {
-  content: '↗';
+  content: '↖';
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
   font-size: 2rem;
   line-height: 1;
   color: var(--accent-primary);
@@ -5885,6 +5878,17 @@ input.transmission-param-input {
 .custom-dropdown-trigger[data-placeholder='true'] .custom-dropdown-trigger-label {
   color: var(--text-tertiary);
   font-weight: 500;
+}
+
+/* Product-type picker sits on the gold accent button (the global
+ * `button` rule paints `--accent-primary` with `!important`, so the
+ * dropdown's `--bg-tertiary` background never wins). The default
+ * placeholder rule above renders dim olive text on that gold field —
+ * unreadable. Force a light label for this trigger so the
+ * "Select Product Type..." copy reads against the dark background. */
+.page-toolbar-type-select[data-placeholder='true'] .custom-dropdown-trigger-label {
+  color: var(--bg-primary);
+  font-weight: 600;
 }
 
 /* Product-type dropdown — initial empty state.
@@ -6397,10 +6401,73 @@ input.transmission-param-input {
   box-shadow: inset 0 -2px 0 var(--accent-primary);
 }
 
-/* Each row in the header has a fixed height so all columns align. */
+/* Polarity tints — subtle green for include filters, subtle red for
+ * exclude filters. The selected values themselves stay inside the
+ * popover (per the design ask: don't crowd the header), so the chip
+ * just carries the polarity color. The bottom inset stripe picks up
+ * the same hue so the indicator reads as more than a wash. */
+.product-grid-header-item.column-header.has-include-filter {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #5fa45f 14%, var(--bg-secondary)) 0%,
+    var(--bg-secondary) 100%
+  );
+  box-shadow: inset 0 -2px 0 #5fa45f;
+}
+.product-grid-header-item.column-header.has-exclude-filter {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #c2557a 14%, var(--bg-secondary)) 0%,
+    var(--bg-secondary) 100%
+  );
+  box-shadow: inset 0 -2px 0 #c2557a;
+}
+
+/* Top row: sortable label + close-X share a single line. The label
+ * button takes the full remaining width so its hover/click target is
+ * still generous; the X is a small fixed-width button on the right. */
+.column-header-top {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  margin: 0 0 0.25rem;
+}
+
+/* When the X lives inside .column-header-top we override the absolute
+ * positioning from the global rule (~line 2643) so it flows inline. The
+ * inline X also gets bumped slightly bigger and a hover background so
+ * users notice it on chips that are otherwise empty (non-slider columns
+ * without a histogram or value box, which used to look uneditable). */
+.column-header-top .column-remove-btn {
+  position: static !important;
+  top: auto;
+  right: auto;
+  flex: 0 0 22px;
+  width: 22px !important;
+  height: 22px !important;
+  font-size: 14px !important;
+  border-radius: 4px !important;
+  opacity: 0.85;
+}
+.column-header-top .column-remove-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, #d96b85 20%, transparent) !important;
+  transform: none;
+}
+.column-header-top .column-remove-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Each row in the header has a fixed height so all columns align. The
+ * histogram now sits flush against the slider — the slider row's top
+ * margin is 0 so there's no gap between distribution bars and the
+ * track. Visual relationship between the two is the whole point of
+ * having a histogram in the first place. */
 .column-header-histogram {
   height: 26px;
-  margin: 0 0 0.25rem;
+  margin: 0;
   padding: 0;
   cursor: default;
   overflow: hidden;
@@ -6412,14 +6479,15 @@ input.transmission-param-input {
   border: none !important;
 }
 
-/* Sortable label row. Click target is the whole row — full-width button
- * with hover affordance so users can see "this sorts" without a tooltip. */
+/* Sortable label — sits in the top row, takes the remaining width next
+ * to the close-X. Left-aligned text so the title reads naturally. */
 .column-header-sort {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.25rem;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 22px;
   background: none;
   border: none;
@@ -6430,6 +6498,7 @@ input.transmission-param-input {
   font: inherit;
   color: inherit;
   transition: background 0.15s;
+  text-align: left;
 }
 
 .column-header-sort:hover {
@@ -6451,7 +6520,7 @@ input.transmission-param-input {
 
 .column-header-slider {
   height: 18px;
-  margin: 0.15rem 0;
+  margin: 0;  /* tight against the histogram above */
   display: flex;
   align-items: center;
 }
@@ -6461,20 +6530,41 @@ input.transmission-param-input {
   margin: 0;
 }
 
-/* Readout: operator · number · unit, each as a discrete pill button.
- * Each piece is independently clickable — operator cycles, number opens
- * the type-edit input, unit flips the per-column unit system. Visible
- * border + filled background up front (not just on hover) so they read
- * as buttons at a glance instead of as static text. Wider gaps between
- * pills give the eye a breather and reinforce that they're three
- * separate controls. Tabular-nums keeps numbers from jittering across
- * digit-count changes as the slider moves. */
-.column-header-readout {
+/* Value row: full-width prominent box for the current threshold. Sits
+ * directly under the slider so the relationship "thumb position ↔
+ * threshold value" is unmistakable. Bigger than the operator/unit
+ * pills below it because the number is the thing the user actually
+ * needs to read. */
+.column-header-value-row {
   display: flex;
   align-items: stretch;
-  justify-content: center;
+  margin-top: 0.3rem;
+  height: 30px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, monospace);
+}
+
+.column-header-value-row .readout-value,
+.column-header-value-row .readout-value-input {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* Bottom row: operator pill on the left, unit pill on the right —
+ * smallest controls, smallest weight, and pushed to the very bottom of
+ * the header so the value box above them owns the reader's attention. */
+.column-header-bottom {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 0.4rem;
-  height: 28px;
+  margin-top: 0.2rem;
+  height: 22px;
   font-size: 0.85rem;
   text-transform: none;
   letter-spacing: 0;
@@ -6483,6 +6573,11 @@ input.transmission-param-input {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono, monospace);
   min-width: 0;
+}
+
+.column-header-bottom .readout-operator,
+.column-header-bottom .readout-unit {
+  flex: 1 1 0;
 }
 
 .readout-operator,
@@ -6590,4 +6685,342 @@ input.transmission-param-input {
   .product-grid-header-item.column-header {
     min-height: 88px;
   }
+}
+
+/* =========================================================================
+ * Aesthetic pass — gentle rounding + control-height parity.
+ *
+ * The base sheet leans hard into a brutalist drafting/field-manual look
+ * (border-radius 0–2px on most surfaces). This block dials that back to
+ * a calmer "engineering doc" feel: every visible container gets a small,
+ * consistent radius, and the inline header/toolbar controls (type
+ * dropdown, page-size dropdown, density toggle, theme toggle, sign-in)
+ * land on a single height so the top strip reads as one row of peers.
+ *
+ * Two tokens carry the weight:
+ *   --control-h  : height for inline controls (dropdowns, toggles, signin)
+ *   --radius-sm  : controls + small chrome (chips, badges, banners)
+ *   --radius-md  : panels and bigger surfaces (toolbar, dropdown popovers,
+ *                  modal cards, build tray)
+ *
+ * Many earlier rules use `!important` for color/padding (the global
+ * `button` rule + `.theme-toggle` overrides). We only need to beat
+ * dimensions and border-radius; specificity here is enough since this
+ * block is last in the cascade.
+ * ========================================================================= */
+:root {
+  --control-h: 32px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+}
+
+/* Inline controls: identical height + matching subtle radius.
+ * The dropdown trigger is a `<button>` so the global button rule sets
+ * its background; we only need to size + round it here. */
+.page-toolbar .custom-dropdown-trigger,
+.account-menu-signin,
+.account-menu-trigger,
+.theme-toggle,
+.density-toggle {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
+/* Theme/density toggle — the !important block above pinned 36×36; we
+ * override to the unified 32px square so the whole strip aligns. */
+.theme-toggle,
+.density-toggle {
+  width: var(--control-h);
+  padding: 0 !important;
+}
+
+/* Dropdown trigger uses inline-flex; centering its label vertically with
+ * fixed height keeps the caret + text on the same baseline as the
+ * neighbouring sign-in button. */
+.page-toolbar .custom-dropdown-trigger {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 1;
+}
+
+/* Sign-in button: the default styling reads as a thin outline pill;
+ * give it the same height + radius and pad horizontally enough to match
+ * the dropdown's visual weight. Don't fight the global button rule on
+ * background — leave its accent fill alone. */
+.account-menu-signin {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ----- Container roundness — broad pass.
+ * Catch the visible chrome surfaces. Each rule is scoped to the named
+ * surface to avoid blanket-rounding tables, grid cells, or chart bars
+ * (rounding *those* would muddy the precision of the data display). */
+.page-toolbar,
+.page-toolbar-transmission,
+.compat-filter-banner,
+.product-grid-scroll,
+.product-card,
+.card,
+.transmission-control,
+.build-tray-slot,
+.modal-content,
+.modal-card,
+.account-menu-dropdown,
+.custom-dropdown-list,
+.attribute-selector-modal,
+.empty-state,
+.error,
+.skeleton,
+.sort-display,
+.filter-chip,
+.filter-chip-minimal,
+.filter-bar-button,
+.btn-clear,
+.btn-add-filter,
+.transmission-type-btn,
+.page-toolbar-clear,
+.account-menu-admin-pill,
+.pagination-label,
+.icon-link,
+.nav-btn,
+.compat-filter-banner-toggle {
+  border-radius: var(--radius-sm);
+}
+
+/* Bigger surfaces get a slightly more generous radius so the corner
+ * doesn't disappear next to the small-chrome rounding. */
+.page-toolbar,
+.product-grid-scroll,
+.transmission-control,
+.modal-content,
+.modal-card,
+.account-menu-dropdown,
+.custom-dropdown-list,
+.attribute-selector-modal {
+  border-radius: var(--radius-md);
+}
+
+/* Match summary mini-bar — inherits container roundness, but its inner
+ * fill needs the same radius so the gradient corner doesn't square off
+ * inside a rounded shell. */
+.page-toolbar-match-bar,
+.page-toolbar-match-bar-fill {
+  border-radius: var(--radius-sm);
+}
+
+/* =========================================================================
+ * Multi-select column filter — trigger + portaled popover.
+ *
+ * Non-slider columns (string / number / array) get this in place of the
+ * histogram + slider stack. The trigger lives in the column header and
+ * shows just "any" or a count; the actual list of selected values is
+ * inside the popover so the chip stays compact across narrow widths.
+ *
+ * Polarity (include = green, exclude = red) is mirrored on both the
+ * trigger AND the column-header tint (.has-include-filter /
+ * .has-exclude-filter rules above) so the same color story plays in two
+ * places at once.
+ * ========================================================================= */
+.column-header-multi-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  height: 30px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 5px);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s, background 0.15s;
+}
+.column-header-multi-trigger:hover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary));
+}
+/* When the column-header carries a polarity tint, push the same hue
+ * down onto the trigger so it stops looking like a neutral pill. */
+.has-include-filter .column-header-multi-trigger {
+  border-color: #5fa45f;
+  color: #c8e6c8;
+  background: color-mix(in srgb, #5fa45f 22%, var(--bg-tertiary));
+}
+.has-exclude-filter .column-header-multi-trigger {
+  border-color: #c2557a;
+  color: #f0c8d4;
+  background: color-mix(in srgb, #c2557a 22%, var(--bg-tertiary));
+}
+
+/* Portaled popover — fixed positioning lets it escape the cell's
+ * overflow:hidden. Border + shadow give it weight so it reads as a
+ * separate surface above the table. */
+.multi-filter-popover {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono, monospace);
+  overflow: hidden;
+}
+.multi-filter-popover--include { border-color: #5fa45f; }
+.multi-filter-popover--exclude { border-color: #c2557a; }
+
+.multi-filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+.multi-filter-popover-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Mode toggle — two segmented buttons (+ for include, − for exclude).
+ * Active button fills with the polarity color; inactive stays a flat
+ * outline so the choice reads as a binary pick. */
+.multi-filter-popover-mode {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 5px);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.multi-filter-popover-mode-btn {
+  width: 26px;
+  height: 22px;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-tertiary) !important;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.multi-filter-popover-mode-btn--include.is-active {
+  background: #5fa45f !important;
+  color: #fff !important;
+}
+.multi-filter-popover-mode-btn--exclude.is-active {
+  background: #c2557a !important;
+  color: #fff !important;
+}
+
+.multi-filter-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.multi-filter-popover-empty {
+  padding: 0.6rem 0.7rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+.multi-filter-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  user-select: none;
+}
+.multi-filter-popover-item:hover {
+  background: var(--bg-tertiary);
+}
+.multi-filter-popover-item-mark {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex: 0 0 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: transparent;
+}
+.multi-filter-popover-item.is-selected .multi-filter-popover-item-mark {
+  border-color: currentColor;
+}
+.multi-filter-popover--include .multi-filter-popover-item.is-selected .multi-filter-popover-item-mark {
+  background: #5fa45f;
+  border-color: #5fa45f;
+  color: #fff;
+}
+.multi-filter-popover--exclude .multi-filter-popover-item.is-selected .multi-filter-popover-item-mark {
+  background: #c2557a;
+  border-color: #c2557a;
+  color: #fff;
+}
+.multi-filter-popover-item-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-filter-popover-footer {
+  border-top: 1px solid var(--border-color);
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-secondary);
+  display: flex;
+  justify-content: flex-end;
+}
+.multi-filter-popover-clear {
+  padding: 0.25rem 0.6rem !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm, 5px) !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+.multi-filter-popover-clear:hover {
+  border-color: var(--accent-primary) !important;
+  color: var(--text-primary) !important;
+  background: var(--bg-tertiary) !important;
 }

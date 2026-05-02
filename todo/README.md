@@ -42,10 +42,12 @@ docs only when you're about to act on that work.
 
 ## How to use it
 
-1. **Starting a session?** Skim **The bottleneck** and **Active work** to know what's hot, what's blocked.
+1. **Starting a session?** Open the [Specodex Orchestration board](https://github.com/users/JimothyJohn/projects/1) — it's the source of truth for what's active, blocked, or queued. Skim **The bottleneck** here for any operator-only actions.
 2. **About to touch a file?** Scan **Trigger conditions** at the bottom — if anything matches, the linked doc is queued and worth reading first.
 3. **Got an idle dev box overnight?** Pick from **Late Night** — curated tasks safe to run autonomously and easy to verify in the morning.
-4. **Deferring new work?** Add a `todo/<AREA>.md` with a `## Triggers` section, then add a row to the table here.
+4. **Deferring new work?** Add a `todo/<AREA>.md` with a `## Triggers` section, then create a card on the board referencing it. Add a row to **Trigger conditions** below if the doc has file-level triggers.
+
+> **Board access (CLI).** `gh project item-list 1 --owner JimothyJohn --format json`. Requires the `project` scope on the gh token. Full access pattern + field IDs in the auto-memory `reference_orchestration_board.md`.
 
 ---
 
@@ -125,26 +127,16 @@ To get back to a clean working tree:
 
 ## Active work
 
-Ordered by **dependency-and-rework risk**, not urgency or size.
+**Tracked on the [Specodex Orchestration board](https://github.com/users/JimothyJohn/projects/1).** Status, Priority, and Size live there now — this section is no longer the source of truth.
 
-| # | Doc | Status | Effort | One-line summary |
-|---|-----|--------|--------|------------------|
-| 0 | [PHASE5_RECOVERY.md](PHASE5_RECOVERY.md) | 🔴 blocking — discovered 2026-05-01 | 🟢 1 day if PR #6 is clean, multi-day if not | Auth Phase 5a/5c/5d/5e/5f shipped per `gh pr list` but **not actually on master** — 5a/5c/5e merged into the Phase 1 PR branch; 5f based on a deleted branch; 5d's GH merge SHA isn't in `origin/master` (suspected revert). Plan = one stacked cherry-pick PR. **Open question first:** find out *why* PR #6 (5d CSP) came out of master before re-applying. |
-| 1 | [MODELGEN.md](MODELGEN.md) | 🚧 Phase 0 + drift gate ✅ shipped 2026-05-02 — consumer rewire + Zod collapse pending | 🟢 1-2 days remaining | `pydantic2ts` codegen of `app/frontend/src/types/generated.ts` via `./Quickstart gen-types`. CI fails on drift. Next: re-export hand-typed `models.ts` interfaces from `generated.ts` (5 documented shape mismatches), collapse the search Zod enum + allowlist onto `PRODUCT_TYPES`. Collapses the "add a product type" runbook from 6 files to 3. |
-| 2 | [SEO.md](SEO.md) | 🚧 Phase 0 ✅ shipped 2026-04-28 (robots.txt, static sitemap, OG/Twitter cards, JSON-LD); structural lifts queued | 🟡 medium | Public launch is now possible (`specodex.com` live). Next: SPA crawlability, per-product titles/meta, dynamic sitemap, category/manufacturer/comparison pages, OG image generator. The product *is* the SEO asset; every product row is a long-tail landing page waiting to be rendered. |
-| 3 | [MARKETING.md](MARKETING.md) | 📐 planned | 🟡 medium | Engineer-to-engineer distribution — no paid spend, leans on field-manual aesthetic + open-source repo as proof of seriousness. Pairs with SEO (programmatic product pages serve both). |
-| 4 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
-| 5 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
-| 6 | [PYTHON_BACKEND.md](PYTHON_BACKEND.md) | 📐 planned — Phase 0 split out into MODELGEN | 🔴 Phases 1-4: multi-week | Retire `app/backend/` (Express) in favour of FastAPI sharing `specodex.models` directly. Codegen sub-piece moved to MODELGEN. Phases 1-3 stand up FastAPI in parallel, cut over, then delete Express. Phase 4 drops the Rust Stripe Lambda (see also `todo/PYTHON_STRIPE.md` if/when it gets committed). |
-| 7 | [STYLE.md](STYLE.md) | 📐 planned 2026-05-02 | 🟡 ~5-6 days, parallelizable | Eliminate every native browser/OS UI surface so each action stays inside the app's visual language. Inventory: 36 `title=` tooltips, 2 `window.confirm`, 1 `alert`, ~25 silent error paths, 9 forms with UA validation bubbles, 17 unstyled scrollbars, 3 bare `target="_blank"`. Six phases ship one primitive each (Tooltip, ConfirmDialog, Toast, FormField, `.scrollable`, ExternalLink), migrate every call site, and add `Quickstart verify` lint gates so drift can't reintroduce native chrome. CLAUDE.md "Frontend UI conventions → No native browser/OS chrome" is the canonical rule list. |
+Each card body links back to its `todo/<AREA>.md` doc. To add new work, create a card on the board referencing the doc; if the work has file-level triggers, also add a row to **Trigger conditions** below.
+
+Initial card load (2026-05-02): PHASE5_RECOVERY (P0), MODELGEN, SEO, MARKETING, DEDUPE, GODMODE, PYTHON_BACKEND, STYLE.
 
 CI/CD itself is healthy (full chain green; only outstanding bit is apex
 `specodex.com` DNS) and now lives behind the `/cicd` skill rather than
 a `todo/*.md` plan — invoke the skill or read
 `.claude/skills/cicd/SKILL.md` for the runbook + foot-gun list.
-
-Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · 📐 planned
-Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴 multi-week or high blast radius
 
 ---
 

@@ -6,10 +6,11 @@
  * Layout (fixed-height rows so the grid lines up across columns):
  *
  *   ┌───────────────────────────┐
+ *   │ RATED TORQUE  ↑       [X] │  TOP_H — label + close X share one row
  *   │ ▁▂▅▇▅▂▁ histogram         │  HIST_H
- *   │ RATED TORQUE  ↑           │  LABEL_H — click to sort
- *   │ ━━━━●━━━━━━━━━━━━         │  SLIDER_H
- *   │ ≥  0.3  Nm                │  READOUT_H — operator/value/unit each clickable
+ *   │ ━━━━●━━━━━━━━━━━━         │  SLIDER_H — sits tight under the histogram
+ *   │       0.3                 │  VALUE_H — value box, full width, prominent
+ *   │ ≥                    Nm   │  BOTTOM_H — operator left, unit right
  *   └───────────────────────────┘
  *
  * Histogram and slider scale are anchored to `allProducts` (the
@@ -28,6 +29,7 @@ import {
   ComparisonOperator,
   FilterCriterion,
   SortConfig,
+  applyFilters,
 } from '../types/filters';
 import { Product } from '../types/models';
 import {
@@ -38,6 +40,7 @@ import {
   toDisplay,
 } from '../utils/unitConversion';
 import DistributionChart from './DistributionChart';
+import MultiSelectFilterPopover from './MultiSelectFilterPopover';
 
 interface ColumnHeaderProps {
   attribute: AttributeMetadata;
@@ -48,6 +51,10 @@ interface ColumnHeaderProps {
    *  histogram x-range so the visual reference doesn't jump. */
   allProducts: Product[];
   filter: FilterCriterion | null;
+  /** Every active filter on the page. Used to narrow the multi-select
+   *  popover's option list to combinations that actually exist — selecting
+   *  Manufacturer=ABB shouldn't leave dead IP-Rating choices on the table. */
+  allFilters: FilterCriterion[];
   sortConfig: SortConfig | null;
   sortIndex: number;
   totalSorts: number;
@@ -103,6 +110,7 @@ export default function ColumnHeader({
   products,
   allProducts,
   filter,
+  allFilters,
   sortConfig,
   sortIndex,
   totalSorts,
@@ -116,9 +124,11 @@ export default function ColumnHeader({
 }: ColumnHeaderProps) {
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const sliderInputRef = useRef<HTMLInputElement>(null);
+  const multiTriggerRef = useRef<HTMLButtonElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [editingValue, setEditingValue] = useState(false);
   const [valueDraft, setValueDraft] = useState('');
+  const [multiOpen, setMultiOpen] = useState(false);
 
   // Slider scale comes from the *unfiltered* source so the track doesn't
   // shrink as the user dials in other filters. Lets the user always
@@ -148,6 +158,59 @@ export default function ColumnHeader({
 
   const isSliderEligible =
     (attribute.type === 'object' || attribute.type === 'range') && rangeInfo !== null;
+
+  // For non-slider columns (string, number, array) — the values the
+  // multi-select popover offers. Strings/numbers come straight off the
+  // record; arrays get flattened so a `fieldbus: ['EtherCAT','Modbus']`
+  // surfaces 'EtherCAT' and 'Modbus' as separate selectable options.
+  //
+  // Source set: allProducts narrowed by every active filter EXCEPT this
+  // column's own. That way picking Manufacturer=ABB hides IP-Rating
+  // choices that no ABB drive carries (no dead-end selections), while
+  // leaving the column's own already-selected values visible (otherwise
+  // the chosen value would erase its peers from its own popover).
+  const multiSelectOptions = useMemo(() => {
+    if (isSliderEligible) return [];
+    if (attribute.type !== 'string' && attribute.type !== 'number' && attribute.type !== 'array') {
+      return [];
+    }
+    const otherFilters = allFilters.filter(f => f !== filter);
+    const source = otherFilters.length === 0 ? allProducts : applyFilters(allProducts, otherFilters);
+    const seen = new Set<string>();
+    const out: Array<string | number> = [];
+    for (const p of source) {
+      const raw = getNested(p, attribute.key);
+      if (raw == null) continue;
+      const push = (v: unknown) => {
+        if (typeof v !== 'string' && typeof v !== 'number') return;
+        const key = String(v);
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(v);
+      };
+      if (Array.isArray(raw)) raw.forEach(push);
+      else push(raw);
+    }
+    out.sort((a, b) => {
+      if (typeof a === 'number' && typeof b === 'number') return a - b;
+      return String(a).localeCompare(String(b), undefined, { numeric: true });
+    });
+    return out;
+  }, [allProducts, attribute.key, attribute.type, isSliderEligible, allFilters, filter]);
+
+  // Filter polarity drives the chip's tint. Slider filters always read
+  // as 'include' (you can't exclude with `>=`); multi-select filters
+  // can be either, hence the explicit branch.
+  const filterMode: 'include' | 'exclude' | null =
+    filter == null ? null : (filter.mode === 'exclude' ? 'exclude' : 'include');
+  const hasActiveFilter =
+    filter != null && (
+      isSliderEligible
+        ? typeof filter.value === 'number'
+        : (Array.isArray(filter.value)
+            ? filter.value.length > 0
+            : filter.value != null && filter.value !== '')
+    );
 
   const operator: ComparisonOperator =
     (filter?.operator as ComparisonOperator) ?? '>=';
@@ -337,7 +400,19 @@ export default function ColumnHeader({
   };
 
   const headerClasses =
-    'product-grid-header-item column-header' + (filter ? ' has-filter' : '');
+    'product-grid-header-item column-header'
+    + (hasActiveFilter ? ' has-filter' : '')
+    + (hasActiveFilter && filterMode === 'include' ? ' has-include-filter' : '')
+    + (hasActiveFilter && filterMode === 'exclude' ? ' has-exclude-filter' : '');
+
+  // Selected count for the multi-select trigger label.
+  const multiSelectedCount = (() => {
+    if (!filter) return 0;
+    const v = filter.value;
+    if (Array.isArray(v)) return v.length;
+    if (v == null || v === '') return 0;
+    return 1;
+  })();
 
   const dispCurrent =
     rangeInfo && filterValue != null
@@ -348,31 +423,54 @@ export default function ColumnHeader({
 
   return (
     <div className={headerClasses} style={{ width }}>
-      <button
-        className="column-remove-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        title="Hide column"
-      >
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          aria-hidden="true"
+      {/* Top row: sortable label on the left, close-X on the right. The
+       * label is the click target for sort; the X is the click target for
+       * hide-column. They share a flex row so the X no longer floats over
+       * the histogram. */}
+      <div className="column-header-top">
+        <button
+          type="button"
+          className="column-header-sort"
+          onClick={onSort}
+          title="Click to sort • click again to reverse, again to clear"
         >
-          <path d="M2 2 L8 8 M8 2 L2 8" />
-        </svg>
-      </button>
+          <span className="column-header-label-text">{label}</span>
+          <span className="sort-indicator">
+            {sortConfig?.direction === 'asc' && '↑'}
+            {sortConfig?.direction === 'desc' && '↓'}
+            {sortConfig && totalSorts > 1 && (
+              <span className="sort-order">{sortIndex + 1}</span>
+            )}
+          </span>
+        </button>
+        <button
+          className="column-remove-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          title="Hide column"
+        >
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M2 2 L8 8 M8 2 L2 8" />
+          </svg>
+        </button>
+      </div>
 
       {/* Histogram strip — anchored to allProducts for a stable x-range,
        * but the bar heights come from the filtered set so the user sees
-       * which slice their filter has selected. */}
+       * which slice their filter has selected. Sits directly above the
+       * slider with no gap so the relationship between the distribution
+       * and the slider thumb is obvious. */}
       {isSliderEligible && (
         <div className="column-header-histogram">
           <DistributionChart
@@ -384,26 +482,6 @@ export default function ColumnHeader({
           />
         </div>
       )}
-
-      {/* Sortable label row. Click target is the label text itself, with
-       * a hover underline + cursor:pointer so the affordance is obvious.
-       * The rest of the header (slider, readout) is interactive in its
-       * own right and doesn't trigger sort. */}
-      <button
-        type="button"
-        className="column-header-sort"
-        onClick={onSort}
-        title="Click to sort • click again to reverse, again to clear"
-      >
-        <span className="column-header-label-text">{label}</span>
-        <span className="sort-indicator">
-          {sortConfig?.direction === 'asc' && '↑'}
-          {sortConfig?.direction === 'desc' && '↓'}
-          {sortConfig && totalSorts > 1 && (
-            <span className="sort-order">{sortIndex + 1}</span>
-          )}
-        </span>
-      </button>
 
       {isSliderEligible && rangeInfo && (
         <>
@@ -443,19 +521,10 @@ export default function ColumnHeader({
             </div>
           </div>
 
-          {/* Single-line readout: operator · number · unit. Each piece is
-           * a click target with a different action — operator cycles >=/<,
-           * number opens the type-edit input, unit toggles imperial/metric. */}
-          <div className="column-header-readout">
-            <button
-              type="button"
-              className="readout-operator"
-              onClick={cycleOperator}
-              title={`Operator ${operator} — click to flip (>= ↔ <)`}
-              aria-label={`Filter operator ${operator}`}
-            >
-              {operator === '>=' ? '≥' : operator === '<=' ? '≤' : operator}
-            </button>
+          {/* Value box — its own row, full width, big enough that the
+           * current threshold reads at a glance. Click to type an exact
+           * override. */}
+          <div className="column-header-value-row">
             {editingValue ? (
               <input
                 ref={sliderInputRef}
@@ -501,6 +570,21 @@ export default function ColumnHeader({
                   : 'any'}
               </button>
             )}
+          </div>
+
+          {/* Bottom row: operator on the left, unit on the right. The two
+           * smallest controls sit at the very bottom of the header so the
+           * value box above them gets the full visual weight. */}
+          <div className="column-header-bottom">
+            <button
+              type="button"
+              className="readout-operator"
+              onClick={cycleOperator}
+              title={`Operator ${operator} — click to flip (>= ↔ <)`}
+              aria-label={`Filter operator ${operator}`}
+            >
+              {operator === '>=' ? '≥' : operator === '<=' ? '≤' : operator}
+            </button>
             {dispUnit && (
               <button
                 type="button"
@@ -513,6 +597,47 @@ export default function ColumnHeader({
               </button>
             )}
           </div>
+        </>
+      )}
+
+      {/* Non-slider columns (string / number / array): replace the
+       * histogram + slider stack with a single "filter values" trigger
+       * that opens a multi-select popover. The polarity (include vs
+       * exclude) lives inside the popover; the trigger here just shows
+       * the selected count and inherits the green/red tint from the
+       * column-header's has-include/has-exclude class. */}
+      {!isSliderEligible && multiSelectOptions.length > 0 && (
+        <>
+          <button
+            ref={multiTriggerRef}
+            type="button"
+            className="column-header-multi-trigger"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMultiOpen(o => !o);
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={multiOpen}
+            title={
+              multiSelectedCount === 0
+                ? 'Click to filter values'
+                : `${multiSelectedCount} ${filterMode === 'exclude' ? 'excluded' : 'included'} — click to edit`
+            }
+          >
+            {multiSelectedCount === 0
+              ? 'any'
+              : `${multiSelectedCount} ${filterMode === 'exclude' ? 'excluded' : 'selected'}`}
+          </button>
+          <MultiSelectFilterPopover
+            open={multiOpen}
+            anchorEl={multiTriggerRef.current}
+            options={multiSelectOptions}
+            filter={filter}
+            attributeLabel={label}
+            attributeKey={attribute.key}
+            onClose={() => setMultiOpen(false)}
+            onChange={(next) => onFilterChange(next)}
+          />
         </>
       )}
 

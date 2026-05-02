@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { FilterCriterion, AttributeMetadata, ComparisonOperator, getAvailableOperators, DEFAULT_FILTER_FLOOR_PERCENTILE } from '../types/filters';
+import { FilterCriterion, AttributeMetadata, ComparisonOperator, getAvailableOperators } from '../types/filters';
 import { Product } from '../types/models';
 import { useApp } from '../context/AppContext';
 import {
@@ -200,33 +200,10 @@ export default function FilterChip({
     return (attributeType === 'object' || attributeType === 'range') && rangeInfo !== null;
   }, [attributeType, rangeInfo]);
 
-  // Auto-initialize slider filter value when slider first becomes available.
-  // Seeds at the 10th percentile of the empirical distribution with operator
-  // '>=' so the bottom decile (smallest / weakest parts) is excluded from
-  // the result set by default — what's shown should exceed user expectations
-  // rather than start at the catalog floor. Percentile-based, not max-based,
-  // so long-tailed distributions don't park the seed in the outlier zone.
-  // Integer units (V, rpm) round to a whole number so the readout doesn't
-  // show fractional volts. Sort is NOT seeded here.
-  useEffect(() => {
-    if (showSlider && rangeInfo && filter.value === undefined) {
-      const op = filter.operator && SLIDER_OPERATORS.includes(filter.operator)
-        ? filter.operator
-        : '>=';
-      const sorted = rangeInfo.sortedValues;
-      const idx = Math.min(
-        sorted.length - 1,
-        Math.floor(sorted.length * DEFAULT_FILTER_FLOOR_PERCENTILE),
-      );
-      const seed = sorted[idx];
-      const initialValue = isIntegerUnit(rangeInfo.unit) ? Math.round(seed) : seed;
-      onUpdate({
-        ...filter,
-        value: initialValue,
-        operator: op,
-      });
-    }
-  }, [showSlider, rangeInfo]);
+  // Slider value defaults to undefined ("any") so the chip doesn't filter
+  // anything until the user grabs the slider. Previously seeded at P10 to
+  // exclude the bottom decile, but that confused users who wondered why
+  // expected parts weren't showing up; the catalog now starts wide.
 
   // Determine if this is a multi-select string field
   // String fields have only '=' and '!=' operators (or just '=')

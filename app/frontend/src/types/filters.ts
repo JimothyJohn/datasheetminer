@@ -60,7 +60,7 @@ export type ComparisonOperator = '=' | '>' | '<' | '>=' | '<=' | '!=';
  * - boolean: True/false matching
  * - [number, number]: Range matching (min, max)
  */
-export type FilterValue = string | string[] | number | boolean | [number, number];
+export type FilterValue = string | string[] | number | number[] | boolean | [number, number];
 
 /**
  * A single filter criterion
@@ -354,7 +354,7 @@ export const getCategoryForKey = (key: string): AttributeCategory =>
 // unit-bearing but not comparison-useful for product selection. See
 // specodex/models/motor.md.
 export const getMotorAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['motor'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['motor'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['motor'] },
   { key: 'type', displayName: 'Motor Type', type: 'string', applicableTypes: ['motor'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['motor'] },
@@ -399,7 +399,7 @@ export const getMotorAttributes = (): AttributeMetadata[] => [
 // (noise, operating_temp) and safety metadata are hidden by default —
 // reachable via restore. See specodex/models/robot_arm.md.
 export const getRobotArmAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['robot_arm'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['robot_arm'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'product_family', displayName: 'Product Family', type: 'string', applicableTypes: ['robot_arm'] },
   { key: 'payload', displayName: 'Payload', type: 'object', applicableTypes: ['robot_arm'], nested: true, unit: 'kg', defaultVisible: true },
@@ -441,7 +441,7 @@ export const getRobotArmAttributes = (): AttributeMetadata[] => [
 // and lubrication/service-life marketing numbers are hidden by default.
 // See specodex/models/gearhead.md.
 export const getGearheadAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['gearhead'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['gearhead'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['gearhead'] },
   { key: 'gear_ratio', displayName: 'Gear Ratio', type: 'number', applicableTypes: ['gearhead'], defaultVisible: true },
   { key: 'gear_type', displayName: 'Gear Type', type: 'string', applicableTypes: ['gearhead'], defaultVisible: true },
@@ -479,7 +479,7 @@ export const getGearheadAttributes = (): AttributeMetadata[] => [
  * @returns Array of datasheet attribute metadata objects
  */
 export const getDatasheetAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['datasheet'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['datasheet'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['datasheet'] },
   { key: 'product_name', displayName: 'Product Name', type: 'string', applicableTypes: ['datasheet'] },
   { key: 'product_family', displayName: 'Product Family', type: 'string', applicableTypes: ['datasheet'] },
@@ -495,7 +495,7 @@ export const getDatasheetAttributes = (): AttributeMetadata[] => [
 // the detail view you drill into per-product. See
 // specodex/models/contactor.md.
 export const getContactorAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['contactor'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['contactor'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['contactor'] },
   { key: 'type', displayName: 'Contactor Type', type: 'string', applicableTypes: ['contactor'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['contactor'] },
@@ -568,7 +568,7 @@ export const getContactorAttributes = (): AttributeMetadata[] => [
 // logic for the safety/approvals arrays. See
 // specodex/models/drive.md.
 export const getDriveAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['drive'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['drive'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['drive'] },
   { key: 'type', displayName: 'Drive Type', type: 'string', applicableTypes: ['drive'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['drive'] },
@@ -599,7 +599,7 @@ export const getDriveAttributes = (): AttributeMetadata[] => [
 // Secondary mechanical specs (lead screw, backlash, gear ratio) are
 // hidden by default. See specodex/models/electric_cylinder.md.
 export const getElectricCylinderAttributes = (): AttributeMetadata[] => [
-  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['electric_cylinder'] },
+  { key: 'manufacturer', displayName: 'Manufacturer', type: 'string', applicableTypes: ['electric_cylinder'], defaultVisible: true },
   { key: 'part_number', displayName: 'Part Number', type: 'string', applicableTypes: ['electric_cylinder'] },
   { key: 'type', displayName: 'Type', type: 'string', applicableTypes: ['electric_cylinder'] },
   { key: 'series', displayName: 'Series', type: 'string', applicableTypes: ['electric_cylinder'] },
