@@ -38,7 +38,7 @@ Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · �
 
 | # | Doc | Status | Effort | One-line |
 |---|---|---|---|---|
-| 1 | [CICD](todo/CICD.md) | 🟢 healthy — full chain green 2026-04-29 | 🟢 small | ✅ shipped today: `fromLookup` (#1), nightly bench (#4), ci-hygiene 5a, staging.yml refresh (#7). Remaining: action version refresh (#2), integration tests in CI (#3), security scans. |
+| 1 | `/cicd` skill (`.claude/skills/cicd/SKILL.md`) | 🟢 healthy — full chain green; runbook moved into skill 2026-04-30 | 🟢 small | All followups merged. Only outstanding bit is apex `specodex.com` DNS. |
 | 2 | [REBRAND](todo/REBRAND.md) | 🚧 Stage 4 DNS cutover pending | 🟡 medium | `specodex.com` ACM cert + CloudFront alt-domain + Route 53 records + 301 redirect. Waits on registrar NS propagation. |
 | 3 | [UNITS](todo/UNITS.md) | ✅ shipped 2026-04-28 | 🟢 done | ~373 dev + 10 prod review entries pending manual triage (`±`, `;null`, `;unknown`). |
 | 4 | [DEDUPE](todo/DEDUPE.md) | 🚧 Phase 1 script shipped 2026-04-29 | 🟡 medium | One-time sweep for prefix-drift duplicates from pre-family-aware-ID `--force` re-ingests. `cli/audit_dedupes.py` exists; running against dev is the next Late Night step. |

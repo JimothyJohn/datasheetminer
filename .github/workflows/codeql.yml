@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Standard GitHub starter, ~5-min job per language. Per CICD.md item #6.
+# Standard GitHub starter, ~5-min job per language.
 # Runs on push to master, on PR, and weekly to catch new advisories
 # against unchanged code.
 on:

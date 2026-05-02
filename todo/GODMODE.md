@@ -66,8 +66,8 @@ backend route, no auth surface.
   tool, not a data quality signal.
 - **No repo activity panel.** Commits / LOC / churn — `git log` already
   answers those without a dashboard.
-- **No deploy state panel.** That's `todo/CICD.md` territory; smoke tests
-  already verify deploys.
+- **No deploy state panel.** That's the `/cicd` skill's territory;
+  smoke tests already verify deploys.
 - **No CloudWatch error panel.** `aws logs tail --follow` is the right
   tool, not a panel.
 - **No backlog state panel.** `todo/README.md` is the index of record.

@@ -2,7 +2,6 @@ name: Security audit
 
 # Warn-only first (continue-on-error). Promote to blocking after one
 # cleanup cycle once the baseline is known and won't fail every run.
-# Per CICD.md item #6.
 on:
   schedule:
     - cron: "0 13 * * 1"   # Mondays 13:00 UTC — after the Sunday bench run

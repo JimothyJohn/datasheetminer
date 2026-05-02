@@ -286,3 +286,5 @@ webscraper/
 # app/.gitignore covers the intended location; this catches accidents at root or other depths.
 node_modules/
 .vite/
+admin/
+s3-datasheetminer/

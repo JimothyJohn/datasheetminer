@@ -1,6 +1,6 @@
 /**
  * Density toggle: compact = 3 thin lines, comfy = 2 rectangles.
- * Icon depicts the CURRENT state (consistent with UnitToggle).
+ * Icon depicts the CURRENT state.
  */
 
 import { useApp } from '../context/AppContext';

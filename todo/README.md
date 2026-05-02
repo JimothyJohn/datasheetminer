@@ -8,7 +8,10 @@ docs only when you're about to act on that work.
 > ✅ `www.specodex.com` is live, `datasheets.advin.io` NXDOMAIN'd.
 > All 5 CICD followups merged (`fromlookup`, `ci-hygiene`,
 > `nightly-bench`, `staging-yml-cleanup`, `late-night-dedupe-audit`),
-> plus `config.ts` apex-fallback fix and codeql.yml SHA pin (v3.35.2).
+> plus `config.ts` apex-fallback fix, codeql.yml SHA pin (v3.35.2),
+> and `HOSTED_ZONE_ID` secret deleted. CI/CD runbook + foot-gun list
+> moved into the `/cicd` skill (`.claude/skills/cicd/SKILL.md`); only
+> apex `specodex.com` DNS remains as outstanding follow-up.
 > Frontend visual iteration ✅ (App.css palette, Welcome rework,
 > ProductList refinements, FilterChip refactor + tests, sitemap.xml).
 > UNITS ✅ (`ValueUnit` / `MinMaxUnit` end-to-end + data backfill).
@@ -48,8 +51,7 @@ docs only when you're about to act on that work.
 
 ## The bottleneck — operator queue
 
-Drained as of 2026-04-30. Only manual action remaining is
-`gh secret delete HOSTED_ZONE_ID` (operator-only) — see CICD row below.
+Drained as of 2026-04-30. No operator-only actions outstanding.
 
 ---
 
@@ -62,8 +64,12 @@ Ordered by **dependency-and-rework risk**, not urgency or size.
 | 1 | [SEO.md](SEO.md) | 🚧 Phase 0 ✅ shipped 2026-04-28 (robots.txt, static sitemap, OG/Twitter cards, JSON-LD); structural lifts queued | 🟡 medium | Public launch is now possible (`specodex.com` live). Next: SPA crawlability, per-product titles/meta, dynamic sitemap, category/manufacturer/comparison pages, OG image generator. The product *is* the SEO asset; every product row is a long-tail landing page waiting to be rendered. |
 | 2 | [MARKETING.md](MARKETING.md) | 📐 planned | 🟡 medium | Engineer-to-engineer distribution — no paid spend, leans on field-manual aesthetic + open-source repo as proof of seriousness. Pairs with SEO (programmatic product pages serve both). |
 | 3 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
-| 4 | [CICD.md](CICD.md) | 🟢 healthy — full chain green; 2 small followups remain | 🟢 small | Test → Deploy Staging → Smoke Staging → Deploy Prod → Smoke Prod all clean. **Remaining followups:** delete dead `HOSTED_ZONE_ID` secret + remove its workflow validation (operator-only); apex `specodex.com` support (only `www` resolves today). |
-| 5 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
+| 4 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
+
+CI/CD itself is healthy (full chain green; only outstanding bit is apex
+`specodex.com` DNS) and now lives behind the `/cicd` skill rather than
+a `todo/*.md` plan — invoke the skill or read
+`.claude/skills/cicd/SKILL.md` for the runbook + foot-gun list.
 
 Status legend: ✅ done · 🚧 in progress · ⏸ deferred · 🔴 urgent · 📐 planned
 Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴 multi-week or high blast radius
@@ -72,13 +78,12 @@ Effort legend: 🟢 ≤ 1 day, low risk · 🟡 multi-day, some unknowns · 🔴
 
 ## Suggested chronological order
 
-With UNITS, REBRAND, INTEGRATION, FRONTEND_TESTING, and the bulk of CICD all
+With UNITS, REBRAND, INTEGRATION, FRONTEND_TESTING, and CICD all
 landed, the remaining order:
 
 1. **SEO + MARKETING.** Public launch is now possible. SEO structural lifts pair with marketing distribution; product pages serve both.
 2. **DEDUPE Phase 2+3.** Operates on post-UNITS uniform data. Audit script is shipped; auto-merge + human review queue follow.
-3. **CICD remaining followups.** Small loose ends — `HOSTED_ZONE_ID` cleanup, apex domain support. Each can interleave with anything else.
-4. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
+3. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
 
 **Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue.
 
@@ -143,6 +148,6 @@ If your current task matches any "trigger" entry, the linked doc is queued and w
 |---|---|
 | `app/frontend/index.html` head metadata, `app/frontend/public/{robots.txt,sitemap.xml}`, JSON-LD blocks, OG/Twitter card tags, per-product page rendering, dynamic sitemap, prerender/SSR, "SEO", "canonical", "search ranking", "OG image" | [SEO.md](SEO.md) |
 | Landing-page copy, "marketing", "launch", "audience", "Reddit / HN / mailing list", outreach plans, paid spend (don't), Stripe pricing surface | [MARKETING.md](MARKETING.md) |
-| `.github/workflows/`, `tests/unit/test_admin.py`, `cli/quickstart.py`, push to master, deploy attempt, "CI red", `HOSTED_ZONE_ID`, `gh-deploy-datasheetminer`, apex/`www` domain support, `app/infrastructure/lib/config.ts:hostedZoneName` fallback | [CICD.md](CICD.md) |
+| `.github/workflows/`, `cli/quickstart.py`, push to master, deploy attempt, "CI red", `HOSTED_ZONE_ID`/`HOSTED_ZONE_NAME`/`DOMAIN_NAME`/`CERTIFICATE_ARN`, `gh-deploy-datasheetminer`, OIDC trust policy, apex/`www` domain support, `app/infrastructure/lib/config.ts:hostedZoneName` fallback | `/cicd` skill (`.claude/skills/cicd/SKILL.md`) |
 | `cli/admin.py:purge`/`promote`, `specodex/ids.py:compute_product_id` or `_strip_family_prefix`, new vendor catalog with prefix-form drift; user mentions "duplicate", "dedupe", "merge rows", "same product twice", "two part numbers for one motor"; promotion to staging/prod | [DEDUPE.md](DEDUPE.md) |
 | `app/backend/src/routes/admin.ts`, `AdminPanel.tsx`, `specodex/ingest_log.py`, `specodex/llm.py`, `cli/bench.py:PRICING`, "godmode/dashboard/observability/Gemini cost/Claude usage" | [GODMODE.md](GODMODE.md) |

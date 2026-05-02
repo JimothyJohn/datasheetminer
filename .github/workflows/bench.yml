@@ -1,6 +1,6 @@
 name: Nightly bench (live LLM)
 
-# Schedule weekly first per CICD.md item #4 — Gemini cost is ~$1-5/run.
+# Schedule weekly — Gemini cost is ~$1-5/run.
 # Promote to nightly if the weekly run catches drift in the first month.
 # Manual trigger always available via workflow_dispatch.
 on:

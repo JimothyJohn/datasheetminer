@@ -9,6 +9,13 @@ interface DistributionChartProps {
   attribute: string;
   title: string;
   attributeType?: AttributeMetadata['type'];
+  /** Unfiltered, linearized source. When supplied, histogram bin edges
+   *  are computed from these values so the x-axis stays anchored to the
+   *  full catalog distribution; bar heights still reflect `products`,
+   *  giving the user a "where my filter sits in the catalog" view that
+   *  doesn't reshuffle every time they nudge a slider. Falls back to
+   *  `products` when omitted (categorical path doesn't use it). */
+  allProducts?: Product[];
 }
 
 // Numeric attributes with more than this many distinct values are too
@@ -62,8 +69,24 @@ const formatTick = (n: number): string => {
   return Math.round(n).toLocaleString();
 };
 
-export default function DistributionChart({ products, attribute, title, attributeType }: DistributionChartProps) {
+export default function DistributionChart({ products, attribute, title, attributeType, allProducts }: DistributionChartProps) {
   const { unitSystem } = useApp();
+
+  // Anchor values for the histogram bin edges. Defaults to `products`
+  // when no allProducts is provided so existing call sites (the categorical
+  // path, datasheet page) keep their current behavior.
+  const anchorNumeric = useMemo(() => {
+    const source = allProducts ?? products;
+    const out: number[] = [];
+    for (const p of source) {
+      const raw = resolve(p, attribute);
+      if (raw == null) continue;
+      const n = extractNumeric(raw);
+      if (n != null && Number.isFinite(n)) out.push(n);
+    }
+    out.sort((a, b) => a - b);
+    return out;
+  }, [allProducts, products, attribute]);
 
   // Bucket by canonical value (so toggling units doesn't reshuffle the
   // chart), but render labels through toDisplay() so imperial readers
@@ -123,10 +146,14 @@ export default function DistributionChart({ products, attribute, title, attribut
     const isNumericKind =
       attributeType === 'object' || attributeType === 'range' || attributeType === 'number';
     if (!isNumericKind) return false;
-    if (summary.numeric.length < HISTOGRAM_MIN_DISTINCT) return false;
-    const distinct = new Set(summary.numeric).size;
+    // Cardinality threshold runs against the *anchor* (unfiltered) values
+    // when supplied — otherwise a filter that narrows the visible set to
+    // 3 rows would flip the chart back to the categorical bars mid-drag.
+    const reference = anchorNumeric.length > 0 ? anchorNumeric : summary.numeric;
+    if (reference.length < HISTOGRAM_MIN_DISTINCT) return false;
+    const distinct = new Set(reference).size;
     return distinct >= HISTOGRAM_MIN_DISTINCT;
-  }, [attributeType, summary.numeric]);
+  }, [attributeType, anchorNumeric, summary.numeric]);
 
   // --- Histogram path ---------------------------------------------------
   // Percentile-spaced bins — same approach as the slider's
@@ -141,12 +168,12 @@ export default function DistributionChart({ products, attribute, title, attribut
   // the slider track gives an outlier a slice proportional to its
   // rarity.
   const histogram = useMemo(() => {
-    if (!useHistogram || summary.numeric.length === 0) return null;
-    const values = [...summary.numeric].sort((a, b) => a - b);
-    const n = values.length;
-    if (n === 0) return null;
-    const min = values[0];
-    const max = values[n - 1];
+    if (!useHistogram) return null;
+    const anchor = anchorNumeric;
+    if (anchor.length === 0) return null;
+    const n = anchor.length;
+    const min = anchor[0];
+    const max = anchor[n - 1];
     if (min === max) {
       return {
         bins: [{ count: n, lo: min, hi: max, density: 1 }],
@@ -155,27 +182,33 @@ export default function DistributionChart({ products, attribute, title, attribut
         peak: 1,
       };
     }
-    // Cap bin count at n so a small dataset doesn't render alternating
-    // empty slots (n=6 vs. 10 fixed bins → every other bin empty).
+    // Frozen catalog-density histogram. Equal-frequency (percentile-spaced)
+    // bins on the catalog distribution: each bin holds ~n/numBins values,
+    // and the bar height is *density* = count / value-span. Tall narrow
+    // bars mean lots of products clustered in a tight value range — a
+    // sweet spot. Short bars mean values are spread thin — landing the
+    // slider between bars puts you in "weird selection" territory where
+    // few products exist.
+    //
+    // Counts and bin edges both come from the *anchor* (unfiltered) source
+    // so the chart never moves as the user dials filters. It's a static
+    // topographic map of the catalog; the slider thumb beneath is the
+    // only thing that travels across it.
     const numBins = Math.min(HISTOGRAM_BINS, n);
     const bins: Array<{ count: number; lo: number; hi: number; density: number }> = [];
     for (let i = 0; i < numBins; i++) {
       const loIdx = Math.floor((i * n) / numBins);
-      const hiIdx =
-        i === numBins - 1
-          ? n
-          : Math.floor(((i + 1) * n) / numBins);
+      const hiIdx = i === numBins - 1 ? n : Math.floor(((i + 1) * n) / numBins);
       const count = hiIdx - loIdx;
       if (count === 0) {
         bins.push({ count: 0, lo: 0, hi: 0, density: 0 });
         continue;
       }
-      const lo = values[loIdx];
-      const hi = i === numBins - 1 ? values[n - 1] : values[hiIdx];
+      const lo = anchor[loIdx];
+      const hi = i === numBins - 1 ? anchor[n - 1] : anchor[hiIdx];
       const span = hi - lo;
-      // Spike bins (multiple tied records) have span 0; resolve below
-      // to the chart's finite density peak so a tie reads as "tall"
-      // rather than zeroing out or blowing the y-scale.
+      // Spike bins (multiple tied values) have span 0; resolve to the
+      // chart's finite peak below so a tie reads tall, not infinite.
       const density = span > 0 ? count / span : Number.POSITIVE_INFINITY;
       bins.push({ count, lo, hi, density });
     }
@@ -188,7 +221,7 @@ export default function DistributionChart({ products, attribute, title, attribut
       if (!Number.isFinite(b.density)) b.density = finitePeak;
     }
     return { bins, min, max, peak: finitePeak };
-  }, [useHistogram, summary.numeric]);
+  }, [useHistogram, anchorNumeric]);
 
   // --- Categorical path (existing) -------------------------------------
   const distribution = useMemo(() => {
@@ -227,7 +260,10 @@ export default function DistributionChart({ products, attribute, title, attribut
     return rankOpacity[index] ?? rankOpacity[rankOpacity.length - 1];
   };
 
-  if (summary.total === 0) return null;
+  // Categorical view needs at least one record to draw bars; the histogram
+  // path can render an all-empty chart from the anchor so the axis stays
+  // visible even when the filter narrows to zero.
+  if (summary.total === 0 && !useHistogram) return null;
 
   const heading = (
     <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '0.25rem' }}>

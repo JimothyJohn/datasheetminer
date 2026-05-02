@@ -3,7 +3,8 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, isUnitSystem } from '../context/AppContext';
+import { UnitSystem } from '../utils/unitConversion';
 import { ProductType, Product } from '../types/models';
 import { FilterCriterion, SortConfig, applyFilters, sortProducts, getAttributesForType, deriveAttributesFromRecords, mergeAttributesByKey, AttributeMetadata, getAvailableOperators, buildDefaultFiltersForType, DEFAULT_FILTER_FLOOR_PERCENTILE } from '../types/filters';
 // Column order is authored in types/columnOrder.ts — edit that file to
@@ -18,7 +19,7 @@ import {
   safeSave,
   isStringArray,
 } from '../utils/localStorage';
-import FilterBar from './FilterBar';
+import ColumnHeader from './ColumnHeader';
 import ProductDetailModal from './ProductDetailModal';
 import AttributeSelector from './AttributeSelector';
 import Dropdown from './Dropdown';
@@ -100,15 +101,32 @@ export default function ProductList() {
     safeSave('productListRestoredColumns', userRestoredKeys);
   }, [userRestoredKeys]);
 
-  // Drag-to-reorder column session state. Intentionally NOT persisted —
-  // every visit starts in the canonical order from columnOrder.ts; users
-  // can rearrange during their session and a refresh resets the view.
-  // `sessionColumnOrder` is null until the first successful drop, then
-  // becomes the user's preferred key sequence (only keys currently visible
-  // are honored; new/restored columns append at the end).
-  const [sessionColumnOrder, setSessionColumnOrder] = useState<string[] | null>(null);
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Per-column unit overrides. Clicking a column's unit text in the
+  // header flips that column's display system independently — without
+  // dragging every other column with it. Unset columns inherit the
+  // global default ('metric' on first load); the override map is the
+  // only way the user can move things to imperial now that the toolbar
+  // toggle is gone.
+  const isColumnUnitMap = (v: unknown): v is Record<string, UnitSystem> => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+    return Object.values(v as Record<string, unknown>).every(
+      x => typeof x === 'string' && isUnitSystem(x),
+    );
+  };
+  const [columnUnitOverrides, setColumnUnitOverrides] = useState<Record<string, UnitSystem>>(() =>
+    safeLoad('productListColumnUnits', isColumnUnitMap, {}),
+  );
+  useEffect(() => {
+    safeSave('productListColumnUnits', columnUnitOverrides);
+  }, [columnUnitOverrides]);
+  const unitSystemFor = (key: string): UnitSystem =>
+    columnUnitOverrides[key] ?? unitSystem;
+  const toggleColumnUnit = (key: string) => {
+    setColumnUnitOverrides(prev => {
+      const current = prev[key] ?? unitSystem;
+      return { ...prev, [key]: current === 'metric' ? 'imperial' : 'metric' };
+    });
+  };
 
   // Hard cap on simultaneously visible spec columns. Compact rows fit ten
   // before the table feels crowded; comfy is six so the row breathes
@@ -116,16 +134,20 @@ export default function ProductList() {
   // and stay individually restorable.
   const MAX_VISIBLE_COLUMNS = rowDensity === 'compact' ? 10 : 6;
   const [addColumnBtnRef, setAddColumnBtnRef] = useState<HTMLButtonElement | null>(null);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [appType, setAppType] = useState<'rotary' | 'linear' | 'z-axis'>('rotary');
   const [linearTravel, setLinearTravel] = useState<number>(0); // mm/rev
   const [loadMass, setLoadMass] = useState<number>(0); // kg (for Z-axis gravity calc)
 
-// Floor widths (px) for the part-number column — twice the historical
-// default so common 12-16 char part numbers stop truncating. The auto-
-// fit helper widens further whenever the loaded data warrants it.
-  const defaultPartWidth = rowDensity === 'compact' ? 240 : 320;
-  const defaultColWidth = rowDensity === 'compact' ? 90 : 130;
+// Floor widths (px) for the part-number column. Sized for typical
+// 12-16 char part numbers without over-reserving width; the auto-fit
+// helper widens further whenever the loaded data warrants it.
+  const defaultPartWidth = rowDensity === 'compact' ? 200 : 260;
+  // Spec columns now host the slider + a row of three pill buttons
+  // (operator / value / unit) in the header. Floor at ~180px so
+  // multi-digit values sit next to a 3-letter unit ("rpm", "in·lb")
+  // with comfortable gap between pills and breathing room for hover
+  // borders.
+  const defaultColWidth = rowDensity === 'compact' ? 180 : 200;
   const { columnWidths, setColumnWidths, startResize } = useColumnResize({ part_number: defaultPartWidth });
 
   // Keys that should never render as their own column. `part_number` is
@@ -181,94 +203,8 @@ export default function ProductList() {
       if (a.defaultVisible === false) return false;
       return a.nested === true;
     });
-    const capped = shown.slice(0, MAX_VISIBLE_COLUMNS);
-    // No drag-reorder yet → canonical order from columnOrder.ts.
-    if (!sessionColumnOrder) return capped;
-    // Apply user's drag order on top: keys named in sessionColumnOrder
-    // appear in that sequence; anything new (a column the user later
-    // restored / a derived field that just appeared in records) is
-    // appended in canonical order so it doesn't silently disappear.
-    const byKey = new Map(capped.map(a => [a.key, a]));
-    const used = new Set<string>();
-    const reordered: AttributeMetadata[] = [];
-    for (const key of sessionColumnOrder) {
-      const attr = byKey.get(key);
-      if (attr) {
-        reordered.push(attr);
-        used.add(key);
-      }
-    }
-    for (const attr of capped) {
-      if (!used.has(attr.key)) reordered.push(attr);
-    }
-    return reordered;
-  }, [columnAttributes, userHiddenKeys, userRestoredKeys, MAX_VISIBLE_COLUMNS, sessionColumnOrder]);
-
-  // Reset session order when product type changes — a drag-reorder for
-  // motors shouldn't carry over to drives.
-  useEffect(() => {
-    setSessionColumnOrder(null);
-    setDragKey(null);
-    setDropIndex(null);
-  }, [productType]);
-
-  // ---- Column drag-and-drop handlers ----
-  // Order doesn't change until drop, so the table body doesn't reflow
-  // during the drag. Dropping outside any header (or pressing Escape)
-  // fires `dragend` without a prior `drop`, which clears state and
-  // leaves the original order intact.
-  const handleColumnDragStart = (e: React.DragEvent<HTMLDivElement>, key: string) => {
-    setDragKey(key);
-    setDropIndex(null);
-    e.dataTransfer.effectAllowed = 'move';
-    // Some browsers refuse to start a drag without dataTransfer payload.
-    e.dataTransfer.setData('text/plain', key);
-  };
-
-  const handleColumnDragOver = (e: React.DragEvent<HTMLDivElement>, hoveredIndex: number) => {
-    if (dragKey === null) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const rect = e.currentTarget.getBoundingClientRect();
-    const onLeftHalf = e.clientX < rect.left + rect.width / 2;
-    const next = onLeftHalf ? hoveredIndex : hoveredIndex + 1;
-    setDropIndex(prev => (prev === next ? prev : next));
-  };
-
-  const handleColumnDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (dragKey === null || dropIndex === null) {
-      setDragKey(null);
-      setDropIndex(null);
-      return;
-    }
-    const currentOrder = visibleColumnAttributes.map(a => a.key);
-    const fromIndex = currentOrder.indexOf(dragKey);
-    if (fromIndex === -1) {
-      setDragKey(null);
-      setDropIndex(null);
-      return;
-    }
-    // Insertion semantics: dropIndex is the insertion slot in the original
-    // array. After removing the dragged key, every slot at or after
-    // fromIndex shifts left by one.
-    const without = currentOrder.filter((_, i) => i !== fromIndex);
-    const insertAt = dropIndex > fromIndex ? dropIndex - 1 : dropIndex;
-    if (insertAt === fromIndex) {
-      setDragKey(null);
-      setDropIndex(null);
-      return;
-    }
-    without.splice(insertAt, 0, dragKey);
-    setSessionColumnOrder(without);
-    setDragKey(null);
-    setDropIndex(null);
-  };
-
-  const handleColumnDragEnd = () => {
-    setDragKey(null);
-    setDropIndex(null);
-  };
+    return shown.slice(0, MAX_VISIBLE_COLUMNS);
+  }, [columnAttributes, userHiddenKeys, userRestoredKeys, MAX_VISIBLE_COLUMNS]);
 
   // Restore-dropdown candidates: everything the user could bring back —
   // explicit hides, cap overflow, and the hidden-by-default non-unit
@@ -290,12 +226,18 @@ export default function ProductList() {
       { key: 'part_number', displayName: 'Part Number' },
       ...visibleColumnAttributes.map(a => ({ key: a.key, displayName: a.displayName })),
     ];
+    // Floor every spec column at defaultColWidth — the in-header slider +
+    // operator + value pill needs ~120-145px to render without truncating.
+    // Auto-fit widens past the floor when data warrants; the floor only
+    // kicks in for naturally narrow columns.
+    const specMin: Record<string, number> = { part_number: defaultPartWidth };
+    for (const a of visibleColumnAttributes) specMin[a.key] = defaultColWidth;
     const auto = computeAutoColumnWidths({
       rows: products as unknown as Array<Record<string, unknown>>,
       columns: cols,
       density: rowDensity,
       unitSystem,
-      perKeyMin: { part_number: defaultPartWidth },
+      perKeyMin: specMin,
     });
     setColumnWidths(prev => {
       const next: Record<string, number> = {};
@@ -317,12 +259,14 @@ export default function ProductList() {
       { key: 'part_number', displayName: 'Part Number' },
       ...visibleColumnAttributes.map(a => ({ key: a.key, displayName: a.displayName })),
     ];
+    const specMin: Record<string, number> = { part_number: defaultPartWidth };
+    for (const a of visibleColumnAttributes) specMin[a.key] = defaultColWidth;
     const auto = computeAutoColumnWidths({
       rows: products as unknown as Array<Record<string, unknown>>,
       columns: cols,
       density: rowDensity,
       unitSystem,
-      perKeyMin: { part_number: defaultPartWidth },
+      perKeyMin: specMin,
     });
     setColumnWidths(() => {
       const next: Record<string, number> = {};
@@ -598,14 +542,14 @@ export default function ProductList() {
           unit = 'N';
         }
       }
-      return { key: attr.key, label, unit: unit ? displayUnit(unit, unitSystem) : null };
+      return { key: attr.key, label, unit: unit ? displayUnit(unit, unitSystemFor(attr.key)) : null };
     });
   };
 
   // Extract just the numeric value from a spec (no unit). Converts
-  // through the active unit system so imperial mode shows imperial
-  // numbers in the table cells.
-  const extractNumericOnly = (value: any): string | null => {
+  // through the supplied unit system so a column's per-column unit
+  // override is honored — pass unitSystemFor(key) at the call site.
+  const extractNumericOnly = (value: any, sys: UnitSystem): string | null => {
     if (!value) return null;
 
     if (typeof value === 'number') return String(value);
@@ -614,7 +558,7 @@ export default function ProductList() {
     if (typeof value === 'object') {
       if ('value' in value && value.value !== null && value.value !== undefined) {
         if ('unit' in value) {
-          const c = convertValueUnit(value, unitSystem);
+          const c = convertValueUnit(value, sys);
           return String(c.value);
         }
         return String(value.value);
@@ -625,19 +569,19 @@ export default function ProductList() {
 
       if (hasMin && hasMax) {
         if ('unit' in value) {
-          const c = convertMinMaxUnit(value, unitSystem);
+          const c = convertMinMaxUnit(value, sys);
           return `${c.min}-${c.max}`;
         }
         return `${value.min}-${value.max}`;
       } else if (hasMin) {
         if ('unit' in value) {
-          const c = convertValueUnit({ value: value.min, unit: value.unit }, unitSystem);
+          const c = convertValueUnit({ value: value.min, unit: value.unit }, sys);
           return String(c.value);
         }
         return String(value.min);
       } else if (hasMax) {
         if ('unit' in value) {
-          const c = convertValueUnit({ value: value.max, unit: value.unit }, unitSystem);
+          const c = convertValueUnit({ value: value.max, unit: value.unit }, sys);
           return String(c.value);
         }
         return String(value.max);
@@ -899,9 +843,122 @@ export default function ProductList() {
 
 
   return (
-    <div className="page-split-layout">
-      {/* Left side - results */}
+    <div className="page-products-layout">
       <main className="results-main">
+        {/* Top toolbar — what used to live in the right-side filter pane.
+         * Type selector + match summary + unit toggle sit at the page head;
+         * each column header below carries its own slider, value, and
+         * histogram so filtering happens in place. */}
+        <div className="page-toolbar">
+          <div className="page-toolbar-left">
+            <Dropdown<string>
+              value={productType === null ? '' : productType}
+              onChange={(v) => handleProductTypeChange(v === '' ? null : (v as ProductType))}
+              disabled={categories.length === 0}
+              ariaLabel="Product type"
+              placeholder={categories.length === 0 ? 'Loading...' : 'Select Product Type...'}
+              options={categories.map((c) => ({
+                value: c.type,
+                label: c.display_name,
+              }))}
+              className="page-toolbar-type-select"
+            />
+            {productType && linearizedSource.length > 0 && (
+              <div className="page-toolbar-match">
+                <div className="page-toolbar-match-numbers">
+                  <span className="page-toolbar-match-count">{filteredProducts.length}</span>
+                  <span className="page-toolbar-match-divider">/</span>
+                  <span className="page-toolbar-match-total">{linearizedSource.length}</span>
+                  <span className="page-toolbar-match-label">matching</span>
+                  <span className="page-toolbar-match-percent">
+                    {linearizedSource.length === 0
+                      ? '0%'
+                      : `${Math.round((filteredProducts.length / linearizedSource.length) * 100)}%`}
+                  </span>
+                </div>
+                <div className="page-toolbar-match-bar" aria-hidden="true">
+                  <div
+                    className="page-toolbar-match-bar-fill"
+                    style={{
+                      width: `${linearizedSource.length === 0 ? 0 : (filteredProducts.length / linearizedSource.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="page-toolbar-right">
+            {filters.length > 0 && (
+              <button
+                type="button"
+                className="page-toolbar-clear"
+                onClick={() => {
+                  setFilters([]);
+                  setSorts([]);
+                }}
+                title="Clear all filters and sorts"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Linear / Z-axis controls for motors — moved out of the sidebar. */}
+        {productType === 'motor' && (
+          <div className="page-toolbar-transmission">
+            <div className="transmission-type-row">
+              {(['rotary', 'linear', 'z-axis'] as const).map(t => (
+                <button
+                  key={t}
+                  className={`transmission-type-btn ${appType === t ? 'transmission-type-active' : ''}`}
+                  onClick={() => {
+                    setAppType(t);
+                    if (t === 'rotary') { setLinearTravel(0); setLoadMass(0); }
+                    if (t === 'linear') setLoadMass(0);
+                  }}
+                >
+                  {t === 'z-axis' ? 'Z-Axis' : t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+            {(appType === 'linear' || appType === 'z-axis') && (
+              <div className="transmission-param">
+                <label className="transmission-param-label">Linear Travel / Rev</label>
+                <div className="transmission-param-input-row">
+                  <input
+                    type="number"
+                    className="transmission-param-input"
+                    min={0}
+                    step={0.1}
+                    value={linearTravel || ''}
+                    placeholder="0"
+                    onChange={(e) => setLinearTravel(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <span className="transmission-param-unit">mm/rev</span>
+                </div>
+              </div>
+            )}
+            {appType === 'z-axis' && (
+              <div className="transmission-param">
+                <label className="transmission-param-label">Load Mass</label>
+                <div className="transmission-param-input-row">
+                  <input
+                    type="number"
+                    className="transmission-param-input"
+                    min={0}
+                    step={0.1}
+                    value={loadMass || ''}
+                    placeholder="0"
+                    onChange={(e) => setLoadMass(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <span className="transmission-param-unit">kg</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="results-header">
           <div className="results-header-left">
             <div className="pagination-controls">
@@ -993,80 +1050,51 @@ export default function ProductList() {
                 </span>
                 <div className="col-resize-handle" onMouseDown={(e) => startResize('part_number', e)} />
               </div>
-              {/* Spec columns — all visible columns get an × to hide
-                  them; restore from the "+ Add Spec" dropdown. */}
+              {/* Spec columns — each header is now a self-contained filter:
+                  anchored histogram on top, sortable label, slider, and
+                  inline operator/value/unit readout. Filters lazily promote
+                  when the user first drags a column's slider. */}
               {(() => {
                 const headers = getColumnHeaders();
-                return headers.map((header, headerIndex) => {
+                return headers.map((header) => {
                   const sortIndex = sorts.findIndex(s => s.attribute === header.key);
-                  const isSorted = sortIndex !== -1;
-                  const sortConfig = isSorted ? sorts[sortIndex] : null;
-                  const isDragging = dragKey === header.key;
-                  const showDropBefore = dragKey !== null && dropIndex === headerIndex;
-                  const showDropAfter =
-                    dragKey !== null &&
-                    dropIndex === headers.length &&
-                    headerIndex === headers.length - 1;
+                  const sortConfig = sortIndex !== -1 ? sorts[sortIndex] : null;
+                  const filter = filters.find(
+                    f => f.attribute === header.key
+                      || f.attribute.startsWith(header.key + '.')
+                  ) ?? null;
+                  const attribute = visibleColumnAttributes.find(a => a.key === header.key);
+                  if (!attribute) return null;
 
                   return (
-                    <div
+                    <ColumnHeader
                       key={header.key}
-                      className={
-                        'product-grid-header-item clickable' +
-                        (isDragging ? ' dragging' : '') +
-                        (showDropBefore ? ' drop-before' : '') +
-                        (showDropAfter ? ' drop-after' : '')
-                      }
-                      style={{ width: columnWidths[header.key] ?? defaultColWidth }}
-                      title="Drag to reorder • click anywhere to sort • click again to reverse, again to clear"
-                      onClick={() => handleColumnSort(header.key)}
-                      draggable
-                      onDragStart={(e) => handleColumnDragStart(e, header.key)}
-                      onDragOver={(e) => handleColumnDragOver(e, headerIndex)}
-                      onDrop={handleColumnDrop}
-                      onDragEnd={handleColumnDragEnd}
-                    >
-                      <button
-                        className="column-remove-btn"
-                        draggable={false}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveColumn(header.key);
-                        }}
-                        title="Hide column"
-                      >
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M2 2 L8 8 M8 2 L2 8" />
-                        </svg>
-                      </button>
-                      <div className="product-grid-header-label">
-                        {header.label}
-                        <span className="sort-indicator">
-                          {isSorted && sortConfig?.direction === 'asc' && '↑'}
-                          {isSorted && sortConfig?.direction === 'desc' && '↓'}
-                          {isSorted && sorts.length > 1 && <span className="sort-order">{sortIndex + 1}</span>}
-                        </span>
-                      </div>
-                      {header.unit && <div className="product-grid-header-unit">({header.unit})</div>}
-                      <div
-                        className="col-resize-handle"
-                        draggable={false}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          startResize(header.key, e);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
+                      attribute={attribute}
+                      label={header.label}
+                      products={displayProducts}
+                      allProducts={linearizedSource}
+                      filter={filter}
+                      sortConfig={sortConfig}
+                      sortIndex={sortIndex}
+                      totalSorts={sorts.length}
+                      width={columnWidths[header.key] ?? defaultColWidth}
+                      unitSystem={unitSystemFor(header.key)}
+                      onUnitToggle={() => toggleColumnUnit(header.key)}
+                      onFilterChange={(updated) => {
+                        if (updated == null) {
+                          setFilters(filters.filter(f => f !== filter));
+                        } else if (filter) {
+                          setFilters(
+                            filters.map(f => (f === filter ? updated : f))
+                          );
+                        } else {
+                          setFilters([...filters, updated]);
+                        }
+                      }}
+                      onSort={() => handleColumnSort(header.key)}
+                      onRemove={() => handleRemoveColumn(header.key)}
+                      onResizeStart={(e) => startResize(header.key, e)}
+                    />
                   );
                 });
               })()}
@@ -1119,11 +1147,14 @@ export default function ProductList() {
                     </div>
                   </div>
 
-                  {/* Spec values - each as a direct grid cell */}
+                  {/* Spec values - each as a direct grid cell. Unit
+                      conversion uses the per-column override so a column
+                      flipped to imperial doesn't drag its neighbors. */}
                   {getColumnHeaders().map((header) => {
                     const attrKey = header.key;
                     const productValue = (product as any)[attrKey];
-                    const numericValue = extractNumericOnly(productValue);
+                    const cellSys = unitSystemFor(attrKey);
+                    const numericValue = extractNumericOnly(productValue, cellSys);
                     const proximityColor = getProximityColor(attrKey, productValue);
                     const hasProximityColor = !!proximityColor;
                     const sortColor = !hasProximityColor
@@ -1142,7 +1173,7 @@ export default function ProductList() {
                           backgroundColor: cellColor
                         }}
                       >
-                        <div className="spec-header-value">{numericValue || formatValue(productValue, 0, 5, unitSystem)}</div>
+                        <div className="spec-header-value">{numericValue || formatValue(productValue, 0, 5, cellSys)}</div>
                       </div>
                     );
                   })}
@@ -1199,120 +1230,6 @@ export default function ProductList() {
           </>
         )}
       </main>
-
-      {/* Right sidebar - filters & gear ratio */}
-      <aside className="filter-sidebar">
-        {/* Mobile-only toggle header. Collapsed by default — phones don't
-         * have the vertical real estate to host the full pane above the
-         * results table. The summary line tells the user what the current
-         * scope is (product type) and how many specs are pinned, so they
-         * can decide whether to expand without doing it first. */}
-        <button
-          className="mobile-filter-toggle"
-          onClick={() => setMobileFiltersOpen(prev => !prev)}
-          aria-expanded={mobileFiltersOpen}
-          aria-label={mobileFiltersOpen ? 'Hide filters' : 'Show filters'}
-        >
-          <span className="mobile-filter-summary">
-            <span className="mobile-filter-prefix">Filters</span>
-            <span className="mobile-filter-scope">
-              {productType
-                ? categories.find(c => c.type === productType)?.display_name ?? productType
-                : 'Pick a type'}
-            </span>
-            {filters.length > 0 && (
-              <span
-                className="mobile-filter-count"
-                aria-label={`${filters.length} active spec filter${filters.length === 1 ? '' : 's'}`}
-              >
-                {filters.length}
-              </span>
-            )}
-          </span>
-          <span className={`mobile-filter-arrow ${mobileFiltersOpen ? 'open' : ''}`} aria-hidden="true">&#9662;</span>
-        </button>
-
-        <div className={`filter-sidebar-body${mobileFiltersOpen ? ' mobile-expanded' : ''}`}>
-        {productType === 'motor' && (
-          <div className="transmission-control">
-            {/* Application type selector */}
-            <div className="transmission-type-row">
-              {(['rotary', 'linear', 'z-axis'] as const).map(t => (
-                <button
-                  key={t}
-                  className={`transmission-type-btn ${appType === t ? 'transmission-type-active' : ''}`}
-                  onClick={() => {
-                    setAppType(t);
-                    if (t === 'rotary') { setLinearTravel(0); setLoadMass(0); }
-                    if (t === 'linear') setLoadMass(0);
-                  }}
-                >
-                  {t === 'z-axis' ? 'Z-Axis' : t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {/* Linear Travel / Rev — shown for linear and z-axis */}
-            {(appType === 'linear' || appType === 'z-axis') && (
-              <div className="transmission-param">
-                <label className="transmission-param-label">Linear Travel / Rev</label>
-                <div className="transmission-param-input-row">
-                  <input
-                    type="number"
-                    className="transmission-param-input"
-                    min={0}
-                    step={0.1}
-                    value={linearTravel || ''}
-                    placeholder="0"
-                    onChange={(e) => setLinearTravel(Math.max(0, Number(e.target.value) || 0))}
-                  />
-                  <span className="transmission-param-unit">mm/rev</span>
-                </div>
-                {linearTravel > 0 && (
-                  <div className="transmission-param-hint">
-                    RPM → mm/s, Torque → Thrust (N)
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Load Mass — shown for z-axis */}
-            {appType === 'z-axis' && (
-              <div className="transmission-param">
-                <label className="transmission-param-label">Load Mass</label>
-                <div className="transmission-param-input-row">
-                  <input
-                    type="number"
-                    className="transmission-param-input"
-                    min={0}
-                    step={0.1}
-                    value={loadMass || ''}
-                    placeholder="0"
-                    onChange={(e) => setLoadMass(Math.max(0, Number(e.target.value) || 0))}
-                  />
-                  <span className="transmission-param-unit">kg</span>
-                </div>
-                {loadMass > 0 && (
-                  <div className="transmission-param-hint">
-                    Gravity: {(loadMass * GRAVITY).toFixed(1)} N — Brake must hold this
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        <FilterBar
-          productType={productType}
-          filters={filters}
-          sort={null}
-          products={filteredProducts}
-          onFiltersChange={setFilters}
-          onSortChange={() => {}}
-          onProductTypeChange={handleProductTypeChange}
-          allProducts={linearizedSource}
-        />
-        </div>
-      </aside>
 
       <ProductDetailModal
         product={selectedProduct}

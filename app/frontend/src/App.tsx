@@ -28,7 +28,6 @@ import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ThemeToggle from './components/ThemeToggle';
 import GitHubLink from './components/GitHubLink';
-import UnitToggle from './components/UnitToggle';
 import DensityToggle from './components/DensityToggle';
 import NetworkStatus from './components/NetworkStatus';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -118,7 +117,6 @@ export function AppShell() {
             </div>
             <div className="header-options">
               <span className="header-options-label" aria-hidden="true">OPTIONS</span>
-              <UnitToggle />
               <DensityToggle />
               <ThemeToggle />
               <AccountMenu />
