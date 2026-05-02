@@ -5,8 +5,9 @@ Measures speed, cost, redundancy, and data quality for a set of
 control datasheets against known ground-truth outputs.
 
 Usage:
-    ./Quickstart bench                      Page-finding only (no API calls)
-    ./Quickstart bench --live               Full pipeline (calls Gemini)
+    ./Quickstart bench                      Page-finding + cached LLM diff (needs PDFs)
+    ./Quickstart bench --live               Full pipeline (calls Gemini, needs PDFs)
+    ./Quickstart bench --quality-only       Cache→expected diff only (no PDFs needed)
     ./Quickstart bench --filter j5-filtered Run a single fixture
     ./Quickstart bench --update-cache       Run live + save responses to cache
 """
@@ -401,39 +402,55 @@ def run(
     live: bool = False,
     filter_slug: str | None = None,
     update_cache: bool = False,
+    quality_only: bool = False,
 ) -> list[dict[str, Any]]:
-    """Run benchmarks and return results list."""
+    """Run benchmarks and return results list.
+
+    quality_only=True skips PDF reads and page-finding; only diffs cached
+    extraction output against expected. Lets the run work in environments
+    where source PDFs aren't available (e.g. fresh remote checkouts), at
+    the cost of skipping page-finder and live-extraction signal.
+    """
+    if quality_only and live:
+        raise ValueError("--quality-only and --live are mutually exclusive")
+
     fixtures = _load_fixtures(filter_slug)
     results: list[dict[str, Any]] = []
 
     for fixture in fixtures:
         slug = fixture["slug"]
-        pdf_path = FIXTURE_DIR / fixture["pdf"]
-        if not pdf_path.exists():
-            log.warning(f"Skipping {slug}: {pdf_path} not found")
-            continue
-
-        log.info(f"Benchmarking: {slug}")
-        pdf_bytes = pdf_path.read_bytes()
         result: dict[str, Any] = {
             "slug": slug,
             "pdf": fixture["pdf"],
             "product_type": fixture["product_type"],
-            "pdf_bytes_total": len(pdf_bytes),
         }
 
-        # Phase 1: page finding (always runs, no API call)
-        pf = _benchmark_page_finding(pdf_bytes)
-        result["page_finding"] = pf
-        spec_pages = (
-            pf["scored_pages"] if pf.get("scored_pages") else pf["text_heuristic_pages"]
-        )
-        redundancy = (
-            1.0 - (len(spec_pages) / pf["total_pages"])
-            if pf["total_pages"] > 0
-            else 0.0
-        )
-        result["redundancy_ratio"] = round(redundancy, 4)
+        if quality_only:
+            log.info(f"Quality-only: {slug}")
+        else:
+            pdf_path = FIXTURE_DIR / fixture["pdf"]
+            if not pdf_path.exists():
+                log.warning(f"Skipping {slug}: {pdf_path} not found")
+                continue
+
+            log.info(f"Benchmarking: {slug}")
+            pdf_bytes = pdf_path.read_bytes()
+            result["pdf_bytes_total"] = len(pdf_bytes)
+
+            # Phase 1: page finding (always runs, no API call)
+            pf = _benchmark_page_finding(pdf_bytes)
+            result["page_finding"] = pf
+            spec_pages = (
+                pf["scored_pages"]
+                if pf.get("scored_pages")
+                else pf["text_heuristic_pages"]
+            )
+            redundancy = (
+                1.0 - (len(spec_pages) / pf["total_pages"])
+                if pf["total_pages"] > 0
+                else 0.0
+            )
+            result["redundancy_ratio"] = round(redundancy, 4)
 
         # Phase 2: LLM extraction
         extraction: dict[str, Any] = {}
@@ -575,6 +592,12 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Skip the wall-clock budget check (still records timings)",
     )
+    parser.add_argument(
+        "--quality-only",
+        action="store_true",
+        help="Skip page-finding; diff cached extraction against expected only "
+        "(no source PDFs needed; mutually exclusive with --live)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -588,6 +611,7 @@ def main(argv: list[str] | None = None) -> None:
         live=args.live,
         filter_slug=args.filter_slug,
         update_cache=args.update_cache,
+        quality_only=args.quality_only,
     )
 
     _print_table(results)
