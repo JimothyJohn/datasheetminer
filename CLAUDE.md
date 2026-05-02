@@ -120,6 +120,37 @@ After touching the six files above, run this loop locally before pushing. Skippi
 
 The filter chips and the results-table columns both derive their attribute list from a merge of **static per-type metadata** (rich display names, tuned units) and **records-derived attributes** (caught at runtime from the actual DynamoDB rows). See `app/frontend/src/types/filters.ts:deriveAttributesFromRecords` + `mergeAttributesByKey`. Adding a new product type no longer requires editing `filters.ts` — the table will auto-populate from whatever fields the records carry, with auto-generated display names from the snake_case keys. Curated `getXxxAttributes()` lists are an override, not a requirement. User preferences (hidden columns, row density, column cap, sort direction) persist in `localStorage`.
 
+### No native browser/OS chrome — every action stays inside the app
+
+Specodex is meant to feel like a designed app, not a browser tab with our colors painted on it. **Every user action must have an app-native visualization.** When you reach for a built-in browser primitive, stop and use (or build) the app-native equivalent. The migration plan and current inventory live in `todo/STYLE.md`.
+
+**Banned by default** (use the app-native primitive instead):
+
+| Native primitive | Use this instead |
+|---|---|
+| `title=` attribute (OS tooltip) | `app/frontend/src/components/ui/Tooltip.tsx` |
+| `window.confirm()` / `confirm()` | `useConfirm()` hook + `<ConfirmDialog>` |
+| `window.alert()` / `alert()` | `useToast()` for non-blocking; `<ConfirmDialog>` if an explicit ack is required |
+| Silent `console.error` in user-triggered flows | `useToast().error(...)` paired with the console log |
+| `<form>` without `noValidate` (UA validation bubbles) | `noValidate` + JS validation + inline error in `<FormField>` |
+| `<input type="checkbox">` without `appearance: none` | Styled checkbox (see filter sidebar pattern) |
+| `<select>` (OS dropdown) | `Dropdown.tsx` (single) or `MultiSelectFilterPopover.tsx` (multi) |
+| `<input type="file">` (OS file picker) | Custom dropzone — none exist today; build before adding upload |
+| `<input type="date|color|range|datetime-local">` (OS pickers) | Custom picker — none exist today |
+| `<dialog>` (UA backdrop) | Custom modal pattern (see `ProductDetailModal.tsx` etc.) |
+| `<details>` / `<summary>` (UA disclosure triangle) | Custom collapse component |
+| `target="_blank"` bare anchor | `<ExternalLink>` (themed icon + Tooltip + `rel="noopener noreferrer"`) |
+| `overflow: auto/scroll` without custom `::-webkit-scrollbar` | `.scrollable` utility class (themed scrollbar) |
+| `window.print()` | Custom print stylesheet — none exists; build before adding print |
+| `window.open()` (popup with OS chrome) | In-app modal/route |
+| `<progress>` element (UA chrome) | Custom progress bar |
+
+**The rule.** When adding a new feature, if the obvious implementation reaches for one of the rows above, treat it as a signal that you're about to ship native chrome. Either use the app-native primitive listed, or — if no primitive exists yet — extend `todo/STYLE.md`'s out-of-scope section into a new phase rather than introducing the native fallback.
+
+**Drift gates.** `./Quickstart verify` greps for the forbidden patterns (`title=`, `window.confirm`, `alert`, `<form>` without `noValidate`, bare `target="_blank"`, raw `overflow: auto`). CI mirrors verify, so a regression PR is red before review. If the lint hits a false positive (e.g. an `<svg><title>`), allowlist the specific case rather than disabling the rule.
+
+**Exceptions worth knowing.** Browser autofill on login forms (`:-webkit-autofill`) is intentionally left alone — password managers depend on it, and theming the yellow background hasn't been worth the complexity. The native context menu is also left in place for non-interactive content (text selection, "Inspect"). If you suppress either, document why.
+
 ## Benchmarking
 
 `./Quickstart bench` measures the ingress pipeline against control datasheets with known ground truth.

@@ -74,6 +74,7 @@ to read cold.
 | **Column / filter UI iteration** | `manufacturer` added to `gearhead` `COLUMN_ORDER`; filter chip refactor | `app/frontend/src/types/{columnOrder,filters,filters.test}.ts`, `app/frontend/src/components/{ColumnHeader,FilterChip,ProductDetailModal,ProductList}.tsx`, `app/frontend/src/App.css` | 🔴 `filters.test.ts` red — see below. |
 | **Pipeline edits** | `lead_time` field added to `ProductBase`; quality changes | `specodex/models/product.py`, `specodex/quality.py`, edits in `app/{frontend,backend}/src/types/models.ts` | Likely related to MODELGEN consumers; commit ownership unclear. |
 | **`todo/RUST_ONE.md` deletion** | An old Rust-era plan deleted (227 lines) | `todo/RUST_ONE.md` (D) | Looks intentional — leftover from the rust-era refactor that landed at `c076fd0`. Confirm before committing. |
+| **STYLE plan + CLAUDE.md rule** | Plan to eliminate native browser/OS chrome (tooltips, confirms, alerts, toasts, validation bubbles, scrollbars, external links). Docs-only, no code yet. | `todo/STYLE.md` (new), `CLAUDE.md` (new "No native browser/OS chrome" subsection), `todo/README.md` (this row + active-work row + trigger row) | ✅ ready to commit 2026-05-02. Docs-only — zero merge friction with any other stream. |
 
 ### Cross-stream conflicts
 
@@ -135,6 +136,7 @@ Ordered by **dependency-and-rework risk**, not urgency or size.
 | 4 | [DEDUPE.md](DEDUPE.md) | 🚧 Phase 1 audit ✅ shipped (`./Quickstart audit-dedupes`); Phase 2+3 pending | 🟡 medium (high blast radius) | Audit script identifies prefix-drift duplicates from `--force` re-ingests pre-family-aware-ID fix. Phase 2 auto-merge + Phase 3 human review queue follow. |
 | 5 | [GODMODE.md](GODMODE.md) | 📐 planned | 🔴 large | One-page admin dashboard: Gemini + Claude usage, ingest health, DB health, repo activity, deploy state. Local + deployed split. |
 | 6 | [PYTHON_BACKEND.md](PYTHON_BACKEND.md) | 📐 planned — Phase 0 split out into MODELGEN | 🔴 Phases 1-4: multi-week | Retire `app/backend/` (Express) in favour of FastAPI sharing `specodex.models` directly. Codegen sub-piece moved to MODELGEN. Phases 1-3 stand up FastAPI in parallel, cut over, then delete Express. Phase 4 drops the Rust Stripe Lambda (see also `todo/PYTHON_STRIPE.md` if/when it gets committed). |
+| 7 | [STYLE.md](STYLE.md) | 📐 planned 2026-05-02 | 🟡 ~5-6 days, parallelizable | Eliminate every native browser/OS UI surface so each action stays inside the app's visual language. Inventory: 36 `title=` tooltips, 2 `window.confirm`, 1 `alert`, ~25 silent error paths, 9 forms with UA validation bubbles, 17 unstyled scrollbars, 3 bare `target="_blank"`. Six phases ship one primitive each (Tooltip, ConfirmDialog, Toast, FormField, `.scrollable`, ExternalLink), migrate every call site, and add `Quickstart verify` lint gates so drift can't reintroduce native chrome. CLAUDE.md "Frontend UI conventions → No native browser/OS chrome" is the canonical rule list. |
 
 CI/CD itself is healthy (full chain green; only outstanding bit is apex
 `specodex.com` DNS) and now lives behind the `/cicd` skill rather than
@@ -157,6 +159,7 @@ landed, the remaining order:
 4. **DEDUPE Phase 2+3.** Operates on post-UNITS uniform data. Audit script is shipped; auto-merge + human review queue follow.
 5. **PYTHON_BACKEND Phase 1+** once everything above stops shifting. Don't start the FastAPI parallel-deploy on a moving target.
 6. **GODMODE last.** Large surface area; lands on stable substrate so panels don't get retouched.
+7. **STYLE** runs alongside in any spare slot. Phases 1 (Tooltip), 5 (scrollbars), 6 (ExternalLink) are pure-additive and can ship anytime — they don't compete with the queue above. Phases 2-4 (ConfirmDialog, Toast, FormField) touch shared state, so single-stream them, but they don't block PYTHON_BACKEND or anything else.
 
 **Out-of-band exceptions.** Urgent bugs, security issues, or user-visible breakage jump the queue.
 
@@ -227,3 +230,4 @@ If your current task matches any "trigger" entry, the linked doc is queued and w
 | `app/infrastructure/lib/auth/auth-stack.ts`, `frontend-stack.ts`, `app/backend/src/routes/auth.ts` (audit), Cognito SES sender, refresh-token revocation, CSP/HSTS response headers, WAF CloudWatch alarms; `gh pr list` showing PR #3/#5/#6/#7/#8 as merged; the `specodex-{ses,revoke,csp,audit,alarms}` worktrees | [PHASE5_RECOVERY.md](PHASE5_RECOVERY.md) |
 | `specodex/models/*.py`, `specodex/models/common.py:ProductType`, `app/frontend/src/types/{models,generated}.ts`, `app/backend/src/routes/search.ts` zod enum, `app/backend/src/config/productTypes.ts`, `scripts/gen_types.py`, `./Quickstart gen-types`, "pydantic2ts", "generated.ts", "drift", "add product type" | [MODELGEN.md](MODELGEN.md) |
 | `app/backend/src/` beyond a bug fix, new endpoint, new middleware, "FastAPI", "Mangum", "rewrite Express in Python", `stripe/` (Rust) | [PYTHON_BACKEND.md](PYTHON_BACKEND.md) |
+| New JSX with `title=`, `window.confirm`, `alert(`, `<form>` without `noValidate`, bare `target="_blank"`, `<input type="checkbox">` without `appearance: none`, raw `overflow: auto/scroll` in CSS; any user-triggered `console.error` without a paired toast; reaching for `<select>`/`<input type="file">`/`<dialog>`/`<details>` | [STYLE.md](STYLE.md) |
