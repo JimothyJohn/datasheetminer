@@ -29,8 +29,42 @@ Everything goes through `./Quickstart <command>`. It's a bash shim that delegate
     ./Quickstart ingest-report    Group ingest-log quality-fails by manufacturer
                                   for vendor outreach. --email-template emits
                                   a ready-to-send email body per manufacturer.
+    ./Quickstart gen-types        Regenerate app/frontend/src/types/generated.ts
+                                  from the Pydantic models under specodex/models/.
+                                  Single source of truth for the Python ↔ TypeScript
+                                  contract — see "Type generation" below.
 
 All CLI modules live in `cli/`. Quickstart is the single entry point — don't run `python -m cli.foo` in docs or scripts unless there's a reason.
+
+## Type generation (Pydantic → TypeScript)
+
+The TypeScript types in the frontend are **generated** from the Pydantic
+models, not hand-written. `./Quickstart gen-types` runs `pydantic2ts`
+against every concrete `BaseModel` under `specodex/models/*.py` and writes
+`app/frontend/src/types/generated.ts`. The script is `scripts/gen_types.py`;
+it shells out to `npx json-schema-to-typescript`, so Node 18+ must be on PATH
+(it already is for `./Quickstart dev`).
+
+**When to run it.** After any edit to:
+- `specodex/models/*.py` (new field, renamed field, new model)
+- `specodex/models/common.py` (`ProductType` literal, unit families,
+  `ValueUnit` / `MinMaxUnit` shape)
+
+CI re-runs `./Quickstart gen-types` and fails the build if
+`app/frontend/src/types/generated.ts` drifts from source — i.e., the
+generated file is committed and treated as part of the diff, not as a
+build artifact. The check lives in the `test-codegen` job in
+`.github/workflows/ci.yml` and gates `deploy-staging`.
+
+**Don't hand-edit generated files.** The banner comment at the top of
+`generated.ts` says so. If the generated TS is wrong, fix the Pydantic
+model and re-generate; never patch the TS.
+
+**Background and roadmap.** This is Phase 0 of the Python-backend
+migration plan in `todo/PYTHON_BACKEND.md`, which retires the hand-synced
+TypeScript layer in `app/backend/`. Phase 0a (re-route the existing TS
+imports through `generated.ts`) and Phase 0b (collapse the search Zod
+enum onto the generated types) follow.
 
 ## Pipeline architecture
 
@@ -59,6 +93,11 @@ The Python side auto-discovers, but the TypeScript side has four hardcoded allow
 4. `app/backend/src/types/models.ts` — add a `<Type>` interface + include it in the `Product` and `ProductType` unions.
 5. `app/backend/src/routes/search.ts` — add to the zod `type` enum. Without this, `/api/v1/search?type=<type>` returns 400.
 6. `app/frontend/src/types/models.ts` — add to the `ProductType` union.
+
+> **Heads up:** `todo/PYTHON_BACKEND.md` Phase 0a/b retires steps 4–6 by
+> regenerating `app/frontend/src/types/generated.ts` via
+> `./Quickstart gen-types`. Once that lands, the runbook collapses to
+> steps 1–3 + a `gen-types` run. Until then, do all six.
 
 Step 1 can be scaffolded with `./Quickstart schemagen <pdf>... --type <name>`, which runs the standard `page_finder → Gemini → ProposedModel` pipeline and writes the model file plus the `common.py` patch. **Pass 3-5 vendors' datasheets** (ABB, Schneider, Siemens, Allen-Bradley, etc.) so the LLM generalizes across vendors instead of tuning the schema to one catalog's quirks — a single-source proposal will happily hardcode vendor-specific voltage columns or frame codes. The CLI also writes a companion `<type>.md` doc citing the sources and explaining non-obvious design decisions; treat that `.md` as the schema's reviewable ADR, not scratchwork.
 

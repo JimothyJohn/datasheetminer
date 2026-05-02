@@ -230,6 +230,44 @@ jobs:
       - name: Verify (frontend)
         run: ./Quickstart verify --only frontend
 
+  # ── Stage 1e: Generated TS types are in sync ───────────────────
+  # Phase 0 of todo/PYTHON_BACKEND.md: app/frontend/src/types/generated.ts
+  # is committed to the repo and treated as part of the diff. This job
+  # re-runs the codegen and fails the build if the committed file drifts
+  # from the Pydantic models under specodex/models/. Drift means the
+  # author edited a Pydantic model but forgot `./Quickstart gen-types`.
+  test-codegen:
+    name: Test Codegen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Python dependencies
+        run: uv sync --quiet
+
+      - name: Regenerate TypeScript types
+        run: ./Quickstart gen-types
+
+      - name: Verify generated.ts is in sync with Pydantic models
+        run: |
+          if ! git diff --exit-code app/frontend/src/types/generated.ts; then
+            echo "::error::app/frontend/src/types/generated.ts is stale."
+            echo "::error::Run './Quickstart gen-types' locally and commit the result."
+            exit 1
+          fi
+
   # ── Stage 2: Deploy to staging ─────────────────────────────────
   # Deploy delegates to ./Quickstart deploy --stage staging so the
   # CI flow matches the local flow exactly (single source of truth).
@@ -237,7 +275,7 @@ jobs:
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
-    needs: [test-python, test-integration, test-backend, test-frontend]
+    needs: [test-python, test-integration, test-backend, test-frontend, test-codegen]
     if: github.ref == 'refs/heads/master'
     environment: staging
     outputs:

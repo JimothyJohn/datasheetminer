@@ -34,6 +34,11 @@ Usage:
     ./Quickstart schemagen PDF --type NAME
                                   Propose a new Pydantic product model from a PDF
                                   (try: ./Quickstart schemagen --help)
+    ./Quickstart gen-types        Regenerate app/frontend/src/types/generated.ts
+                                  from the Pydantic models under specodex/models/.
+                                  Run after editing any Pydantic model. CI fails
+                                  if the committed file drifts from source.
+                                  See todo/PYTHON_BACKEND.md (Phase 0).
 
 Zero external dependencies — stdlib only.
 """
@@ -934,6 +939,20 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "inspect":
         run(
             ["uv", "run", "python", "-m", "cli.inspect_datasheet", *sys.argv[2:]],
+            cwd=ROOT,
+        )
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "gen-types":
+        # Regenerate app/frontend/src/types/generated.ts from Pydantic models.
+        # See todo/PYTHON_BACKEND.md for the rollout plan; pydantic2ts shells
+        # out to `npx json-schema-to-typescript`, so Node 18+ must be on PATH.
+        info("Generating TypeScript types from Pydantic models")
+        check_python_version()
+        require_cmd("uv")
+        require_cmd("npx")
+        run(
+            ["uv", "run", "python", "scripts/gen_types.py", *sys.argv[2:]],
             cwd=ROOT,
         )
         return
