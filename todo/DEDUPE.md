@@ -45,12 +45,11 @@ The same drift could hide in other families, *especially* those with:
 
 Three phases, each auditable on its own.
 
-### Phase 1 — Audit script
+### Phase 1 — Audit script ✅ shipped (commit `faf20d5`)
 
-`cli/audit_dedupes.py` (new): scan all motor/drive/gearhead/etc rows in
-DynamoDB; group by **family-aware normalized core** (the same
-`_strip_family_prefix` rule the new `compute_product_id` uses); emit
-JSON of every group with ≥2 rows.
+`cli/audit_dedupes.py` is on master and wired into Quickstart. Run with
+`./Quickstart audit-dedupes --stage dev`. Emits
+`outputs/dedupe_audit_<timestamp>.json` and `outputs/dedupe_review_<timestamp>.md`.
 
 For each group, the report includes:
 
@@ -63,8 +62,6 @@ For each group, the report includes:
   - **conflicting** — both populated, different values → human review
 - A suggested action: `merge`, `review`, or `delete-junk` (the
   placeholder-name pattern from the Parker case)
-
-Output: `outputs/dedupe_audit_<timestamp>.json`.
 
 No DB writes in this phase.
 
@@ -128,8 +125,8 @@ worth automating further.
 
 | File | Change |
 |---|---|
-| `cli/audit_dedupes.py` | new — Phase 1 audit + Phase 2 safe-merge + Phase 3 review applier |
-| `tests/unit/test_audit_dedupes.py` | new — unit tests on the grouping + merge logic |
+| `cli/audit_dedupes.py` | ✅ Phase 1 shipped; extend with Phase 2 safe-merge + Phase 3 review applier |
+| `tests/unit/test_audit_dedupes.py` | ✅ shipped alongside Phase 1 |
 | `outputs/dedupe_audit_*.json` | generated artifact |
 | `outputs/dedupe_review_*.md` | generated artifact |
 
@@ -137,15 +134,16 @@ No changes to `specodex/`, no schema changes.
 
 ## Estimated effort
 
-- Audit script (Phase 1): 2 h
+- Audit script (Phase 1): ✅ shipped
 - Safe auto-merge (Phase 2): 1 h
 - Review-applier (Phase 3): 1–2 h
 - Manual review pass over dev DB: 1 h, depending on how many
   manufacturers have drift
 
-Half a day for the code, an hour for the human review. Worth doing
-**before** any large-scale promotion to prod, because cleaning up dev
-once is a lot cheaper than cleaning up prod and dev separately.
+A couple hours for the remaining code, an hour for the human review.
+Worth doing **before** any large-scale promotion to prod, because
+cleaning up dev once is a lot cheaper than cleaning up prod and dev
+separately.
 
 ## Triggers
 
