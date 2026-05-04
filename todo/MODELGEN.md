@@ -6,24 +6,33 @@
 > 2026-05-02 because the codegen ships independently of the larger
 > Express → FastAPI migration and is worth tracking on its own.
 >
-> **Date drafted:** 2026-05-02. **Status:** 🚧 Phase 0 (toolchain) ✅
-> shipped, Phase 0a (drift gate) ✅ shipped; consumer rewire and Zod
-> enum collapse pending.
+> **Status:** 🚧 toolchain + drift gate ✅ shipped 2026-05-02; consumer
+> rewire (Phase 0a-ii) and Zod enum collapse (Phase 0b) pending.
 
 ---
 
 ## What it is
 
-Today: TypeScript interfaces in `app/{backend,frontend}/src/types/models.ts`
-are hand-typed to mirror Pydantic models in `specodex/models/*.py`. CLAUDE.md
-spells out the six-place runbook for adding a new product type. Three of those
-places are typed-by-hand and silently drift.
+`./Quickstart gen-types` regenerates `app/frontend/src/types/generated.ts`
+from `specodex/models/*.py` via `pydantic2ts`. The drift gate
+(`test-codegen` job in `.github/workflows/ci.yml`) fails CI if the
+generated file isn't up to date. **What's still hand-typed and drifts:**
 
-End-state: one command (`./Quickstart gen-types`) regenerates
-`app/frontend/src/types/generated.ts` from Pydantic. Hand-typed `models.ts`
-becomes a thin re-export shim. The backend Zod enum is derived from the same
-generated artifact. Adding a product type collapses from 6 files to 2 + a
-codegen run.
+- `app/frontend/src/types/models.ts` mirrors a subset of the Pydantic
+  models. Consumers import from this, not from `generated.ts`.
+- `app/backend/src/routes/search.ts` Zod enum + `app/backend/src/config/productTypes.ts`
+  `VALID_PRODUCT_TYPES` allowlist — both repeat `ProductType` by hand.
+- `app/backend/src/types/models.ts` mirrors the Pydantic models for the
+  Express backend.
+
+End-state for this doc: hand-typed `models.ts` becomes a thin re-export
+shim from `generated.ts`. The backend Zod enum is derived from the same
+generated artifact. Adding a product type collapses from 6 files to 2 +
+a codegen run.
+
+`app/backend/src/types/models.ts` is **deliberately not migrated** —
+the Express backend is slated for deletion in PYTHON_BACKEND.md Phase 3,
+so rewiring it is wasted work.
 
 ---
 
@@ -31,15 +40,9 @@ codegen run.
 
 | Phase | Scope | State |
 |---|---|---|
-| **0** | `pydantic-to-typescript` dep, `scripts/gen_types.py`, `./Quickstart gen-types`, CLAUDE.md docs | ✅ shipped 2026-05-02 |
-| **0a-i** | `generated.ts` committed, `test-codegen` CI gate, `models.ts` migration banner | ✅ shipped 2026-05-02 |
 | **0a-ii** | Frontend `models.ts` rewritten to re-export from `generated.ts`; consumer fix-ups | ⏳ pending |
 | **0b** | Backend `routes/search.ts` Zod enum + `config/productTypes.ts` allowlist derived from generated | ⏳ pending (depends on 0a-ii or can be done in parallel) |
 | **0c** | "Adding a new product type" runbook collapses to 2 files + `gen-types` run | ⏳ pending (paperwork, lands with 0a-ii) |
-
-`app/backend/src/types/models.ts` is **deliberately not migrated** —
-the Express backend is slated for deletion in PYTHON_BACKEND.md Phase 3,
-so rewiring it is wasted work.
 
 ---
 
@@ -213,6 +216,5 @@ If your task touches any of these, surface this doc:
 ## References
 
 - `todo/PYTHON_BACKEND.md` — bigger plan; Phase 0 lives here now.
-- `todo/REFACTOR.md` §4.2, §4.5 — the audit findings this operationalises.
 - `scripts/gen_types.py` — the codegen wrapper.
 - `pydantic-to-typescript` — https://github.com/phillipdupuis/pydantic-to-typescript
