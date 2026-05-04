@@ -999,17 +999,7 @@ export interface Manufacturer {
    * List of product types offered (e.g., 'motor', 'drive')
    */
   offered_product_types?:
-    | (
-        | "motor"
-        | "drive"
-        | "gearhead"
-        | "robot_arm"
-        | "factory"
-        | "datasheet"
-        | "contactor"
-        | "electric_cylinder"
-        | "linear_actuator"
-      )[]
+    | ("motor" | "drive" | "gearhead" | "robot_arm" | "contactor" | "electric_cylinder" | "linear_actuator")[]
     | null;
   PK: string;
   SK: string;
@@ -1110,16 +1100,7 @@ export interface ProductBase {
   /**
    * Type of product (e.g., 'motor', 'drive')
    */
-  product_type:
-    | "motor"
-    | "drive"
-    | "gearhead"
-    | "robot_arm"
-    | "factory"
-    | "datasheet"
-    | "contactor"
-    | "electric_cylinder"
-    | "linear_actuator";
+  product_type: "motor" | "drive" | "gearhead" | "robot_arm" | "contactor" | "electric_cylinder" | "linear_actuator";
   /**
    * Product name
    */
@@ -1344,3 +1325,20 @@ export interface TeachPendant {
    */
   cable_length?: ValueUnit | null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Generated constants — derived from SCHEMA_CHOICES in
+// specodex/config.py (auto-discovered product types). Use the
+// PRODUCT_TYPES tuple as the single source of truth in TS
+// (e.g. for a Zod enum or an allowlist).
+// ─────────────────────────────────────────────────────────────
+export const PRODUCT_TYPES = [
+  "contactor",
+  "drive",
+  "electric_cylinder",
+  "gearhead",
+  "linear_actuator",
+  "motor",
+  "robot_arm",
+] as const;
+export type ProductTypeLiteral = (typeof PRODUCT_TYPES)[number];
