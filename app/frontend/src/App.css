@@ -55,6 +55,12 @@
   --success: #5c5c4a;
   --warning: #c8941a;
   --danger: #7a1f1f;
+
+  /* Scrollbar — sepia thumb on transparent track so it reads as part of
+   * the page, not a system widget. STYLE.md Phase 5. */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #b8ac85;
+  --scrollbar-thumb-hover: #8a7f5c;
 }
 
 :root[data-theme="dark"],
@@ -124,12 +130,41 @@
   --success: #a09c80;
   --warning: #c8941a;
   --danger: #a03525;
+
+  /* Scrollbar — warm-ink thumb on transparent track. STYLE.md Phase 5. */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #5c5c4a;
+  --scrollbar-thumb-hover: #7a7a64;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Themed scrollbars — universal, no class needed. Replaces native UA
+ * scrollbar chrome (chunky gray on Windows, ghost-thin on macOS) with
+ * a sepia thumb that matches the field-manual palette in both themes.
+ * STYLE.md Phase 5. The `.header nav` rule below intentionally overrides
+ * to hide the bar on the swipeable mobile nav row. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 body {
