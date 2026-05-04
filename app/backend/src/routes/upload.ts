@@ -33,7 +33,12 @@ const BUCKET = process.env.UPLOAD_BUCKET || `datasheetminer-uploads-${config.sta
  */
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { product_name, manufacturer, product_type, pages, filename } = req.body;
+    // Express 5 leaves `req.body` undefined when the request's
+    // Content-Type doesn't match the JSON parser's accept list (Express 4
+    // would default to {}). The contract test in upload.contract.test.ts
+    // sends text/plain to verify we still reject with a 4xx — guard the
+    // destructure so it falls through to the missing-fields 400 path.
+    const { product_name, manufacturer, product_type, pages, filename } = req.body ?? {};
 
     if (!product_name || !manufacturer || !product_type || !filename) {
       res.status(400).json({
