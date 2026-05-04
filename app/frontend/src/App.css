@@ -6864,6 +6864,29 @@ input.transmission-param-input {
   background: color-mix(in srgb, #c2557a 22%, var(--bg-tertiary));
 }
 
+/* App-native tooltip (replaces the OS `title` attribute). Portaled to
+ * document.body, fixed-positioned by the Tooltip component. STYLE.md
+ * Phase 1.
+ *
+ * Sized small (13px text, 8px padding) so it reads as a hint, not a
+ * popover. Surface tokens match the popover/card vocabulary so the
+ * tooltip family feels coherent in both themes. */
+.app-tooltip {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 9px;
+  max-width: 280px;
+  box-shadow: 0 4px 12px var(--shadow-md);
+  z-index: 1100;
+  /* The component sets pointerEvents:none inline so the tooltip never
+   * intercepts the cursor; this rule just nails the visual contract. */
+}
+
 /* Portaled popover — fixed positioning lets it escape the cell's
  * overflow:hidden. Border + shadow give it weight so it reads as a
  * separate surface above the table. */
